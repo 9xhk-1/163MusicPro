@@ -57,6 +57,18 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         String cookie = prefs.getString("cookie", "");
         playerManager.setCookie(cookie);
 
+        // Load saved API server URL
+        String apiServer = prefs.getString("api_server", "");
+        MusicApiHelper.setApiServerUrl(apiServer);
+
+        // Load saved play mode
+        String playModeStr = prefs.getString("play_mode", "LIST_LOOP");
+        try {
+            playerManager.setPlayMode(MusicPlayerManager.PlayMode.valueOf(playModeStr));
+        } catch (Exception e) {
+            playerManager.setPlayMode(MusicPlayerManager.PlayMode.LIST_LOOP);
+        }
+
         // Enable marquee
         tvSongName.setSelected(true);
 
@@ -117,9 +129,16 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     protected void onResume() {
         super.onResume();
         playerManager.setCallback(this);
-        // Reload cookie in case it changed
+        // Reload settings in case they changed
         SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
         playerManager.setCookie(prefs.getString("cookie", ""));
+        MusicApiHelper.setApiServerUrl(prefs.getString("api_server", ""));
+        String playModeStr = prefs.getString("play_mode", "LIST_LOOP");
+        try {
+            playerManager.setPlayMode(MusicPlayerManager.PlayMode.valueOf(playModeStr));
+        } catch (Exception e) {
+            playerManager.setPlayMode(MusicPlayerManager.PlayMode.LIST_LOOP);
+        }
         updateUI();
         if (playerManager.isPlaying()) {
             startSeekBarUpdate();

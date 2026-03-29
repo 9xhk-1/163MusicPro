@@ -7,8 +7,15 @@ import android.os.Looper;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class MusicPlayerManager {
+
+    public enum PlayMode {
+        LIST_LOOP,      // 列表循环
+        SINGLE_REPEAT,  // 单曲循环
+        RANDOM          // 随机播放
+    }
 
     public interface PlayerCallback {
         void onSongChanged(Song song);
@@ -23,6 +30,8 @@ public class MusicPlayerManager {
     private boolean isPlaying = false;
     private PlayerCallback callback;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private PlayMode playMode = PlayMode.LIST_LOOP;
+    private final Random random = new Random();
 
     private MusicPlayerManager() {}
 
@@ -62,6 +71,14 @@ public class MusicPlayerManager {
         return isPlaying;
     }
 
+    public void setPlayMode(PlayMode mode) {
+        this.playMode = mode;
+    }
+
+    public PlayMode getPlayMode() {
+        return playMode;
+    }
+
     public void play(String url) {
         stop();
         mediaPlayer = new MediaPlayer();
@@ -77,7 +94,7 @@ public class MusicPlayerManager {
                 isPlaying = true;
                 notifyPlayStateChanged(true);
             });
-            mediaPlayer.setOnCompletionListener(mp -> next());
+            mediaPlayer.setOnCompletionListener(mp -> onSongCompleted());
             mediaPlayer.setOnErrorListener((mp, what, extra) -> {
                 isPlaying = false;
                 notifyPlayStateChanged(false);
@@ -85,11 +102,10 @@ public class MusicPlayerManager {
                 if (song != null) {
                     song.setUrl(null);
                 }
-                // If cookie was used, retry fetching URL without VIP endpoints
-                String cookie = getCookie();
-                if (cookie != null && !cookie.isEmpty() && song != null) {
-                    boolean tryVip = false;
-                    MusicApiHelper.getSongUrl(song.getId(), cookie, tryVip,
+                // Retry without cached URL
+                if (song != null) {
+                    String cookie = getCookie();
+                    MusicApiHelper.getSongUrl(song.getId(), cookie, false,
                             new MusicApiHelper.UrlCallback() {
                                 @Override
                                 public void onResult(String retryUrl) {
@@ -98,7 +114,7 @@ public class MusicPlayerManager {
                                         play(retryUrl);
                                     } else if (callback != null) {
                                         mainHandler.post(() -> callback.onError(
-                                                "Playback error: " + what));
+                                                "播放错误: " + what));
                                     }
                                 }
 
@@ -106,12 +122,12 @@ public class MusicPlayerManager {
                                 public void onError(String message) {
                                     if (callback != null) {
                                         mainHandler.post(() -> callback.onError(
-                                                "Playback error: " + what));
+                                                "播放错误: " + what));
                                     }
                                 }
                             });
                 } else if (callback != null) {
-                    mainHandler.post(() -> callback.onError("Playback error: " + what));
+                    mainHandler.post(() -> callback.onError("播放错误: " + what));
                 }
                 return true;
             });
@@ -186,15 +202,65 @@ public class MusicPlayerManager {
         }
     }
 
+    /**
+     * Called when current song finishes playing.
+     * Behavior depends on play mode.
+     */
+    private void onSongCompleted() {
+        if (playlist.isEmpty()) return;
+        switch (playMode) {
+            case SINGLE_REPEAT:
+                // Replay current song
+                playCurrent();
+                break;
+            case RANDOM:
+                // Pick a random song
+                if (playlist.size() > 1) {
+                    int newIndex;
+                    do {
+                        newIndex = random.nextInt(playlist.size());
+                    } while (newIndex == currentIndex);
+                    currentIndex = newIndex;
+                }
+                playCurrent();
+                break;
+            case LIST_LOOP:
+            default:
+                currentIndex = (currentIndex + 1) % playlist.size();
+                playCurrent();
+                break;
+        }
+    }
+
     public void next() {
         if (playlist.isEmpty()) return;
-        currentIndex = (currentIndex + 1) % playlist.size();
+        if (playMode == PlayMode.RANDOM) {
+            if (playlist.size() > 1) {
+                int newIndex;
+                do {
+                    newIndex = random.nextInt(playlist.size());
+                } while (newIndex == currentIndex);
+                currentIndex = newIndex;
+            }
+        } else {
+            currentIndex = (currentIndex + 1) % playlist.size();
+        }
         playCurrent();
     }
 
     public void previous() {
         if (playlist.isEmpty()) return;
-        currentIndex = (currentIndex - 1 + playlist.size()) % playlist.size();
+        if (playMode == PlayMode.RANDOM) {
+            if (playlist.size() > 1) {
+                int newIndex;
+                do {
+                    newIndex = random.nextInt(playlist.size());
+                } while (newIndex == currentIndex);
+                currentIndex = newIndex;
+            }
+        } else {
+            currentIndex = (currentIndex - 1 + playlist.size()) % playlist.size();
+        }
         playCurrent();
     }
 
@@ -217,7 +283,7 @@ public class MusicPlayerManager {
                 @Override
                 public void onError(String message) {
                     if (callback != null) {
-                        callback.onError("Cannot get song URL: " + message);
+                        callback.onError("无法获取歌曲链接: " + message);
                     }
                 }
             });
@@ -227,7 +293,7 @@ public class MusicPlayerManager {
     private String cookieValue = "";
 
     public void setCookie(String cookie) {
-        this.cookieValue = cookie;
+        this.cookieValue = cookie != null ? cookie : "";
     }
 
     public String getCookie() {

@@ -1,44 +1,112 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_dark"
-    android:orientation="vertical"
-    android:padding="10dp">
+    android:fillViewport="true">
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/settings"
-        android:textColor="@color/white"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:paddingBottom="8dp" />
+        android:orientation="vertical"
+        android:padding="10dp">
 
-    <EditText
-        android:id="@+id/et_cookie"
-        android:layout_width="match_parent"
-        android:layout_height="100dp"
-        android:background="@color/gray_light"
-        android:gravity="top|start"
-        android:hint="@string/cookie_hint"
-        android:inputType="textMultiLine"
-        android:padding="8dp"
-        android:textColor="@color/black"
-        android:textColorHint="@color/gray_text"
-        android:textSize="11sp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/settings"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:paddingBottom="8dp" />
 
-    <TextView
-        android:id="@+id/btn_save_cookie"
-        android:layout_width="match_parent"
-        android:layout_height="36dp"
-        android:layout_marginTop="8dp"
-        android:background="@color/colorPrimary"
-        android:gravity="center"
-        android:text="@string/save_cookie"
-        android:textColor="@color/white"
-        android:textSize="14sp"
-        android:clickable="true"
-        android:focusable="true" />
-</LinearLayout>
+        <!-- API Server URL -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/api_server_label"
+            android:textColor="@color/gray_text"
+            android:textSize="12sp"
+            android:paddingBottom="2dp" />
+
+        <EditText
+            android:id="@+id/et_api_server"
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:background="@color/gray_light"
+            android:hint="@string/api_server_hint"
+            android:inputType="textUri"
+            android:padding="8dp"
+            android:singleLine="true"
+            android:textColor="@color/black"
+            android:textColorHint="@color/gray_text"
+            android:textSize="11sp" />
+
+        <!-- Cookie -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Cookie"
+            android:textColor="@color/gray_text"
+            android:textSize="12sp"
+            android:paddingTop="6dp"
+            android:paddingBottom="2dp" />
+
+        <EditText
+            android:id="@+id/et_cookie"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:background="@color/gray_light"
+            android:gravity="top|start"
+            android:hint="@string/cookie_hint"
+            android:inputType="textMultiLine"
+            android:padding="8dp"
+            android:textColor="@color/black"
+            android:textColorHint="@color/gray_text"
+            android:textSize="11sp" />
+
+        <!-- Save button -->
+        <TextView
+            android:id="@+id/btn_save_cookie"
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:layout_marginTop="6dp"
+            android:background="@color/colorPrimary"
+            android:gravity="center"
+            android:text="@string/save_settings"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <!-- QR Login button -->
+        <TextView
+            android:id="@+id/btn_qr_login"
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:layout_marginTop="6dp"
+            android:background="@color/colorAccent"
+            android:gravity="center"
+            android:text="@string/qr_login"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <!-- Play mode button -->
+        <TextView
+            android:id="@+id/btn_play_mode"
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:layout_marginTop="6dp"
+            android:background="@color/bg_dark"
+            android:gravity="center"
+            android:text="@string/play_mode_list_loop"
+            android:textColor="@color/white"
+            android:textSize="13sp"
+            android:clickable="true"
+            android:focusable="true" />
+
+    </LinearLayout>
+</ScrollView>

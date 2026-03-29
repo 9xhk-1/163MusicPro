@@ -5,9 +5,18 @@
     <string name="search">搜索</string>
     <string name="favorites">收藏</string>
     <string name="settings">设置</string>
+    <string name="save_settings">保存设置</string>
     <string name="save_cookie">保存Cookie</string>
-    <string name="cookie_hint">粘贴Cookie，例如：MUSIC_U=xxx;__csrf=xxx</string>
+    <string name="cookie_hint">Cookie（扫码登录后自动填入，也可手动粘贴）</string>
     <string name="no_song">暂无歌曲</string>
     <string name="more">更多</string>
     <string name="search_history_hint">长按可删除记录</string>
+    <string name="api_server_label">API服务器地址</string>
+    <string name="api_server_hint">例如: http://yumbo.top:3000</string>
+    <string name="qr_login">扫码登录</string>
+    <string name="qr_loading">正在获取二维码…</string>
+    <string name="qr_refresh">刷新二维码</string>
+    <string name="play_mode_list_loop">播放模式: 列表循环 🔁</string>
+    <string name="play_mode_single">播放模式: 单曲循环 🔂</string>
+    <string name="play_mode_random">播放模式: 随机播放 🔀</string>
 </resources>
