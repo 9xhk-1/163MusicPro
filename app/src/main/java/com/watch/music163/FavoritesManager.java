@@ -62,7 +62,8 @@ public class FavoritesManager {
                         obj.optString("artist", ""),
                         obj.optString("album", "")
                 );
-                song.setUrl(obj.optString("url", null));
+                String url = obj.has("url") && !obj.isNull("url") ? obj.getString("url") : null;
+                song.setUrl(url);
                 list.add(song);
             }
         } catch (Exception e) {

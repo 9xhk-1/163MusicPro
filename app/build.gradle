@@ -5,11 +5,12 @@ plugins {
 android {
     namespace 'com.watch.music163'
     compileSdk 34
+    buildToolsVersion "34.0.0"
 
     defaultConfig {
         applicationId "com.watch.music163"
         minSdk 24
-        targetSdk 26
+        targetSdk 26 // Target Android 8.0 for kids' smartwatch compatibility
         versionCode 1
         versionName "1.0"
     }

@@ -23,6 +23,9 @@ public class MusicApiHelper {
             "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     private static final String REFERER = "https://music.163.com";
 
+    private static final int CONNECT_TIMEOUT_MS = 10000;
+    private static final int READ_TIMEOUT_MS = 10000;
+
     private static final ExecutorService executor = Executors.newCachedThreadPool();
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -119,8 +122,8 @@ public class MusicApiHelper {
         if (cookie != null && !cookie.isEmpty()) {
             conn.setRequestProperty("Cookie", cookie);
         }
-        conn.setConnectTimeout(10000);
-        conn.setReadTimeout(10000);
+        conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        conn.setReadTimeout(READ_TIMEOUT_MS);
         try {
             BufferedReader reader = new BufferedReader(
                     new InputStreamReader(conn.getInputStream(), "UTF-8"));

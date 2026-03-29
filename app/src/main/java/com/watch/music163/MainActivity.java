@@ -13,6 +13,9 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity implements MusicPlayerManager.PlayerCallback {
 
+    private static final String HEART_OUTLINE = "\u2661";
+    private static final String HEART_FILLED = "\u2665";
+
     private TextView tvSongName;
     private TextView tvArtist;
     private TextView btnPlay;
@@ -89,10 +92,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         if (song == null) return;
         if (favoritesManager.isFavorite(song.getId())) {
             favoritesManager.removeFavorite(song);
-            btnFavorite.setText("\u2661"); // ♡
+            btnFavorite.setText(HEART_OUTLINE); // ♡
         } else {
             favoritesManager.addFavorite(song);
-            btnFavorite.setText("\u2665"); // ♥
+            btnFavorite.setText(HEART_FILLED); // ♥
         }
     }
 
@@ -102,11 +105,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             tvSongName.setText(song.getName());
             tvArtist.setText(song.getArtist());
             btnFavorite.setText(
-                    favoritesManager.isFavorite(song.getId()) ? "\u2665" : "\u2661");
+                    favoritesManager.isFavorite(song.getId()) ? HEART_FILLED : HEART_OUTLINE);
         } else {
             tvSongName.setText(R.string.no_song);
             tvArtist.setText("");
-            btnFavorite.setText("\u2661");
+            btnFavorite.setText(HEART_OUTLINE);
         }
         btnPlay.setText(playerManager.isPlaying() ? "\u23F8" : "\u25B6");
     }
@@ -116,7 +119,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         tvSongName.setText(song.getName());
         tvArtist.setText(song.getArtist());
         btnFavorite.setText(
-                favoritesManager.isFavorite(song.getId()) ? "\u2665" : "\u2661");
+                favoritesManager.isFavorite(song.getId()) ? HEART_FILLED : HEART_OUTLINE);
     }
 
     @Override
