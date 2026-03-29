@@ -5,7 +5,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.media.AudioManager;
 import android.os.Bundle;
-import android.view.View;
+import android.os.Handler;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -20,9 +21,14 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private TextView tvArtist;
     private TextView btnPlay;
     private TextView btnFavorite;
+    private SeekBar seekBar;
+    private TextView tvCurrentTime;
+    private TextView tvTotalTime;
     private MusicPlayerManager playerManager;
     private FavoritesManager favoritesManager;
     private AudioManager audioManager;
+    private final Handler seekHandler = new Handler();
+    private boolean isUserSeeking = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,6 +39,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         tvArtist = findViewById(R.id.tv_artist);
         btnPlay = findViewById(R.id.btn_play);
         btnFavorite = findViewById(R.id.btn_favorite);
+        seekBar = findViewById(R.id.seek_bar);
+        tvCurrentTime = findViewById(R.id.tv_current_time);
+        tvTotalTime = findViewById(R.id.tv_total_time);
         TextView btnPrev = findViewById(R.id.btn_prev);
         TextView btnNext = findViewById(R.id.btn_next);
         TextView btnVolDown = findViewById(R.id.btn_vol_down);
@@ -70,6 +79,33 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         btnFavorite.setOnClickListener(v -> toggleFavorite());
 
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
+                if (fromUser) {
+                    int duration = playerManager.getDuration();
+                    if (duration > 0) {
+                        tvCurrentTime.setText(formatTime(progress * duration / 1000));
+                    }
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar bar) {
+                isUserSeeking = true;
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar bar) {
+                int duration = playerManager.getDuration();
+                if (duration > 0) {
+                    int seekPos = bar.getProgress() * duration / 1000;
+                    playerManager.seekTo(seekPos);
+                }
+                isUserSeeking = false;
+            }
+        });
+
         btnMore.setOnClickListener(v ->
                 startActivity(new Intent(MainActivity.this, MoreActivity.class)));
 
@@ -85,6 +121,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
         playerManager.setCookie(prefs.getString("cookie", ""));
         updateUI();
+        if (playerManager.isPlaying()) {
+            startSeekBarUpdate();
+        }
     }
 
     private void toggleFavorite() {
@@ -125,10 +164,54 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     @Override
     public void onPlayStateChanged(boolean isPlaying) {
         btnPlay.setText(isPlaying ? "\u23F8" : "\u25B6");
+        if (isPlaying) {
+            startSeekBarUpdate();
+        } else {
+            stopSeekBarUpdate();
+        }
     }
 
     @Override
     public void onError(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
+    private final Runnable seekBarUpdateRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!isUserSeeking && playerManager.isPlaying()) {
+                int current = playerManager.getCurrentPosition();
+                int duration = playerManager.getDuration();
+                if (duration > 0) {
+                    seekBar.setMax(1000);
+                    seekBar.setProgress((int) (1000L * current / duration));
+                    tvCurrentTime.setText(formatTime(current));
+                    tvTotalTime.setText(formatTime(duration));
+                }
+            }
+            seekHandler.postDelayed(this, 500);
+        }
+    };
+
+    private void startSeekBarUpdate() {
+        seekHandler.removeCallbacks(seekBarUpdateRunnable);
+        seekHandler.post(seekBarUpdateRunnable);
+    }
+
+    private void stopSeekBarUpdate() {
+        seekHandler.removeCallbacks(seekBarUpdateRunnable);
+    }
+
+    private String formatTime(int ms) {
+        int totalSeconds = ms / 1000;
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+        return minutes + ":" + String.format("%02d", seconds);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopSeekBarUpdate();
     }
 }

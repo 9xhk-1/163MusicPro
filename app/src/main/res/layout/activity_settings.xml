@@ -41,14 +41,4 @@
         android:textSize="14sp"
         android:clickable="true"
         android:focusable="true" />
-
-    <CheckBox
-        android:id="@+id/cb_cloud_favorites"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="@string/cloud_favorites"
-        android:textColor="@color/white"
-        android:textSize="13sp"
-        android:buttonTint="@color/colorAccent" />
 </LinearLayout>

@@ -96,4 +96,15 @@
         android:layout_weight="1"
         android:divider="@color/gray_text"
         android:dividerHeight="0.5dp" />
+
+    <!-- Search history list -->
+    <ListView
+        android:id="@+id/lv_history"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="2dp"
+        android:layout_weight="1"
+        android:visibility="gone"
+        android:divider="@color/gray_text"
+        android:dividerHeight="0.5dp" />
 </LinearLayout>

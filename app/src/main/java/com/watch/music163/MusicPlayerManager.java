@@ -125,6 +125,38 @@ public class MusicPlayerManager {
         }
     }
 
+    public int getCurrentPosition() {
+        if (mediaPlayer != null) {
+            try {
+                return mediaPlayer.getCurrentPosition();
+            } catch (Exception e) {
+                return 0;
+            }
+        }
+        return 0;
+    }
+
+    public int getDuration() {
+        if (mediaPlayer != null) {
+            try {
+                return mediaPlayer.getDuration();
+            } catch (Exception e) {
+                return 0;
+            }
+        }
+        return 0;
+    }
+
+    public void seekTo(int positionMs) {
+        if (mediaPlayer != null) {
+            try {
+                mediaPlayer.seekTo(positionMs);
+            } catch (Exception e) {
+                android.util.Log.w("MusicPlayer", "Error seeking", e);
+            }
+        }
+    }
+
     public void next() {
         if (playlist.isEmpty()) return;
         currentIndex = (currentIndex + 1) % playlist.size();

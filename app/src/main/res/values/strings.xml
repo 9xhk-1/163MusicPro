@@ -6,8 +6,8 @@
     <string name="favorites">收藏</string>
     <string name="settings">设置</string>
     <string name="save_cookie">保存Cookie</string>
-    <string name="cookie_hint">请输入网易云音乐Cookie</string>
-    <string name="cloud_favorites">登录后使用云端收藏</string>
+    <string name="cookie_hint">粘贴Cookie，例如：MUSIC_U=xxx;__csrf=xxx</string>
     <string name="no_song">暂无歌曲</string>
     <string name="more">更多</string>
+    <string name="search_history_hint">长按可删除记录</string>
 </resources>
