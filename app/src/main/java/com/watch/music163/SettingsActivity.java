@@ -96,19 +96,19 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void updatePlayModeText() {
         MusicPlayerManager.PlayMode mode = playerManager.getPlayMode();
-        String text;
+        int textResId;
         switch (mode) {
             case SINGLE_REPEAT:
-                text = "播放模式: 单曲循环 🔂";
+                textResId = R.string.play_mode_single;
                 break;
             case RANDOM:
-                text = "播放模式: 随机播放 🔀";
+                textResId = R.string.play_mode_random;
                 break;
             case LIST_LOOP:
             default:
-                text = "播放模式: 列表循环 🔁";
+                textResId = R.string.play_mode_list_loop;
                 break;
         }
-        btnPlayMode.setText(text);
+        btnPlayMode.setText(textResId);
     }
 }
