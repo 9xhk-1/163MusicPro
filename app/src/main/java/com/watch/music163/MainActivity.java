@@ -85,7 +85,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 if (fromUser) {
                     int duration = playerManager.getDuration();
                     if (duration > 0) {
-                        tvCurrentTime.setText(formatTime(progress * duration / 1000));
+                        tvCurrentTime.setText(formatTime((int) ((long) progress * duration / 1000)));
                     }
                 }
             }
@@ -99,7 +99,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             public void onStopTrackingTouch(SeekBar bar) {
                 int duration = playerManager.getDuration();
                 if (duration > 0) {
-                    int seekPos = bar.getProgress() * duration / 1000;
+                    int seekPos = (int) ((long) bar.getProgress() * duration / 1000);
                     playerManager.seekTo(seekPos);
                 }
                 isUserSeeking = false;
