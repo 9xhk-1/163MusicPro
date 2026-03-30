@@ -25,4 +25,7 @@
     <string name="play_mode_random">播放模式: 随机播放 🔀</string>
     <string name="downloads">下载列表</string>
     <string name="func_more">更多功能</string>
+    <string name="keep_screen_on_on">屏幕常亮: 已开启 💡</string>
+    <string name="keep_screen_on_off">屏幕常亮: 已关闭 🌙</string>
+    <string name="lyrics">歌词</string>
 </resources>

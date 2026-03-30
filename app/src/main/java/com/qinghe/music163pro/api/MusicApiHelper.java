@@ -105,6 +105,11 @@ public class MusicApiHelper {
         void onError(String message);
     }
 
+    public interface LyricsCallback {
+        void onResult(String lrcText);
+        void onError(String message);
+    }
+
     // ==================== Search ====================
 
     public static void searchSongs(String keyword, String cookie, SearchCallback callback) {
@@ -449,6 +454,62 @@ public class MusicApiHelper {
                 mainHandler.post(() -> callback.onError(e.getMessage()));
             }
         });
+    }
+
+    // ==================== Lyrics ====================
+
+    /**
+     * Fetch lyrics for a song by its ID.
+     * (same as NeteaseCloudMusicApiBackup module/lyric_new.js)
+     */
+    public static void getLyrics(long songId, String cookie, LyricsCallback callback) {
+        executor.execute(() -> {
+            try {
+                String lrc = fetchLyrics(songId, cookie);
+                mainHandler.post(() -> callback.onResult(lrc));
+            } catch (Exception e) {
+                Log.w(TAG, "Lyrics fetch error", e);
+                mainHandler.post(() -> callback.onError(e.getMessage()));
+            }
+        });
+    }
+
+    /**
+     * Fetch lyrics synchronously (for use in download).
+     */
+    public static String fetchLyricsSync(long songId, String cookie) {
+        try {
+            return fetchLyrics(songId, cookie);
+        } catch (Exception e) {
+            Log.w(TAG, "Lyrics sync fetch error", e);
+            return null;
+        }
+    }
+
+    private static String fetchLyrics(long songId, String cookie) throws Exception {
+        JSONObject data = new JSONObject();
+        data.put("id", songId);
+        data.put("cp", false);
+        data.put("tv", 0);
+        data.put("lv", 0);
+        data.put("rv", 0);
+        data.put("kv", 0);
+
+        String csrfToken = extractCsrfToken(cookie);
+        data.put("csrf_token", csrfToken);
+
+        String response = weapiPost("/api/song/lyric/v1", data.toString(), cookie);
+        JSONObject json = new JSONObject(response);
+
+        // Extract LRC lyrics
+        JSONObject lrcObj = json.optJSONObject("lrc");
+        if (lrcObj != null) {
+            String lyric = lrcObj.optString("lyric", "");
+            if (!lyric.isEmpty()) {
+                return lyric;
+            }
+        }
+        return "";
     }
 
     // ==================== weapi POST ====================

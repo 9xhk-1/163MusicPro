@@ -85,15 +85,15 @@
             android:clickable="true"
             android:focusable="true" />
 
-        <!-- Play mode button -->
+        <!-- Keep screen on toggle -->
         <TextView
-            android:id="@+id/btn_play_mode"
+            android:id="@+id/btn_keep_screen_on"
             android:layout_width="match_parent"
             android:layout_height="34dp"
             android:layout_marginTop="4dp"
             android:background="@color/bg_dark"
             android:gravity="center"
-            android:text="@string/play_mode_list_loop"
+            android:text="@string/keep_screen_on_off"
             android:textColor="@color/white"
             android:textSize="12sp"
             android:clickable="true"

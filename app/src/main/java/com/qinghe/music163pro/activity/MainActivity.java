@@ -16,6 +16,7 @@ import android.provider.MediaStore;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -90,6 +91,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
         String cookie = prefs.getString("cookie", "");
         playerManager.setCookie(cookie);
+
+        // Apply keep screen on setting
+        if (prefs.getBoolean("keep_screen_on", false)) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
 
         // Load or generate persistent device ID
         String savedDeviceId = prefs.getString("device_id", "");
@@ -207,6 +213,12 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         } catch (Exception e) {
             playerManager.setPlayMode(MusicPlayerManager.PlayMode.LIST_LOOP);
         }
+        // Reapply keep screen on setting
+        if (prefs.getBoolean("keep_screen_on", false)) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        } else {
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
         updateUI();
         if (playerManager.isPlaying()) {
             startSeekBarUpdate();
@@ -244,7 +256,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         LinearLayout contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
         contentLayout.setGravity(Gravity.CENTER);
-        contentLayout.setPadding(dp(16), dp(20), dp(16), dp(20));
+        contentLayout.setPadding(dp(16), dp(12), dp(16), dp(12));
 
         // Title
         TextView title = new TextView(this);
@@ -252,7 +264,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         title.setTextColor(0xFFFFFFFF);
         title.setTextSize(15);
         title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, dp(12));
+        title.setPadding(0, 0, 0, dp(8));
         contentLayout.addView(title);
 
         // Function grid - 2 per row
@@ -274,7 +286,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         LinearLayout row2 = new LinearLayout(this);
         row2.setOrientation(LinearLayout.HORIZONTAL);
         row2.setGravity(Gravity.CENTER);
-        row2.setPadding(0, dp(8), 0, 0);
+        row2.setPadding(0, dp(4), 0, 0);
         row2.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
@@ -310,6 +322,54 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             overlayTimerRunnable.run();
         }
         contentLayout.addView(row2);
+
+        // Row 3: 播放模式 + 歌词
+        LinearLayout row3 = new LinearLayout(this);
+        row3.setOrientation(LinearLayout.HORIZONTAL);
+        row3.setGravity(Gravity.CENTER);
+        row3.setPadding(0, dp(4), 0, 0);
+        row3.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        String playModeIcon;
+        String playModeLabel;
+        switch (playerManager.getPlayMode()) {
+            case SINGLE_REPEAT:
+                playModeIcon = "🔂";
+                playModeLabel = "单曲循环";
+                break;
+            case RANDOM:
+                playModeIcon = "🔀";
+                playModeLabel = "随机播放";
+                break;
+            case LIST_LOOP:
+            default:
+                playModeIcon = "🔁";
+                playModeLabel = "列表循环";
+                break;
+        }
+        row3.addView(createFuncItem(playModeIcon, playModeLabel,
+                v -> onFuncCyclePlayMode()));
+        row3.addView(createFuncItem("📝", "歌词",
+                v -> onFuncLyrics()));
+        contentLayout.addView(row3);
+
+        // Close button at bottom center
+        TextView btnClose = new TextView(this);
+        btnClose.setText("✕");
+        btnClose.setTextColor(0xFFFFFFFF);
+        btnClose.setTextSize(18);
+        btnClose.setGravity(Gravity.CENTER);
+        btnClose.setPadding(dp(16), dp(8), dp(16), dp(8));
+        LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        closeParams.gravity = Gravity.CENTER_HORIZONTAL;
+        closeParams.topMargin = dp(8);
+        btnClose.setLayoutParams(closeParams);
+        btnClose.setClickable(true);
+        btnClose.setFocusable(true);
+        btnClose.setOnClickListener(v -> dismissOverlay());
+        contentLayout.addView(btnClose);
 
         scrollView.addView(contentLayout);
         overlayContainer.addView(scrollView);
@@ -387,6 +447,46 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void onFuncCyclePlayMode() {
+        MusicPlayerManager.PlayMode current = playerManager.getPlayMode();
+        MusicPlayerManager.PlayMode next;
+        switch (current) {
+            case LIST_LOOP:
+                next = MusicPlayerManager.PlayMode.SINGLE_REPEAT;
+                break;
+            case SINGLE_REPEAT:
+                next = MusicPlayerManager.PlayMode.RANDOM;
+                break;
+            case RANDOM:
+            default:
+                next = MusicPlayerManager.PlayMode.LIST_LOOP;
+                break;
+        }
+        playerManager.setPlayMode(next);
+        SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
+        prefs.edit().putString("play_mode", next.name()).apply();
+        dismissOverlay();
+        String modeName;
+        switch (next) {
+            case SINGLE_REPEAT:
+                modeName = "单曲循环 🔂";
+                break;
+            case RANDOM:
+                modeName = "随机播放 🔀";
+                break;
+            case LIST_LOOP:
+            default:
+                modeName = "列表循环 🔁";
+                break;
+        }
+        Toast.makeText(this, "播放模式: " + modeName, Toast.LENGTH_SHORT).show();
+    }
+
+    private void onFuncLyrics() {
+        dismissOverlay();
+        startActivity(new Intent(this, LyricsActivity.class));
     }
 
     private void onFuncSetRingtone(Song song) {

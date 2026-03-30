@@ -1,9 +1,11 @@
 package com.qinghe.music163pro.activity;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -32,6 +34,12 @@ public class FavoritesListActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_favorites_list);
+
+        // Apply keep screen on setting
+        SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
+        if (prefs.getBoolean("keep_screen_on", false)) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
 
         ListView lvFavorites = findViewById(R.id.lv_favorites);
         TextView tvEmpty = findViewById(R.id.tv_empty);

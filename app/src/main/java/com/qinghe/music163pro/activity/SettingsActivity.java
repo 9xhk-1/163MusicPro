@@ -3,6 +3,7 @@ package com.qinghe.music163pro.activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -17,7 +18,7 @@ public class SettingsActivity extends AppCompatActivity {
     private static final String PREFS_NAME = "music163_settings";
 
     private EditText etCookie;
-    private TextView btnPlayMode;
+    private TextView btnKeepScreenOn;
     private SharedPreferences prefs;
     private MusicPlayerManager playerManager;
 
@@ -29,16 +30,21 @@ public class SettingsActivity extends AppCompatActivity {
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         playerManager = MusicPlayerManager.getInstance();
 
+        // Apply keep screen on setting
+        if (prefs.getBoolean("keep_screen_on", false)) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+
         etCookie = findViewById(R.id.et_cookie);
         TextView btnSave = findViewById(R.id.btn_save_cookie);
         TextView btnQrLogin = findViewById(R.id.btn_qr_login);
         TextView btnSmsLogin = findViewById(R.id.btn_sms_login);
-        btnPlayMode = findViewById(R.id.btn_play_mode);
+        btnKeepScreenOn = findViewById(R.id.btn_keep_screen_on);
 
         // Load saved values
         etCookie.setText(prefs.getString("cookie", ""));
 
-        updatePlayModeText();
+        updateKeepScreenOnText();
 
         btnSave.setOnClickListener(v -> {
             String cookie = etCookie.getText().toString().trim();
@@ -59,7 +65,7 @@ public class SettingsActivity extends AppCompatActivity {
             startActivity(new Intent(this, SmsLoginActivity.class))
         );
 
-        btnPlayMode.setOnClickListener(v -> cyclePlayMode());
+        btnKeepScreenOn.setOnClickListener(v -> toggleKeepScreenOn());
     }
 
     @Override
@@ -67,44 +73,23 @@ public class SettingsActivity extends AppCompatActivity {
         super.onResume();
         // Refresh cookie field in case QR/SMS login updated it
         etCookie.setText(prefs.getString("cookie", ""));
-        updatePlayModeText();
+        updateKeepScreenOnText();
     }
 
-    private void cyclePlayMode() {
-        MusicPlayerManager.PlayMode current = playerManager.getPlayMode();
-        MusicPlayerManager.PlayMode next;
-        switch (current) {
-            case LIST_LOOP:
-                next = MusicPlayerManager.PlayMode.SINGLE_REPEAT;
-                break;
-            case SINGLE_REPEAT:
-                next = MusicPlayerManager.PlayMode.RANDOM;
-                break;
-            case RANDOM:
-            default:
-                next = MusicPlayerManager.PlayMode.LIST_LOOP;
-                break;
+    private void toggleKeepScreenOn() {
+        boolean current = prefs.getBoolean("keep_screen_on", false);
+        boolean next = !current;
+        prefs.edit().putBoolean("keep_screen_on", next).apply();
+        if (next) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        } else {
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
-        playerManager.setPlayMode(next);
-        prefs.edit().putString("play_mode", next.name()).apply();
-        updatePlayModeText();
+        updateKeepScreenOnText();
     }
 
-    private void updatePlayModeText() {
-        MusicPlayerManager.PlayMode mode = playerManager.getPlayMode();
-        int textResId;
-        switch (mode) {
-            case SINGLE_REPEAT:
-                textResId = R.string.play_mode_single;
-                break;
-            case RANDOM:
-                textResId = R.string.play_mode_random;
-                break;
-            case LIST_LOOP:
-            default:
-                textResId = R.string.play_mode_list_loop;
-                break;
-        }
-        btnPlayMode.setText(textResId);
+    private void updateKeepScreenOnText() {
+        boolean on = prefs.getBoolean("keep_screen_on", false);
+        btnKeepScreenOn.setText(on ? R.string.keep_screen_on_on : R.string.keep_screen_on_off);
     }
 }

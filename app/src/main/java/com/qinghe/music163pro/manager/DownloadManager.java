@@ -33,6 +33,7 @@ public class DownloadManager {
     private static final String DOWNLOAD_DIR = "163Music/Download";
     private static final String INFO_FILE = "info.json";
     private static final String SONG_FILE = "song.mp3";
+    private static final String LYRICS_FILE = "lyrics.lrc";
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -99,6 +100,9 @@ public class DownloadManager {
                 // Save song info JSON
                 saveSongInfo(songDir, song);
 
+                // Download lyrics
+                downloadLyrics(songDir, song);
+
                 String filePath = outputFile.getAbsolutePath();
                 mainHandler.post(() -> callback.onSuccess(filePath));
             } finally {
@@ -130,6 +134,27 @@ public class DownloadManager {
             fos.close();
         } catch (Exception e) {
             Log.w(TAG, "Error saving song info", e);
+        }
+    }
+
+    /**
+     * Download lyrics for a song and save as lyrics.lrc in the song's download folder.
+     */
+    private static void downloadLyrics(File songDir, Song song) {
+        if (song.getId() <= 0) return;
+        try {
+            String lrcText = MusicApiHelper.fetchLyricsSync(song.getId(), null);
+            if (lrcText != null && !lrcText.isEmpty()) {
+                File lrcFile = new File(songDir, LYRICS_FILE);
+                FileOutputStream fos = new FileOutputStream(lrcFile);
+                OutputStreamWriter writer = new OutputStreamWriter(fos, "UTF-8");
+                writer.write(lrcText);
+                writer.flush();
+                writer.close();
+                fos.close();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error downloading lyrics", e);
         }
     }
 

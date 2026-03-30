@@ -32,6 +32,7 @@
         <activity android:name=".activity.SettingsActivity" android:exported="false" />
         <activity android:name=".activity.QrLoginActivity" android:exported="false" />
         <activity android:name=".activity.SmsLoginActivity" android:exported="false" />
+        <activity android:name=".activity.LyricsActivity" android:exported="false" />
 
         <service
             android:name=".service.MusicPlaybackService"
