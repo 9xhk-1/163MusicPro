@@ -1,92 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_dark"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:padding="12dp">
+    android:fillViewport="true">
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/more"
-        android:textColor="@color/white"
-        android:textSize="15sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:paddingBottom="12dp" />
-
-    <!-- Row 1: Favorites + Search -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center">
+        android:orientation="vertical"
+        android:padding="8dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/more"
+            android:textColor="@color/white"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:paddingBottom="8dp" />
 
         <TextView
             android:id="@+id/btn_menu_favorites"
-            android:layout_width="0dp"
-            android:layout_height="64dp"
-            android:layout_weight="1"
-            android:layout_margin="4dp"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="4dp"
             android:background="@color/colorPrimary"
-            android:gravity="center"
-            android:text="♥ 收藏列表"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:text="♥  收藏列表"
             android:textColor="@color/white"
-            android:textSize="13sp"
+            android:textSize="14sp"
             android:clickable="true"
             android:focusable="true" />
 
         <TextView
             android:id="@+id/btn_menu_search"
-            android:layout_width="0dp"
-            android:layout_height="64dp"
-            android:layout_weight="1"
-            android:layout_margin="4dp"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="4dp"
             android:background="@color/colorPrimary"
-            android:gravity="center"
-            android:text="�� 搜索"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:text="🔍  搜索"
             android:textColor="@color/white"
-            android:textSize="13sp"
+            android:textSize="14sp"
             android:clickable="true"
             android:focusable="true" />
-    </LinearLayout>
-
-    <!-- Row 2: Downloads + Settings -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:orientation="horizontal"
-        android:gravity="center">
 
         <TextView
             android:id="@+id/btn_menu_downloads"
-            android:layout_width="0dp"
-            android:layout_height="64dp"
-            android:layout_weight="1"
-            android:layout_margin="4dp"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="4dp"
             android:background="@color/colorPrimary"
-            android:gravity="center"
-            android:text="⬇ 下载列表"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:text="⬇  下载列表"
             android:textColor="@color/white"
-            android:textSize="13sp"
+            android:textSize="14sp"
             android:clickable="true"
             android:focusable="true" />
 
         <TextView
             android:id="@+id/btn_menu_settings"
-            android:layout_width="0dp"
-            android:layout_height="64dp"
-            android:layout_weight="1"
-            android:layout_margin="4dp"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="4dp"
             android:background="@color/colorPrimary"
-            android:gravity="center"
-            android:text="⚙ 设置"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:text="⚙  设置"
             android:textColor="@color/white"
-            android:textSize="13sp"
+            android:textSize="14sp"
             android:clickable="true"
             android:focusable="true" />
+
     </LinearLayout>
-</LinearLayout>
+</ScrollView>

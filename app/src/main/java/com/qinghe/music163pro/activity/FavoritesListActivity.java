@@ -1,5 +1,6 @@
 package com.qinghe.music163pro.activity;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -59,6 +60,10 @@ public class FavoritesListActivity extends AppCompatActivity {
             List<Song> playlist = new ArrayList<>(favoritesList);
             playerManager.setPlaylist(playlist, position);
             playerManager.playCurrent();
+            // Navigate back to MainActivity (player screen)
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(intent);
             finish();
         });
 

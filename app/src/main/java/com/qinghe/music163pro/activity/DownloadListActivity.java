@@ -1,6 +1,6 @@
 package com.qinghe.music163pro.activity;
 
-import android.media.MediaPlayer;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -65,8 +65,7 @@ public class DownloadListActivity extends AppCompatActivity {
         lvDownloads.setAdapter(adapter);
 
         lvDownloads.setOnItemClickListener((parent, view, position, id) -> {
-            File file = downloadedFiles.get(position);
-            playLocalFile(file);
+            playDownloadedSong(position);
         });
 
         loadDownloads();
@@ -94,32 +93,47 @@ public class DownloadListActivity extends AppCompatActivity {
         }
     }
 
-    private void playLocalFile(File file) {
+    /**
+     * Build a full playlist from all downloaded files and play the selected one.
+     * Uses local file paths as URLs so MusicPlayerManager.playCurrent() can
+     * fall back to the cached URL (local path) for playback.
+     */
+    private void playDownloadedSong(int position) {
         try {
-            String name = file.getName();
-            if (name.endsWith(".mp3")) {
-                name = name.substring(0, name.length() - 4);
-            }
-            String songName = name;
-            String artist = "";
-            int dashIdx = name.indexOf(" - ");
-            if (dashIdx > 0) {
-                songName = name.substring(0, dashIdx);
-                artist = name.substring(dashIdx + 3);
-            }
-
-            Song song = new Song(0, songName, artist, "");
-            song.setUrl(file.getAbsolutePath());
-
             List<Song> playlist = new ArrayList<>();
-            playlist.add(song);
+            for (File file : downloadedFiles) {
+                Song song = fileToSong(file);
+                playlist.add(song);
+            }
 
             MusicPlayerManager playerManager = MusicPlayerManager.getInstance();
-            playerManager.setPlaylist(playlist, 0);
+            playerManager.setPlaylist(playlist, position);
             playerManager.playCurrent();
+
+            // Navigate back to MainActivity
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(intent);
             finish();
         } catch (Exception e) {
             Toast.makeText(this, "播放失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private Song fileToSong(File file) {
+        String name = file.getName();
+        if (name.endsWith(".mp3")) {
+            name = name.substring(0, name.length() - 4);
+        }
+        String songName = name;
+        String artist = "";
+        int dashIdx = name.indexOf(" - ");
+        if (dashIdx > 0) {
+            songName = name.substring(0, dashIdx);
+            artist = name.substring(dashIdx + 3);
+        }
+        Song song = new Song(0, songName, artist, "");
+        song.setUrl(file.getAbsolutePath());
+        return song;
     }
 }

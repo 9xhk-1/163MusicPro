@@ -300,6 +300,14 @@ public class MusicPlayerManager {
         notifySongChanged(song);
         savePlaybackState();
 
+        // For local files (downloaded songs with id=0 and a local file path),
+        // play directly without fetching URL from the API.
+        if (song.getId() == 0 && song.getUrl() != null && !song.getUrl().isEmpty()) {
+            currentlyPlayingSongId = 0;
+            play(song.getUrl());
+            return;
+        }
+
         // Always fetch a fresh URL to avoid expired URL issues.
         // NetEase song URLs are time-limited, so cached URLs may not work.
         String cookie = getCookie();
@@ -344,6 +352,55 @@ public class MusicPlayerManager {
         if (callback != null) {
             mainHandler.post(() -> callback.onPlayStateChanged(playing));
         }
+    }
+
+    // ==================== Sleep Timer ====================
+
+    private long sleepTimerEndMs = 0;
+    private Runnable sleepTimerRunnable;
+
+    /**
+     * Start sleep timer. Stops playback after the specified number of minutes.
+     * @param minutes number of minutes until auto-stop
+     */
+    public void startSleepTimer(int minutes) {
+        cancelSleepTimer();
+        sleepTimerEndMs = System.currentTimeMillis() + (long) minutes * 60 * 1000;
+        sleepTimerRunnable = () -> {
+            pause();
+            sleepTimerEndMs = 0;
+        };
+        mainHandler.postDelayed(sleepTimerRunnable, (long) minutes * 60 * 1000);
+    }
+
+    /**
+     * Cancel an active sleep timer.
+     */
+    public void cancelSleepTimer() {
+        if (sleepTimerRunnable != null) {
+            mainHandler.removeCallbacks(sleepTimerRunnable);
+            sleepTimerRunnable = null;
+        }
+        sleepTimerEndMs = 0;
+    }
+
+    /**
+     * Check if a sleep timer is active.
+     */
+    public boolean isSleepTimerActive() {
+        return sleepTimerEndMs > 0 && System.currentTimeMillis() < sleepTimerEndMs;
+    }
+
+    /**
+     * Get remaining milliseconds on the sleep timer.
+     * @return remaining ms, or 0 if no timer is active
+     */
+    public long getSleepTimerRemainingMs() {
+        if (sleepTimerEndMs > 0) {
+            long remaining = sleepTimerEndMs - System.currentTimeMillis();
+            return remaining > 0 ? remaining : 0;
+        }
+        return 0;
     }
 
     // ==================== Save / Restore Playback State ====================

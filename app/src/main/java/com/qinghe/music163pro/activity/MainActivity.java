@@ -17,6 +17,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -228,17 +229,18 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Close overlay on background click
         overlayContainer.setOnClickListener(v -> dismissOverlay());
 
-        // Content layout - centered
+        // Content layout - centered, scrollable
+        ScrollView scrollView = new ScrollView(this);
+        FrameLayout.LayoutParams scrollParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        scrollParams.gravity = Gravity.CENTER;
+        scrollView.setLayoutParams(scrollParams);
+        scrollView.setOnClickListener(v -> { /* consume click */ });
+
         LinearLayout contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
         contentLayout.setGravity(Gravity.CENTER);
         contentLayout.setPadding(dp(16), dp(20), dp(16), dp(20));
-        contentLayout.setOnClickListener(v -> { /* consume click */ });
-
-        FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        contentParams.gravity = Gravity.CENTER;
-        contentLayout.setLayoutParams(contentParams);
 
         // Title
         TextView title = new TextView(this);
@@ -264,7 +266,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 v -> onFuncDownload(song)));
         contentLayout.addView(row1);
 
-        // Row 2: 设为铃声
+        // Row 2: 设为铃声 + 定时关闭
         LinearLayout row2 = new LinearLayout(this);
         row2.setOrientation(LinearLayout.HORIZONTAL);
         row2.setGravity(Gravity.CENTER);
@@ -274,13 +276,24 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         row2.addView(createFuncItem("🔔", "设为铃声",
                 v -> onFuncSetRingtone(song)));
-        // Placeholder for alignment
-        View spacer = new View(this);
-        spacer.setLayoutParams(new LinearLayout.LayoutParams(0, 1, 1));
-        row2.addView(spacer);
+
+        // Sleep timer - show remaining time if active
+        if (playerManager.isSleepTimerActive()) {
+            long remainMs = playerManager.getSleepTimerRemainingMs();
+            int totalSec = (int) (remainMs / 1000);
+            int min = totalSec / 60;
+            int sec = totalSec % 60;
+            String timerLabel = String.format("定时 %d:%02d", min, sec);
+            row2.addView(createFuncItem("⏱", timerLabel,
+                    v -> onFuncSleepTimer()));
+        } else {
+            row2.addView(createFuncItem("⏱", "定时关闭",
+                    v -> onFuncSleepTimer()));
+        }
         contentLayout.addView(row2);
 
-        overlayContainer.addView(contentLayout);
+        scrollView.addView(contentLayout);
+        overlayContainer.addView(scrollView);
         rootView.addView(overlayContainer);
     }
 
@@ -421,6 +434,161 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         } catch (Exception e) {
             Toast.makeText(this, "设置铃声失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
+    }
+
+    // ==================== Sleep Timer ====================
+
+    private void onFuncSleepTimer() {
+        dismissOverlay();
+        if (playerManager.isSleepTimerActive()) {
+            // Timer is active - show remaining time and option to cancel
+            showSleepTimerStatus();
+        } else {
+            // No timer - show options to set one
+            showSleepTimerOptions();
+        }
+    }
+
+    private void showSleepTimerOptions() {
+        FrameLayout rootView = (FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content);
+
+        overlayContainer = new FrameLayout(this);
+        overlayContainer.setLayoutParams(new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        overlayContainer.setBackgroundColor(0xCC333333);
+        overlayContainer.setOnClickListener(v -> dismissOverlay());
+
+        ScrollView scrollView = new ScrollView(this);
+        FrameLayout.LayoutParams scrollParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        scrollParams.gravity = Gravity.CENTER;
+        scrollView.setLayoutParams(scrollParams);
+        scrollView.setOnClickListener(v -> { /* consume click */ });
+
+        LinearLayout contentLayout = new LinearLayout(this);
+        contentLayout.setOrientation(LinearLayout.VERTICAL);
+        contentLayout.setGravity(Gravity.CENTER);
+        contentLayout.setPadding(dp(20), dp(20), dp(20), dp(20));
+
+        // Title
+        TextView title = new TextView(this);
+        title.setText("定时关闭");
+        title.setTextColor(0xFFFFFFFF);
+        title.setTextSize(15);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, 0, 0, dp(12));
+        contentLayout.addView(title);
+
+        // Timer options
+        int[] minutes = {5, 10, 20, 30};
+        for (int min : minutes) {
+            TextView btn = new TextView(this);
+            btn.setText(min + " 分钟");
+            btn.setTextColor(0xFFFFFFFF);
+            btn.setTextSize(14);
+            btn.setGravity(Gravity.CENTER);
+            btn.setPadding(0, dp(10), 0, dp(10));
+            btn.setBackgroundColor(0xFF424242);
+            LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            btnParams.bottomMargin = dp(4);
+            btn.setLayoutParams(btnParams);
+            btn.setClickable(true);
+            btn.setFocusable(true);
+            int finalMin = min;
+            btn.setOnClickListener(v -> {
+                playerManager.startSleepTimer(finalMin);
+                Toast.makeText(this, finalMin + "分钟后自动停止播放", Toast.LENGTH_SHORT).show();
+                dismissOverlay();
+            });
+            contentLayout.addView(btn);
+        }
+
+        scrollView.addView(contentLayout);
+        overlayContainer.addView(scrollView);
+        rootView.addView(overlayContainer);
+    }
+
+    private void showSleepTimerStatus() {
+        FrameLayout rootView = (FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content);
+
+        overlayContainer = new FrameLayout(this);
+        overlayContainer.setLayoutParams(new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        overlayContainer.setBackgroundColor(0xCC333333);
+        overlayContainer.setOnClickListener(v -> dismissOverlay());
+
+        LinearLayout contentLayout = new LinearLayout(this);
+        contentLayout.setOrientation(LinearLayout.VERTICAL);
+        contentLayout.setGravity(Gravity.CENTER);
+        contentLayout.setPadding(dp(20), dp(20), dp(20), dp(20));
+        contentLayout.setOnClickListener(v -> { /* consume click */ });
+
+        FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        contentParams.gravity = Gravity.CENTER;
+        contentLayout.setLayoutParams(contentParams);
+
+        // Title
+        TextView title = new TextView(this);
+        title.setText("定时关闭");
+        title.setTextColor(0xFFFFFFFF);
+        title.setTextSize(15);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, 0, 0, dp(12));
+        contentLayout.addView(title);
+
+        // Remaining time display
+        TextView tvRemaining = new TextView(this);
+        tvRemaining.setTextColor(0xFFFFFFFF);
+        tvRemaining.setTextSize(20);
+        tvRemaining.setGravity(Gravity.CENTER);
+        tvRemaining.setPadding(0, dp(8), 0, dp(16));
+        contentLayout.addView(tvRemaining);
+
+        // Update remaining time every second
+        final Handler timerDisplayHandler = new Handler();
+        Runnable timerDisplayRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (overlayContainer == null) return;
+                long remainMs = playerManager.getSleepTimerRemainingMs();
+                if (remainMs > 0) {
+                    int totalSec = (int) (remainMs / 1000);
+                    int min = totalSec / 60;
+                    int sec = totalSec % 60;
+                    tvRemaining.setText(String.format("剩余 %d:%02d", min, sec));
+                    timerDisplayHandler.postDelayed(this, 1000);
+                } else {
+                    tvRemaining.setText("定时已结束");
+                }
+            }
+        };
+        timerDisplayRunnable.run();
+
+        // Cancel button
+        TextView btnCancel = new TextView(this);
+        btnCancel.setText("取消定时");
+        btnCancel.setTextColor(0xFFFFFFFF);
+        btnCancel.setTextSize(14);
+        btnCancel.setGravity(Gravity.CENTER);
+        btnCancel.setPadding(0, dp(10), 0, dp(10));
+        btnCancel.setBackgroundColor(0xFFD32F2F);
+        LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        btnCancel.setLayoutParams(cancelParams);
+        btnCancel.setClickable(true);
+        btnCancel.setFocusable(true);
+        btnCancel.setOnClickListener(v -> {
+            playerManager.cancelSleepTimer();
+            timerDisplayHandler.removeCallbacksAndMessages(null);
+            Toast.makeText(this, "已取消定时", Toast.LENGTH_SHORT).show();
+            dismissOverlay();
+        });
+        contentLayout.addView(btnCancel);
+
+        overlayContainer.addView(contentLayout);
+        rootView.addView(overlayContainer);
     }
 
     // ==================== UI Updates ====================
