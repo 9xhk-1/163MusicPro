@@ -1,4 +1,4 @@
-package com.qinghe.music163pro;
+package com.qinghe.music163pro.service;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -9,6 +9,8 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
+
+import com.qinghe.music163pro.activity.MainActivity;
 
 /**
  * Foreground service to keep the music player alive during background

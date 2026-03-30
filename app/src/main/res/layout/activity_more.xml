@@ -1,110 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_dark"
-    android:orientation="vertical"
-    android:padding="6dp">
+    android:fillViewport="true">
 
-    <!-- Search bar -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <EditText
-            android:id="@+id/et_search"
-            android:layout_width="0dp"
-            android:layout_height="36dp"
-            android:layout_weight="1"
-            android:background="@color/gray_light"
-            android:hint="@string/search_hint"
-            android:inputType="text"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:singleLine="true"
-            android:textColor="@color/black"
-            android:textColorHint="@color/gray_text"
-            android:textSize="13sp" />
+        android:orientation="vertical"
+        android:padding="8dp">
 
         <TextView
-            android:id="@+id/btn_search"
-            android:layout_width="52dp"
-            android:layout_height="36dp"
-            android:layout_marginStart="4dp"
-            android:background="@color/colorPrimary"
-            android:gravity="center"
-            android:text="@string/search"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/more"
             android:textColor="@color/white"
-            android:textSize="13sp"
-            android:clickable="true"
-            android:focusable="true" />
-    </LinearLayout>
-
-    <!-- Tab row -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:orientation="horizontal">
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:paddingBottom="8dp" />
 
         <TextView
-            android:id="@+id/tab_search"
-            android:layout_width="0dp"
-            android:layout_height="32dp"
-            android:layout_weight="1"
+            android:id="@+id/btn_menu_favorites"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="4dp"
             android:background="@color/colorPrimary"
-            android:gravity="center"
-            android:text="@string/search"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:text="♥  收藏列表"
             android:textColor="@color/white"
-            android:textSize="13sp"
+            android:textSize="14sp"
             android:clickable="true"
             android:focusable="true" />
 
         <TextView
-            android:id="@+id/tab_favorites"
-            android:layout_width="0dp"
-            android:layout_height="32dp"
-            android:layout_weight="1"
-            android:background="@color/bg_dark"
-            android:gravity="center"
-            android:text="@string/favorites"
-            android:textColor="@color/gray_text"
-            android:textSize="13sp"
+            android:id="@+id/btn_menu_search"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="4dp"
+            android:background="@color/colorPrimary"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:text="🔍  搜索"
+            android:textColor="@color/white"
+            android:textSize="14sp"
             android:clickable="true"
             android:focusable="true" />
 
         <TextView
-            android:id="@+id/tab_settings"
-            android:layout_width="wrap_content"
-            android:layout_height="32dp"
-            android:gravity="center"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp"
-            android:text="⚙"
-            android:textSize="16sp"
+            android:id="@+id/btn_menu_downloads"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="4dp"
+            android:background="@color/colorPrimary"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:text="⬇  下载列表"
+            android:textColor="@color/white"
+            android:textSize="14sp"
             android:clickable="true"
             android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btn_menu_settings"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="4dp"
+            android:background="@color/colorPrimary"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:text="⚙  设置"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:clickable="true"
+            android:focusable="true" />
+
     </LinearLayout>
-
-    <!-- Song list -->
-    <ListView
-        android:id="@+id/lv_songs"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="2dp"
-        android:layout_weight="1"
-        android:divider="@color/gray_text"
-        android:dividerHeight="0.5dp" />
-
-    <!-- Search history list -->
-    <ListView
-        android:id="@+id/lv_history"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="2dp"
-        android:layout_weight="1"
-        android:visibility="gone"
-        android:divider="@color/gray_text"
-        android:dividerHeight="0.5dp" />
-</LinearLayout>
+</ScrollView>

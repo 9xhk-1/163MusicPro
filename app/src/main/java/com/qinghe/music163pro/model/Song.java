@@ -1,4 +1,4 @@
-package com.qinghe.music163pro;
+package com.qinghe.music163pro.model;
 
 import java.io.Serializable;
 

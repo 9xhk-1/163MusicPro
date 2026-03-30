@@ -1,9 +1,11 @@
-package com.qinghe.music163pro;
+package com.qinghe.music163pro.manager;
 
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Environment;
 import android.util.Log;
+
+import com.qinghe.music163pro.model.Song;
 
 import org.json.JSONArray;
 import org.json.JSONObject;

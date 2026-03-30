@@ -1,4 +1,4 @@
-package com.qinghe.music163pro;
+package com.qinghe.music163pro.activity;
 
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -9,15 +9,15 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.qinghe.music163pro.R;
+import com.qinghe.music163pro.api.MusicApiHelper;
+import com.qinghe.music163pro.player.MusicPlayerManager;
+
 /**
  * SMS Login Activity.
  * Two-step flow:
  * 1. Send SMS verification code to phone number
  * 2. Login with phone + verification code
- *
- * Based on NeteaseCloudMusicApiBackup:
- * - module/captcha_sent.js -> /api/sms/captcha/sent
- * - module/login_cellphone.js -> /api/w/login/cellphone
  */
 public class SmsLoginActivity extends AppCompatActivity {
 

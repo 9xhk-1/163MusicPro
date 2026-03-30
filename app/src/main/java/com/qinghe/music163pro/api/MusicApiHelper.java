@@ -1,4 +1,6 @@
-package com.qinghe.music163pro;
+package com.qinghe.music163pro.api;
+
+import com.qinghe.music163pro.model.Song;
 
 import android.os.Handler;
 import android.os.Looper;

@@ -1,4 +1,4 @@
-package com.qinghe.music163pro;
+package com.qinghe.music163pro.activity;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -13,12 +13,20 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.qinghe.music163pro.R;
+import com.qinghe.music163pro.api.MusicApiHelper;
+import com.qinghe.music163pro.model.Song;
+import com.qinghe.music163pro.player.MusicPlayerManager;
+
 import org.json.JSONArray;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class MoreActivity extends AppCompatActivity {
+/**
+ * Search activity - search songs and play from results.
+ */
+public class SearchActivity extends AppCompatActivity {
 
     private static final String PREFS_NAME = "music163_settings";
     private static final String KEY_SEARCH_HISTORY = "search_history";
@@ -27,32 +35,23 @@ public class MoreActivity extends AppCompatActivity {
     private EditText etSearch;
     private ListView lvSongs;
     private ListView lvHistory;
-    private TextView tabSearch;
-    private TextView tabFavorites;
     private ArrayAdapter<Song> adapter;
     private ArrayAdapter<String> historyAdapter;
     private final List<Song> displayList = new ArrayList<>();
-    private final List<Song> searchResults = new ArrayList<>();
     private final List<String> historyList = new ArrayList<>();
-    private boolean showingFavorites = false;
-    private FavoritesManager favoritesManager;
     private MusicPlayerManager playerManager;
     private SharedPreferences prefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_more);
+        setContentView(R.layout.activity_search);
 
         etSearch = findViewById(R.id.et_search);
         lvSongs = findViewById(R.id.lv_songs);
         lvHistory = findViewById(R.id.lv_history);
-        tabSearch = findViewById(R.id.tab_search);
-        tabFavorites = findViewById(R.id.tab_favorites);
         TextView btnSearch = findViewById(R.id.btn_search);
-        TextView tabSettings = findViewById(R.id.tab_settings);
 
-        favoritesManager = new FavoritesManager(this);
         playerManager = MusicPlayerManager.getInstance();
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 
@@ -95,16 +94,15 @@ public class MoreActivity extends AppCompatActivity {
 
         btnSearch.setOnClickListener(v -> doSearch());
 
-        tabSearch.setOnClickListener(v -> switchToSearch());
-        tabFavorites.setOnClickListener(v -> switchToFavorites());
-        tabSettings.setOnClickListener(v ->
-                startActivity(new Intent(MoreActivity.this, SettingsActivity.class)));
-
         lvSongs.setOnItemClickListener((parent, view, position, id) -> {
             Song song = displayList.get(position);
             List<Song> playlist = new ArrayList<>(displayList);
             playerManager.setPlaylist(playlist, position);
             playerManager.playCurrent();
+            // Navigate back to MainActivity (player screen)
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(intent);
             finish();
         });
     }
@@ -114,54 +112,25 @@ public class MoreActivity extends AppCompatActivity {
         if (keyword.isEmpty()) return;
 
         addToSearchHistory(keyword);
-        switchToSearch();
         String cookie = playerManager.getCookie();
         MusicApiHelper.searchSongs(keyword, cookie, new MusicApiHelper.SearchCallback() {
             @Override
             public void onResult(List<Song> songs) {
-                searchResults.clear();
-                searchResults.addAll(songs);
                 displayList.clear();
                 displayList.addAll(songs);
                 adapter.notifyDataSetChanged();
                 lvSongs.setVisibility(View.VISIBLE);
                 lvHistory.setVisibility(View.GONE);
                 if (songs.isEmpty()) {
-                    Toast.makeText(MoreActivity.this, R.string.no_song, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(SearchActivity.this, R.string.no_song, Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onError(String message) {
-                Toast.makeText(MoreActivity.this, message, Toast.LENGTH_SHORT).show();
+                Toast.makeText(SearchActivity.this, message, Toast.LENGTH_SHORT).show();
             }
         });
-    }
-
-    private void switchToSearch() {
-        showingFavorites = false;
-        tabSearch.setBackgroundColor(getResources().getColor(R.color.colorPrimary, getTheme()));
-        tabSearch.setTextColor(getResources().getColor(R.color.white, getTheme()));
-        tabFavorites.setBackgroundColor(getResources().getColor(R.color.bg_dark, getTheme()));
-        tabFavorites.setTextColor(getResources().getColor(R.color.gray_text, getTheme()));
-        displayList.clear();
-        displayList.addAll(searchResults);
-        adapter.notifyDataSetChanged();
-        updateHistoryVisibility();
-    }
-
-    private void switchToFavorites() {
-        showingFavorites = true;
-        tabFavorites.setBackgroundColor(getResources().getColor(R.color.colorPrimary, getTheme()));
-        tabFavorites.setTextColor(getResources().getColor(R.color.white, getTheme()));
-        tabSearch.setBackgroundColor(getResources().getColor(R.color.bg_dark, getTheme()));
-        tabSearch.setTextColor(getResources().getColor(R.color.gray_text, getTheme()));
-
-        displayList.clear();
-        displayList.addAll(favoritesManager.getFavorites());
-        adapter.notifyDataSetChanged();
-        lvSongs.setVisibility(View.VISIBLE);
-        lvHistory.setVisibility(View.GONE);
     }
 
     private void loadSearchHistory() {
@@ -196,7 +165,7 @@ public class MoreActivity extends AppCompatActivity {
     }
 
     private void updateHistoryVisibility() {
-        if (!showingFavorites && displayList.isEmpty() && !historyList.isEmpty()) {
+        if (displayList.isEmpty() && !historyList.isEmpty()) {
             lvHistory.setVisibility(View.VISIBLE);
             lvSongs.setVisibility(View.GONE);
         } else {

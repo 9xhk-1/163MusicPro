@@ -1,4 +1,4 @@
-package com.qinghe.music163pro;
+package com.qinghe.music163pro.util;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;

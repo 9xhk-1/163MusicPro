@@ -17,7 +17,7 @@
         android:theme="@style/AppTheme">
 
         <activity
-            android:name=".MainActivity"
+            android:name=".activity.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -25,13 +25,16 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".MoreActivity" android:exported="false" />
-        <activity android:name=".SettingsActivity" android:exported="false" />
-        <activity android:name=".QrLoginActivity" android:exported="false" />
-        <activity android:name=".SmsLoginActivity" android:exported="false" />
+        <activity android:name=".activity.MoreActivity" android:exported="false" />
+        <activity android:name=".activity.SearchActivity" android:exported="false" />
+        <activity android:name=".activity.FavoritesListActivity" android:exported="false" />
+        <activity android:name=".activity.DownloadListActivity" android:exported="false" />
+        <activity android:name=".activity.SettingsActivity" android:exported="false" />
+        <activity android:name=".activity.QrLoginActivity" android:exported="false" />
+        <activity android:name=".activity.SmsLoginActivity" android:exported="false" />
 
         <service
-            android:name=".MusicPlaybackService"
+            android:name=".service.MusicPlaybackService"
             android:exported="false" />
 
     </application>

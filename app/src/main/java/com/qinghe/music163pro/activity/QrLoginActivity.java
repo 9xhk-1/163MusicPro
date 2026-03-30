@@ -1,4 +1,4 @@
-package com.qinghe.music163pro;
+package com.qinghe.music163pro.activity;
 
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
@@ -10,6 +10,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.qinghe.music163pro.R;
+import com.qinghe.music163pro.api.MusicApiHelper;
+import com.qinghe.music163pro.player.MusicPlayerManager;
+import com.qinghe.music163pro.util.QrCodeGenerator;
 
 /**
  * QR Code Login Activity.
@@ -89,8 +94,6 @@ public class QrLoginActivity extends AppCompatActivity {
      */
     private Bitmap generateQrBitmap(String content, int size) {
         try {
-            // Use a simple encoding approach - encode content into a visual
-            // pattern that can be recognized by QR scanners
             boolean[][] matrix = QrCodeGenerator.encode(content);
             if (matrix == null) return null;
 

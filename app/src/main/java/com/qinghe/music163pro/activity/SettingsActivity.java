@@ -1,4 +1,4 @@
-package com.qinghe.music163pro;
+package com.qinghe.music163pro.activity;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -8,6 +8,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.qinghe.music163pro.R;
+import com.qinghe.music163pro.player.MusicPlayerManager;
 
 public class SettingsActivity extends AppCompatActivity {
 
