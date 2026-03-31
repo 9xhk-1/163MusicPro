@@ -95,7 +95,7 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeSpacer(px(4)));
         content.addView(makeText(
                 "• 自定义应用图标\n"
-                + "• 修复短信登录"环境不安全"错误\n"
+                + "• 修复短信登录\u201C环境不安全\u201D错误\n"
                 + "• 修复二维码显示不完整问题\n"
                 + "• 修复切歌后无法自动播放问题\n"
                 + "• 收藏列表删除重装后自动恢复\n"
