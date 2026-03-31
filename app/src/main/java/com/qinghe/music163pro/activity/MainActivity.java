@@ -1055,11 +1055,13 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 }
             }
 
-            // Create a clipped copy using MediaExtractor + MediaMuxer
-            File clipFile = createClippedAudio(file, startSec * 1000, endSec * 1000, title);
-            if (clipFile == null) {
-                // Fallback: use original file if clipping fails
-                clipFile = file;
+            // Create a clipped copy if valid range, otherwise use original
+            File clipFile = file;
+            if (endSec > startSec) {
+                File clipped = createClippedAudio(file, startSec * 1000, endSec * 1000, title);
+                if (clipped != null) {
+                    clipFile = clipped;
+                }
             }
 
             ContentValues values = new ContentValues();
