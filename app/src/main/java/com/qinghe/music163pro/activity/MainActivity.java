@@ -46,6 +46,7 @@ import java.io.File;
 
 public class MainActivity extends AppCompatActivity implements MusicPlayerManager.PlayerCallback {
 
+    private static final String TAG = "MainActivity";
     private static final String HEART_OUTLINE = "\u2661";
     private static final String HEART_FILLED = "\u2665";
     private static final int STORAGE_PERMISSION_REQUEST = 100;
@@ -1151,7 +1152,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
             return outputFile;
         } catch (Exception e) {
-            Log.w("MainActivity", "Audio clipping failed", e);
+            Log.w(TAG, "Audio clipping failed", e);
             return null;
         }
     }
