@@ -137,6 +137,7 @@ public class MusicPlayerManager {
     private void applyPlaybackSpeed() {
         if (mediaPlayer != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             try {
+                boolean wasPlaying = mediaPlayer.isPlaying();
                 PlaybackParams params = mediaPlayer.getPlaybackParams();
                 params.setSpeed(playbackSpeed);
                 if (pitchWithSpeed) {
@@ -145,6 +146,10 @@ public class MusicPlayerManager {
                     params.setPitch(1.0f);
                 }
                 mediaPlayer.setPlaybackParams(params);
+                // Workaround: setPlaybackParams may auto-start a paused MediaPlayer
+                if (!wasPlaying && mediaPlayer.isPlaying()) {
+                    mediaPlayer.pause();
+                }
             } catch (Exception e) {
                 Log.w(TAG, "Error setting playback speed", e);
             }

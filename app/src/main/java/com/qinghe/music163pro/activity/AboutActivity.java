@@ -39,23 +39,23 @@ public class AboutActivity extends AppCompatActivity {
         content.setPadding(px(12), px(10), px(12), px(16));
 
         // Title
-        content.addView(makeText("关于", 0xFFFFFFFF, px(18), true, Gravity.CENTER));
+        content.addView(makeText("关于", 0xFFFFFFFF, px(22), true, Gravity.CENTER));
 
         // App name
         content.addView(makeSpacer(px(10)));
-        content.addView(makeText("163音乐Pro", 0xFFFFFFFF, px(16), true, Gravity.CENTER));
+        content.addView(makeText("163音乐Pro", 0xFFFFFFFF, px(20), true, Gravity.CENTER));
 
         // Version
         content.addView(makeSpacer(px(4)));
-        String versionName = "20260331";
+        String versionName = "20260331-fix1";
         try {
             versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (Exception ignored) {}
-        content.addView(makeText("版本: " + versionName, 0xFFCCCCCC, px(13), false, Gravity.CENTER));
+        content.addView(makeText("版本: " + versionName, 0xFFCCCCCC, px(16), false, Gravity.CENTER));
 
         // Developer
         content.addView(makeSpacer(px(4)));
-        content.addView(makeText("开发者: Qinghe", 0xFFCCCCCC, px(13), false, Gravity.CENTER));
+        content.addView(makeText("开发者: Qinghe", 0xFFCCCCCC, px(16), false, Gravity.CENTER));
 
         // Divider
         content.addView(makeSpacer(px(8)));
@@ -63,20 +63,34 @@ public class AboutActivity extends AppCompatActivity {
 
         // Description
         content.addView(makeSpacer(px(8)));
-        content.addView(makeText("软件概述", 0xFFFFFFFF, px(14), true, Gravity.START));
+        content.addView(makeText("软件概述", 0xFFFFFFFF, px(18), true, Gravity.START));
         content.addView(makeSpacer(px(4)));
         content.addView(makeText(
                 "适用于小天才手表的网易云音乐播放器。支持在线搜索、播放、下载、收藏、歌词显示、铃声设置等功能。"
                 + "支持扫码登录、短信登录和Cookie登录，可播放VIP音乐。",
-                0xFFAAAAAA, px(12), false, Gravity.START));
+                0xFFAAAAAA, px(15), false, Gravity.START));
 
         // Divider
         content.addView(makeSpacer(px(8)));
         content.addView(makeDivider());
 
-        // Update summary
+        // v20260331-fix1 update summary
         content.addView(makeSpacer(px(8)));
-        content.addView(makeText("v20260331 更新内容", 0xFFFFFFFF, px(14), true, Gravity.START));
+        content.addView(makeText("v20260331-fix1 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeSpacer(px(4)));
+        content.addView(makeText(
+                "• 修复返回播放界面时音乐意外自动播放\n"
+                + "• 关于页面文字放大适配手表屏幕\n"
+                + "• 设置页面移除登录入口（仅保留更多中的登录）",
+                0xFFAAAAAA, px(15), false, Gravity.START));
+
+        // Divider
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeDivider());
+
+        // v20260331 update summary
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeText("v20260331 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
         content.addView(makeSpacer(px(4)));
         content.addView(makeText(
                 "• 新增变速模式设置（音调不变/音调改变）\n"
@@ -85,13 +99,13 @@ public class AboutActivity extends AppCompatActivity {
                 + "• 新增开关选项页（屏幕常亮、收藏模式、变速模式）\n"
                 + "• 新增关于页面\n"
                 + "• 修复铃声管理名称秒数重复显示",
-                0xFFAAAAAA, px(12), false, Gravity.START));
+                0xFFAAAAAA, px(15), false, Gravity.START));
 
         // Previous version
         content.addView(makeSpacer(px(8)));
         content.addView(makeDivider());
         content.addView(makeSpacer(px(8)));
-        content.addView(makeText("v2.0 更新内容", 0xFFFFFFFF, px(14), true, Gravity.START));
+        content.addView(makeText("v2.0 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
         content.addView(makeSpacer(px(4)));
         content.addView(makeText(
                 "• 自定义应用图标\n"
@@ -101,7 +115,7 @@ public class AboutActivity extends AppCompatActivity {
                 + "• 收藏列表删除重装后自动恢复\n"
                 + "• 新增前台服务保活机制\n"
                 + "• 登录返回空Cookie时不再覆盖已有Cookie",
-                0xFFAAAAAA, px(12), false, Gravity.START));
+                0xFFAAAAAA, px(15), false, Gravity.START));
 
         scrollView.addView(content);
         setContentView(scrollView);

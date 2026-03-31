@@ -12,7 +12,7 @@ import com.qinghe.music163pro.R;
 
 /**
  * Settings activity - flat tile list style matching MoreActivity.
- * Contains: 登录, 开关选项, 关于
+ * Contains: 开关选项, 关于
  */
 public class SettingsActivity extends AppCompatActivity {
 
@@ -29,12 +29,8 @@ public class SettingsActivity extends AppCompatActivity {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
 
-        TextView btnLogin = findViewById(R.id.btn_settings_login);
         TextView btnToggle = findViewById(R.id.btn_settings_toggle);
         TextView btnAbout = findViewById(R.id.btn_settings_about);
-
-        btnLogin.setOnClickListener(v ->
-                startActivity(new Intent(this, LoginActivity.class)));
 
         btnToggle.setOnClickListener(v ->
                 startActivity(new Intent(this, ToggleSettingsActivity.class)));
