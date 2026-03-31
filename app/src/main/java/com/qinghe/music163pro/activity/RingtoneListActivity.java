@@ -59,11 +59,7 @@ public class RingtoneListActivity extends AppCompatActivity {
                 if (info != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
-                    String displayTitle = "🔔 " + info.title;
-                    if (info.isClipped()) {
-                        displayTitle += " (" + info.startSec + "s-" + info.endSec + "s)";
-                    }
-                    tvName.setText(displayTitle);
+                    tvName.setText("🔔 " + info.title);
                     // Enable marquee scrolling for long names
                     tvName.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
                     tvName.setMarqueeRepeatLimit(-1);
