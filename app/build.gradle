@@ -37,6 +37,11 @@ android {
         }
     }
 
+    lint {
+        // Watch app not published to Google Play; targetSdk 27 is intentional
+        disable 'ExpiredTargetSdkVersion'
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
