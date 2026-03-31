@@ -222,6 +222,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         } else {
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
+        // Preload cloud liked IDs cache so overlay shows correct favorite state
+        if (prefs.getBoolean("fav_mode_cloud", false)) {
+            refreshCloudLikedIds();
+        }
         updateUI();
         if (playerManager.isPlaying()) {
             startSeekBarUpdate();

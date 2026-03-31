@@ -531,84 +531,78 @@ public class MusicApiHelper {
 
     /**
      * Get the user's "liked songs" playlist from the cloud.
-     * Step 1: Get user's liked song IDs via /api/song/like/get
-     * Step 2: Get song details via /api/v3/song/detail
-     * (same as NeteaseCloudMusicApiBackup module/likelist.js and song_detail.js)
+     * Uses the user's liked playlist (first playlist from /api/user/playlist)
+     * and fetches tracks via /api/v6/playlist/detail which returns them
+     * in the correct time order (most recently liked first).
      */
     public static void getCloudFavorites(String cookie, CloudFavoritesCallback callback) {
         executor.execute(() -> {
             try {
-                // Step 1: Get liked song IDs
                 long uid = extractUidFromCookie(cookie);
                 if (uid <= 0) {
                     mainHandler.post(() -> callback.onError("请先登录"));
                     return;
                 }
 
-                JSONObject likeData = new JSONObject();
-                likeData.put("uid", uid);
-
                 String csrfToken = extractCsrfToken(cookie);
-                likeData.put("csrf_token", csrfToken);
 
-                String likeResponse = weapiPost("/api/song/like/get", likeData.toString(), cookie);
-                JSONObject likeJson = new JSONObject(likeResponse);
+                // Step 1: Get user's liked playlist ID (first playlist)
+                JSONObject plData = new JSONObject();
+                plData.put("uid", uid);
+                plData.put("limit", 1);
+                plData.put("offset", 0);
+                plData.put("csrf_token", csrfToken);
 
-                JSONArray idsArray = likeJson.optJSONArray("ids");
-                if (idsArray == null || idsArray.length() == 0) {
+                String plResponse = weapiPost("/api/user/playlist", plData.toString(), cookie);
+                JSONObject plJson = new JSONObject(plResponse);
+                JSONArray playlists = plJson.optJSONArray("playlist");
+
+                if (playlists == null || playlists.length() == 0) {
+                    // Fallback: use legacy method
+                    getCloudFavoritesLegacy(cookie, uid, csrfToken, callback);
+                    return;
+                }
+
+                long likedPlaylistId = playlists.getJSONObject(0).getLong("id");
+
+                // Step 2: Get playlist tracks in correct time order
+                JSONObject detailData = new JSONObject();
+                detailData.put("id", likedPlaylistId);
+                detailData.put("n", 200);
+                detailData.put("csrf_token", csrfToken);
+
+                String detailResponse = weapiPost("/api/v6/playlist/detail", detailData.toString(), cookie);
+                JSONObject detailJson = new JSONObject(detailResponse);
+                JSONObject playlist = detailJson.optJSONObject("playlist");
+
+                if (playlist == null) {
+                    getCloudFavoritesLegacy(cookie, uid, csrfToken, callback);
+                    return;
+                }
+
+                JSONArray tracks = playlist.optJSONArray("tracks");
+                if (tracks == null || tracks.length() == 0) {
                     mainHandler.post(() -> callback.onResult(new ArrayList<>()));
                     return;
                 }
 
-                // Limit to 200 songs per request to avoid oversized payloads
-                // (NetEase /api/v3/song/detail supports up to ~1000 IDs per request,
-                // but 200 is a safe limit for watch devices with limited memory)
-                int limit = Math.min(idsArray.length(), 200);
-                JSONArray songIds = new JSONArray();
-                for (int i = 0; i < limit; i++) {
-                    JSONObject idObj = new JSONObject();
-                    idObj.put("id", idsArray.getLong(i));
-                    songIds.put(idObj);
-                }
-
-                // Step 2: Get song details
-                JSONObject detailData = new JSONObject();
-                detailData.put("c", songIds.toString());
-                detailData.put("csrf_token", csrfToken);
-
-                String detailResponse = weapiPost("/api/v3/song/detail", detailData.toString(), cookie);
-                JSONObject detailJson = new JSONObject(detailResponse);
-                JSONArray songsArray = detailJson.optJSONArray("songs");
-
-                // Build a map of id -> Song for reordering
-                java.util.Map<Long, Song> songMap = new java.util.LinkedHashMap<>();
-                if (songsArray != null) {
-                    for (int i = 0; i < songsArray.length(); i++) {
-                        JSONObject s = songsArray.getJSONObject(i);
-                        long id = s.getLong("id");
-                        String name = s.getString("name");
-                        String artist = "";
-                        JSONArray ar = s.optJSONArray("ar");
-                        if (ar != null && ar.length() > 0) {
-                            artist = ar.getJSONObject(0).optString("name", "");
-                        }
-                        String album = "";
-                        JSONObject al = s.optJSONObject("al");
-                        if (al != null) {
-                            album = al.optString("name", "");
-                        }
-                        songMap.put(id, new Song(id, name, artist, album));
-                    }
-                }
-
-                // Reorder songs to match the original liked-time order from idsArray
                 List<Song> songs = new ArrayList<>();
+                int limit = Math.min(tracks.length(), 200);
                 for (int i = 0; i < limit; i++) {
-                    long id = idsArray.getLong(i);
-                    Song song = songMap.get(id);
-                    if (song != null) {
-                        songs.add(song);
+                    JSONObject s = tracks.getJSONObject(i);
+                    long id = s.getLong("id");
+                    String name = s.getString("name");
+                    String artist = "";
+                    JSONArray ar = s.optJSONArray("ar");
+                    if (ar != null && ar.length() > 0) {
+                        artist = ar.getJSONObject(0).optString("name", "");
                     }
+                    String album = "";
+                    JSONObject al = s.optJSONObject("al");
+                    if (al != null) {
+                        album = al.optString("name", "");
+                    }
+                    songs.add(new Song(id, name, artist, album));
                 }
                 mainHandler.post(() -> callback.onResult(songs));
             } catch (Exception e) {
@@ -616,6 +610,77 @@ public class MusicApiHelper {
                 mainHandler.post(() -> callback.onError("获取云端收藏失败: " + e.getMessage()));
             }
         });
+    }
+
+    /**
+     * Legacy fallback: get cloud favorites via /api/song/like/get + /api/v3/song/detail.
+     * Used when the playlist API is unavailable.
+     */
+    private static void getCloudFavoritesLegacy(String cookie, long uid, String csrfToken,
+                                                  CloudFavoritesCallback callback) {
+        try {
+            JSONObject likeData = new JSONObject();
+            likeData.put("uid", uid);
+            likeData.put("csrf_token", csrfToken);
+
+            String likeResponse = weapiPost("/api/song/like/get", likeData.toString(), cookie);
+            JSONObject likeJson = new JSONObject(likeResponse);
+
+            JSONArray idsArray = likeJson.optJSONArray("ids");
+            if (idsArray == null || idsArray.length() == 0) {
+                mainHandler.post(() -> callback.onResult(new ArrayList<>()));
+                return;
+            }
+
+            int limit = Math.min(idsArray.length(), 200);
+            JSONArray songIds = new JSONArray();
+            for (int i = 0; i < limit; i++) {
+                JSONObject idObj = new JSONObject();
+                idObj.put("id", idsArray.getLong(i));
+                songIds.put(idObj);
+            }
+
+            JSONObject detailData = new JSONObject();
+            detailData.put("c", songIds.toString());
+            detailData.put("csrf_token", csrfToken);
+
+            String detailResponse = weapiPost("/api/v3/song/detail", detailData.toString(), cookie);
+            JSONObject detailJson = new JSONObject(detailResponse);
+            JSONArray songsArray = detailJson.optJSONArray("songs");
+
+            java.util.Map<Long, Song> songMap = new java.util.LinkedHashMap<>();
+            if (songsArray != null) {
+                for (int i = 0; i < songsArray.length(); i++) {
+                    JSONObject s = songsArray.getJSONObject(i);
+                    long id = s.getLong("id");
+                    String name = s.getString("name");
+                    String artist = "";
+                    JSONArray ar = s.optJSONArray("ar");
+                    if (ar != null && ar.length() > 0) {
+                        artist = ar.getJSONObject(0).optString("name", "");
+                    }
+                    String album = "";
+                    JSONObject al = s.optJSONObject("al");
+                    if (al != null) {
+                        album = al.optString("name", "");
+                    }
+                    songMap.put(id, new Song(id, name, artist, album));
+                }
+            }
+
+            List<Song> songs = new ArrayList<>();
+            for (int i = 0; i < limit; i++) {
+                long id = idsArray.getLong(i);
+                Song song = songMap.get(id);
+                if (song != null) {
+                    songs.add(song);
+                }
+            }
+            mainHandler.post(() -> callback.onResult(songs));
+        } catch (Exception e) {
+            Log.w(TAG, "Cloud favorites legacy error", e);
+            mainHandler.post(() -> callback.onError("获取云端收藏失败: " + e.getMessage()));
+        }
     }
 
     /**
