@@ -155,6 +155,27 @@ public class ProfileActivity extends AppCompatActivity {
                         default: vipStr = "VIP (类型" + vipType + ")"; break;
                     }
                     addInfoRow("VIP类型", vipStr);
+
+                    // VIP expiry time from profile.vipRights or profile.viptypeVersion
+                    JSONObject vipRights = profile.optJSONObject("vipRights");
+                    if (vipRights != null) {
+                        JSONObject associator = vipRights.optJSONObject("associator");
+                        if (associator != null) {
+                            long expTime = associator.optLong("expTime", 0);
+                            if (expTime > 0) {
+                                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+                                addInfoRow("VIP到期", sdf.format(new java.util.Date(expTime)));
+                            }
+                        }
+                        JSONObject musicPackage = vipRights.optJSONObject("musicPackage");
+                        if (musicPackage != null) {
+                            long expTime = musicPackage.optLong("expTime", 0);
+                            if (expTime > 0) {
+                                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+                                addInfoRow("音乐包到期", sdf.format(new java.util.Date(expTime)));
+                            }
+                        }
+                    }
                 }
             }
 
@@ -174,6 +195,14 @@ public class ProfileActivity extends AppCompatActivity {
                     default: vipStr = "VIP (类型" + vipType + ")"; break;
                 }
                 addInfoRow("会员类型", vipStr);
+
+                long vipExpireTime = account.optLong("vipExpiresTime", 0);
+                if (vipExpireTime > 0) {
+                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+                    boolean isExpired = vipExpireTime < System.currentTimeMillis();
+                    addInfoRow("会员到期", sdf.format(new java.util.Date(vipExpireTime))
+                            + (isExpired ? " (已过期)" : " ✓"));
+                }
 
                 long createTime = account.optLong("createTime", 0);
                 if (createTime > 0) {

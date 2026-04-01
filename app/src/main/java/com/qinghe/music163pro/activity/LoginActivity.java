@@ -42,6 +42,7 @@ public class LoginActivity extends AppCompatActivity {
         TextView btnSave = findViewById(R.id.btn_save_cookie);
         TextView btnQrLogin = findViewById(R.id.btn_qr_login);
         TextView btnSmsLogin = findViewById(R.id.btn_sms_login);
+        TextView btnPasswordLogin = findViewById(R.id.btn_password_login);
 
         // Load saved values
         etCookie.setText(prefs.getString("cookie", ""));
@@ -63,6 +64,10 @@ public class LoginActivity extends AppCompatActivity {
 
         btnSmsLogin.setOnClickListener(v ->
             startActivity(new Intent(this, SmsLoginActivity.class))
+        );
+
+        btnPasswordLogin.setOnClickListener(v ->
+            startActivity(new Intent(this, PasswordLoginActivity.class))
         );
     }
 

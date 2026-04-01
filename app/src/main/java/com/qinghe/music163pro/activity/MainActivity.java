@@ -71,6 +71,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private Handler overlayTimerHandler;
     private Runnable overlayTimerRunnable;
 
+    // Volume indicator
+    private TextView volumeIndicator;
+    private final Handler volumeHandler = new Handler();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -143,11 +147,15 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         btnPrev.setOnClickListener(v -> playerManager.previous());
         btnNext.setOnClickListener(v -> playerManager.next());
 
-        btnVolDown.setOnClickListener(v ->
-                audioManager.adjustVolume(AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI));
+        btnVolDown.setOnClickListener(v -> {
+                audioManager.adjustVolume(AudioManager.ADJUST_LOWER, AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE);
+                showVolumeIndicator();
+        });
 
-        btnVolUp.setOnClickListener(v ->
-                audioManager.adjustVolume(AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI));
+        btnVolUp.setOnClickListener(v -> {
+                audioManager.adjustVolume(AudioManager.ADJUST_RAISE, AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE);
+                showVolumeIndicator();
+        });
 
         // Changed: "more functions" overlay instead of toggle favorite
         btnFuncMore.setOnClickListener(v -> showFunctionsOverlay());
@@ -384,10 +392,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         String speedLabel = currentSpeed == 1.0f ? "倍速播放" : String.format("%.1fx", currentSpeed);
         row4.addView(createFuncItem("⚡", speedLabel,
                 v -> onFuncPlaybackSpeed()));
-        // Empty placeholder for alignment
-        LinearLayout placeholder = new LinearLayout(this);
-        placeholder.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-        row4.addView(placeholder);
+        row4.addView(createFuncItem("📋", "播放列表",
+                v -> onFuncShowPlaylist()));
         contentLayout.addView(row4);
 
         scrollView.addView(contentLayout);
@@ -514,6 +520,52 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         }
     }
 
+    /**
+     * Show a custom volume indicator overlay on the watch screen.
+     * Displays current volume / max volume with a visual bar, auto-dismisses after 1.5 seconds.
+     */
+    private void showVolumeIndicator() {
+        int current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+        int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+
+        FrameLayout rootView = (FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content);
+
+        if (volumeIndicator != null) {
+            rootView.removeView(volumeIndicator);
+        }
+
+        // Build volume bar string
+        StringBuilder bar = new StringBuilder();
+        for (int i = 0; i < max; i++) {
+            bar.append(i < current ? "█" : "░");
+        }
+
+        volumeIndicator = new TextView(this);
+        volumeIndicator.setText("🔊  " + current + "/" + max + "\n" + bar.toString());
+        volumeIndicator.setTextColor(0xFFFFFFFF);
+        volumeIndicator.setTextSize(13);
+        volumeIndicator.setGravity(Gravity.CENTER);
+        volumeIndicator.setBackgroundColor(0xCC333333);
+        volumeIndicator.setPadding(dp(16), dp(8), dp(16), dp(8));
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        params.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        params.topMargin = dp(8);
+        volumeIndicator.setLayoutParams(params);
+
+        rootView.addView(volumeIndicator);
+
+        // Auto-dismiss after 1.5 seconds
+        volumeHandler.removeCallbacksAndMessages(null);
+        volumeHandler.postDelayed(() -> {
+            if (volumeIndicator != null) {
+                rootView.removeView(volumeIndicator);
+                volumeIndicator = null;
+            }
+        }, 1500);
+    }
+
     private void onFuncFavorite(Song song) {
         SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
         boolean isCloud = prefs.getBoolean("fav_mode_cloud", false);
@@ -634,6 +686,109 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private void onFuncPlaybackSpeed() {
         dismissOverlay();
         showSpeedOptions();
+    }
+
+    private void onFuncShowPlaylist() {
+        dismissOverlay();
+        showPlaylistOverlay();
+    }
+
+    /**
+     * Show the current playlist as an overlay with song list.
+     * Tapping a song plays it and dismisses the overlay.
+     */
+    private void showPlaylistOverlay() {
+        java.util.List<Song> playlist = playerManager.getPlaylist();
+        if (playlist == null || playlist.isEmpty()) {
+            Toast.makeText(this, "播放列表为空", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        FrameLayout rootView = (FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content);
+
+        overlayContainer = new FrameLayout(this);
+        overlayContainer.setLayoutParams(new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        overlayContainer.setBackgroundColor(0xCC333333);
+        addSwipeToDismiss(overlayContainer);
+
+        LinearLayout contentLayout = new LinearLayout(this);
+        contentLayout.setOrientation(LinearLayout.VERTICAL);
+        contentLayout.setPadding(dp(8), dp(8), dp(8), dp(8));
+        contentLayout.setBackgroundColor(0xFF212121);
+        FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+        contentLayout.setLayoutParams(contentParams);
+        contentLayout.setOnClickListener(v -> { /* consume click */ });
+
+        // Title bar
+        contentLayout.addView(createOverlayTitleBar("播放列表 (" + playlist.size() + "首)"));
+
+        // Song list in a ScrollView
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
+
+        LinearLayout listLayout = new LinearLayout(this);
+        listLayout.setOrientation(LinearLayout.VERTICAL);
+        scrollView.addView(listLayout);
+
+        int currentIndex = playerManager.getCurrentIndex();
+        for (int i = 0; i < playlist.size(); i++) {
+            final int index = i;
+            Song song = playlist.get(i);
+
+            LinearLayout itemLayout = new LinearLayout(this);
+            itemLayout.setOrientation(LinearLayout.VERTICAL);
+            itemLayout.setPadding(dp(8), dp(6), dp(8), dp(6));
+            itemLayout.setClickable(true);
+            itemLayout.setFocusable(true);
+
+            // Highlight current playing song
+            if (i == currentIndex) {
+                itemLayout.setBackgroundColor(0xFF333333);
+            }
+
+            TextView tvName = new TextView(this);
+            String prefix = (i == currentIndex) ? "▶ " : (i + 1) + ". ";
+            tvName.setText(prefix + song.getName());
+            tvName.setTextColor(i == currentIndex ? 0xFFD32F2F : 0xFFFFFFFF);
+            tvName.setTextSize(13);
+            tvName.setSingleLine(true);
+            tvName.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            itemLayout.addView(tvName);
+
+            TextView tvArtist = new TextView(this);
+            tvArtist.setText(song.getArtist());
+            tvArtist.setTextColor(0xFF757575);
+            tvArtist.setTextSize(11);
+            tvArtist.setSingleLine(true);
+            tvArtist.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            itemLayout.addView(tvArtist);
+
+            itemLayout.setOnClickListener(v -> {
+                playerManager.setPlaylist(new java.util.ArrayList<>(playlist), index);
+                playerManager.playCurrent();
+                dismissOverlay();
+            });
+
+            listLayout.addView(itemLayout);
+        }
+
+        contentLayout.addView(scrollView);
+        overlayContainer.addView(contentLayout);
+
+        // Scroll to current song
+        if (currentIndex > 0) {
+            scrollView.post(() -> {
+                View child = listLayout.getChildAt(currentIndex);
+                if (child != null) {
+                    scrollView.smoothScrollTo(0, child.getTop());
+                }
+            });
+        }
+
+        rootView.addView(overlayContainer);
     }
 
     private void showSpeedOptions() {

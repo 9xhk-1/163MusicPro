@@ -119,6 +119,23 @@ public class HistoryManager {
         }
     }
 
+    /**
+     * Remove a single song from history by its ID.
+     */
+    public void removeFromHistory(long songId) {
+        try {
+            List<JSONObject> entries = loadEntries();
+            for (int i = entries.size() - 1; i >= 0; i--) {
+                if (entries.get(i).optLong("id", -1) == songId) {
+                    entries.remove(i);
+                }
+            }
+            saveEntries(entries);
+        } catch (Exception e) {
+            Log.w(TAG, "Error removing from history", e);
+        }
+    }
+
     private List<JSONObject> loadEntries() {
         List<JSONObject> entries = new ArrayList<>();
         File file = getHistoryFile();

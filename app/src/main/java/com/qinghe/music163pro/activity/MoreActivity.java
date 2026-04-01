@@ -3,6 +3,8 @@ package com.qinghe.music163pro.activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.TextView;
@@ -22,11 +24,14 @@ import java.util.List;
  * More menu activity - shows a flat tile list of functions:
  * 收藏列表, 搜索, 下载列表, 铃声管理, 排行榜, 历史记录,
  * 个人中心(登录后), 私人漫游(登录后), 登录, 设置
+ *
+ * Supports right-swipe gesture to go back to the player screen.
  */
 public class MoreActivity extends AppCompatActivity {
 
     private TextView btnProfile;
     private TextView btnPersonalFM;
+    private GestureDetector gestureDetector;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,6 +83,28 @@ public class MoreActivity extends AppCompatActivity {
 
         btnSettings.setOnClickListener(v ->
                 startActivity(new Intent(this, SettingsActivity.class)));
+
+        // Set up right-swipe to go back to player
+        gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                if (e1 != null && e2 != null) {
+                    float diffX = e2.getX() - e1.getX();
+                    float diffY = Math.abs(e2.getY() - e1.getY());
+                    if (diffX > 80 && diffY < 200 && Math.abs(velocityX) > 200) {
+                        finish();
+                        return true;
+                    }
+                }
+                return false;
+            }
+        });
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        gestureDetector.onTouchEvent(event);
+        return super.dispatchTouchEvent(event);
     }
 
     @Override

@@ -492,6 +492,86 @@ public class MusicApiHelper {
         });
     }
 
+    // ==================== Password Login ====================
+
+    /**
+     * Login with phone number and password.
+     * (same as NeteaseCloudMusicApiBackup module/login_cellphone.js with password mode)
+     * Uses mobile cookie and weapi encryption, same as SMS login.
+     */
+    public static void loginByPassword(String phone, String password, String ctcode,
+                                        LoginCallback callback) {
+        executor.execute(() -> {
+            try {
+                // MD5 hash the password
+                java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
+                byte[] digest = md.digest(password.getBytes("UTF-8"));
+                StringBuilder hexString = new StringBuilder();
+                for (byte b : digest) {
+                    String hex = Integer.toHexString(0xff & b);
+                    if (hex.length() == 1) hexString.append('0');
+                    hexString.append(hex);
+                }
+                String md5Password = hexString.toString();
+
+                JSONObject data = new JSONObject();
+                data.put("phone", phone);
+                data.put("countrycode", ctcode != null && !ctcode.isEmpty() ? ctcode : "86");
+                data.put("password", md5Password);
+                data.put("rememberLogin", "true");
+
+                String[] encrypted = NeteaseApiCrypto.weapi(data.toString());
+                String postBody = "params=" + URLEncoder.encode(encrypted[0], "UTF-8")
+                        + "&encSecKey=" + URLEncoder.encode(encrypted[1], "UTF-8");
+
+                String urlStr = DOMAIN + "/weapi/login/cellphone";
+                URL url = new URL(urlStr);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("User-Agent", MOBILE_USER_AGENT);
+                conn.setRequestProperty("Referer", DOMAIN);
+                conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                conn.setRequestProperty("Cookie", buildMobileCookie(""));
+                conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+                conn.setReadTimeout(READ_TIMEOUT_MS);
+                conn.setDoOutput(true);
+                conn.setInstanceFollowRedirects(false);
+
+                try {
+                    OutputStream os = conn.getOutputStream();
+                    os.write(postBody.getBytes("UTF-8"));
+                    os.close();
+
+                    BufferedReader reader = new BufferedReader(
+                            new InputStreamReader(conn.getInputStream(), "UTF-8"));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line);
+                    }
+                    reader.close();
+
+                    JSONObject json = new JSONObject(sb.toString());
+                    int code = json.optInt("code", -1);
+                    String message = json.optString("message",
+                            json.optString("msg", ""));
+
+                    String cookieStr = "";
+                    if (code == 200) {
+                        cookieStr = extractSetCookies(conn);
+                    }
+
+                    final String finalCookie = cookieStr;
+                    mainHandler.post(() -> callback.onResult(code, message, finalCookie));
+                } finally {
+                    conn.disconnect();
+                }
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onError(e.getMessage()));
+            }
+        });
+    }
+
     // ==================== Lyrics ====================
 
     /**
@@ -870,37 +950,47 @@ public class MusicApiHelper {
     /**
      * Get personal FM songs.
      * (same as NeteaseCloudMusicApiBackup module/personal_fm.js)
+     * Calls the API multiple times to accumulate more songs since each call returns ~3.
      */
     public static void getPersonalFM(String cookie, PersonalFMCallback callback) {
         executor.execute(() -> {
             try {
-                JSONObject data = new JSONObject();
                 String csrfToken = extractCsrfToken(cookie);
-                data.put("csrf_token", csrfToken);
+                List<Song> allSongs = new ArrayList<>();
+                java.util.Set<Long> seenIds = new java.util.HashSet<>();
 
-                String response = weapiPost("/api/v1/radio/get", data.toString(), cookie);
-                JSONObject json = new JSONObject(response);
-                JSONArray dataArr = json.optJSONArray("data");
-                List<Song> songs = new ArrayList<>();
-                if (dataArr != null) {
-                    for (int i = 0; i < dataArr.length(); i++) {
-                        JSONObject s = dataArr.getJSONObject(i);
-                        long id = s.getLong("id");
-                        String name = s.getString("name");
-                        String artist = "";
-                        JSONArray artists = s.optJSONArray("artists");
-                        if (artists != null && artists.length() > 0) {
-                            artist = artists.getJSONObject(0).optString("name", "");
+                // Call the API multiple times to get more songs (each returns ~3)
+                for (int batch = 0; batch < 5 && allSongs.size() < 15; batch++) {
+                    JSONObject data = new JSONObject();
+                    data.put("csrf_token", csrfToken);
+
+                    String response = weapiPost("/api/v1/radio/get", data.toString(), cookie);
+                    JSONObject json = new JSONObject(response);
+                    JSONArray dataArr = json.optJSONArray("data");
+                    if (dataArr != null) {
+                        for (int i = 0; i < dataArr.length(); i++) {
+                            JSONObject s = dataArr.getJSONObject(i);
+                            long id = s.getLong("id");
+                            if (seenIds.contains(id)) continue;
+                            seenIds.add(id);
+                            String name = s.getString("name");
+                            String artist = "";
+                            JSONArray artists = s.optJSONArray("artists");
+                            if (artists != null && artists.length() > 0) {
+                                artist = artists.getJSONObject(0).optString("name", "");
+                            }
+                            String album = "";
+                            JSONObject albumObj = s.optJSONObject("album");
+                            if (albumObj != null) {
+                                album = albumObj.optString("name", "");
+                            }
+                            allSongs.add(new Song(id, name, artist, album));
                         }
-                        String album = "";
-                        JSONObject albumObj = s.optJSONObject("album");
-                        if (albumObj != null) {
-                            album = albumObj.optString("name", "");
-                        }
-                        songs.add(new Song(id, name, artist, album));
                     }
                 }
-                mainHandler.post(() -> callback.onResult(songs));
+
+                final List<Song> result = allSongs;
+                mainHandler.post(() -> callback.onResult(result));
             } catch (Exception e) {
                 Log.w(TAG, "Personal FM error", e);
                 mainHandler.post(() -> callback.onError(e.getMessage()));

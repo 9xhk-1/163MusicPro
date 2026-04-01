@@ -123,6 +123,16 @@ public class HistoryActivity extends AppCompatActivity {
             finish();
         });
 
+        lvHistory.setOnItemLongClickListener((parent, view, position, id) -> {
+            Song song = displayList.get(position);
+            showConfirmDialog("确认删除", "确定删除「" + song.getName() + "」的播放记录？", () -> {
+                HistoryManager.getInstance().removeFromHistory(song.getId());
+                loadHistory();
+                Toast.makeText(this, "已删除", Toast.LENGTH_SHORT).show();
+            });
+            return true;
+        });
+
         loadHistory();
     }
 
@@ -147,6 +157,18 @@ public class HistoryActivity extends AppCompatActivity {
     }
 
     private void showClearConfirmDialog() {
+        showConfirmDialog("确认清空", "确定清空所有播放记录？", () -> {
+            HistoryManager.getInstance().clearHistory();
+            loadHistory();
+            Toast.makeText(this, "已清空", Toast.LENGTH_SHORT).show();
+        });
+    }
+
+    /**
+     * Show a confirmation dialog adapted for watch (360x320 px screen).
+     * Uses fixed pixel values for consistent sizing on watch displays.
+     */
+    private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         FrameLayout rootView = findViewById(android.R.id.content);
 
         FrameLayout overlay = new FrameLayout(this);
@@ -166,7 +188,7 @@ public class HistoryActivity extends AppCompatActivity {
         dialog.setLayoutParams(dlgParams);
 
         TextView tvTitle = new TextView(this);
-        tvTitle.setText("确认清空");
+        tvTitle.setText(title);
         tvTitle.setTextColor(0xFFFFFFFF);
         tvTitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(18));
         tvTitle.setGravity(Gravity.CENTER);
@@ -174,7 +196,7 @@ public class HistoryActivity extends AppCompatActivity {
         dialog.addView(tvTitle);
 
         TextView tvMessage = new TextView(this);
-        tvMessage.setText("确定清空所有播放记录？");
+        tvMessage.setText(message);
         tvMessage.setTextColor(0xFFCCCCCC);
         tvMessage.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(15));
         tvMessage.setGravity(Gravity.CENTER);
@@ -217,9 +239,7 @@ public class HistoryActivity extends AppCompatActivity {
         btnConfirm.setFocusable(true);
         btnConfirm.setOnClickListener(v -> {
             rootView.removeView(overlay);
-            HistoryManager.getInstance().clearHistory();
-            loadHistory();
-            Toast.makeText(this, "已清空", Toast.LENGTH_SHORT).show();
+            onConfirm.run();
         });
         btnRow.addView(btnConfirm);
 
