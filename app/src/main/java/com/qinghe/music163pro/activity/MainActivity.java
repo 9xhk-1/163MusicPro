@@ -230,7 +230,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         requestStoragePermission();
 
         // Activity-level gesture detector:
-        // - Right swipe: dismiss overlay if one is open; do nothing (no exit) on main screen
+        // - Right swipe: dismiss overlay if one is open; exit app on main player screen
         // - Left swipe: open lyrics overlay (only when no overlay is showing)
         activityGestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override
@@ -246,9 +246,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
                 if (Math.abs(diffX) > 80 && diffY < 200 && Math.abs(velocityX) > 200) {
                     if (diffX > 0) {
-                        // Right swipe: dismiss overlay if open; otherwise do nothing (exit disabled)
+                        // Right swipe: dismiss overlay if open; exit app on main screen
                         if (overlayContainer != null) {
                             dismissOverlay();
+                        } else {
+                            finish();
                         }
                         return true;
                     } else {

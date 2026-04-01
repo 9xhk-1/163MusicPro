@@ -81,7 +81,7 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeText(
                 "• 修复右滑退出被全局禁用导致所有界面无法右划的问题\n"
                 + "• 仅 MainActivity 禁用系统右滑退出，其余所有界面恢复正常右滑退出\n"
-                + "• 歌词界面/更多功能界面右滑正确关闭对应面板，主播放界面右滑无响应\n"
+                + "• 歌词界面/更多功能界面右滑正确关闭对应面板，主播放界面右滑直接退出应用\n"
                 + "• 修复个人中心 VIP 到期日期不显示的问题\n"
                 + "• VIP详情兼容黑胶VIP、红钻VIP、音乐包多种类型及到期时间/剩余天数显示",
                 0xFFAAAAAA, px(15), false, Gravity.START));
