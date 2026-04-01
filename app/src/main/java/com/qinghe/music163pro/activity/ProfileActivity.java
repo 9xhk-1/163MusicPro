@@ -102,61 +102,30 @@ public class ProfileActivity extends AppCompatActivity {
             JSONObject data = json.optJSONObject("data");
             if (data == null) return;
 
-            addSectionTitle("VIP详情");
-
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
             long now = System.currentTimeMillis();
+            boolean foundAny = false;
 
-            // redVipLevel / musicPackage info
-            JSONObject redVipLevel = data.optJSONObject("redVipLevel");
-            JSONObject associator = data.optJSONObject("associator");
-            JSONObject musicPackage = data.optJSONObject("musicPackage");
+            // Try all known VIP sub-objects in the data for expTime
+            String[] keys   = {"associator", "redVipLevel", "musicPackage"};
+            String[] labels = {"黑胶VIP",     "红钻VIP",      "音乐包"};
 
-            if (associator != null) {
-                // VIP start date
-                long startTime = associator.optLong("startTime", 0);
-                if (startTime <= 0) {
-                    startTime = associator.optLong("createTime", 0);
-                }
-                if (startTime > 0) {
-                    addInfoRow("黑胶VIP开通", sdf.format(new java.util.Date(startTime)));
-                }
+            for (int i = 0; i < keys.length; i++) {
+                JSONObject obj = data.optJSONObject(keys[i]);
+                if (obj == null) continue;
+                long expTime = obj.optLong("expTime", 0);
+                if (expTime <= 0) continue;
 
-                long expTime = associator.optLong("expTime", 0);
-                if (expTime > 0) {
-                    boolean expired = expTime < now;
-                    addInfoRow("黑胶VIP到期", sdf.format(new java.util.Date(expTime))
-                            + (expired ? " (已过期)" : " ✓"));
-                    // Show remaining days
-                    if (expTime > now) {
-                        long days = (expTime - now) / (1000 * 60 * 60 * 24);
-                        addInfoRow("VIP剩余", days + " 天");
-                    }
+                if (!foundAny) {
+                    addSectionTitle("VIP详情");
+                    foundAny = true;
                 }
-
-                // If we have both start and end, show the period
-                if (startTime > 0 && expTime > 0) {
-                    addInfoRow("VIP期间", sdf.format(new java.util.Date(startTime))
-                            + " 至 " + sdf.format(new java.util.Date(expTime)));
-                }
-            }
-            if (musicPackage != null) {
-                long startTime = musicPackage.optLong("startTime", 0);
-                if (startTime <= 0) {
-                    startTime = musicPackage.optLong("createTime", 0);
-                }
-                if (startTime > 0) {
-                    addInfoRow("音乐包开通", sdf.format(new java.util.Date(startTime)));
-                }
-                long expTime = musicPackage.optLong("expTime", 0);
-                if (expTime > 0) {
-                    boolean expired = expTime < now;
-                    addInfoRow("音乐包到期", sdf.format(new java.util.Date(expTime))
-                            + (expired ? " (已过期)" : " ✓"));
-                    if (expTime > now) {
-                        long days = (expTime - now) / (1000 * 60 * 60 * 24);
-                        addInfoRow("音乐包剩余", days + " 天");
-                    }
+                boolean expired = expTime < now;
+                addInfoRow(labels[i] + "到期", sdf.format(new java.util.Date(expTime))
+                        + (expired ? " (已过期)" : " ✓"));
+                if (expTime > now) {
+                    long days = (expTime - now) / (1000 * 60 * 60 * 24);
+                    addInfoRow(labels[i] + "剩余", days + " 天");
                 }
             }
         } catch (Exception e) {
@@ -241,25 +210,35 @@ public class ProfileActivity extends AppCompatActivity {
                         default: vipStr = "VIP (类型" + vipType + ")"; break;
                     }
                     addInfoRow("VIP类型", vipStr);
+                }
 
-                    // VIP expiry time from profile.vipRights or profile.viptypeVersion
-                    JSONObject vipRights = profile.optJSONObject("vipRights");
-                    if (vipRights != null) {
-                        JSONObject associator = vipRights.optJSONObject("associator");
-                        if (associator != null) {
-                            long expTime = associator.optLong("expTime", 0);
-                            if (expTime > 0) {
-                                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
-                                addInfoRow("VIP到期", sdf.format(new java.util.Date(expTime)));
+                // VIP expiry from profile.vipRights — show regardless of vipType field
+                java.text.SimpleDateFormat sdfDate = new java.text.SimpleDateFormat("yyyy-MM-dd");
+                long profileVipExp = 0;
+                JSONObject vipRights = profile.optJSONObject("vipRights");
+                if (vipRights != null) {
+                    JSONObject assoc = vipRights.optJSONObject("associator");
+                    if (assoc != null) {
+                        profileVipExp = assoc.optLong("expTime", 0);
+                        if (profileVipExp > 0) {
+                            long now = System.currentTimeMillis();
+                            boolean expired = profileVipExp < now;
+                            addInfoRow("VIP到期", sdfDate.format(new java.util.Date(profileVipExp))
+                                    + (expired ? " (已过期)" : " ✓"));
+                            if (!expired) {
+                                long days = (profileVipExp - now) / (1000 * 60 * 60 * 24);
+                                addInfoRow("VIP剩余", days + " 天");
                             }
                         }
-                        JSONObject musicPackage = vipRights.optJSONObject("musicPackage");
-                        if (musicPackage != null) {
-                            long expTime = musicPackage.optLong("expTime", 0);
-                            if (expTime > 0) {
-                                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
-                                addInfoRow("音乐包到期", sdf.format(new java.util.Date(expTime)));
-                            }
+                    }
+                    JSONObject musicPkg = vipRights.optJSONObject("musicPackage");
+                    if (musicPkg != null) {
+                        long expTime = musicPkg.optLong("expTime", 0);
+                        if (expTime > 0) {
+                            long now = System.currentTimeMillis();
+                            boolean expired = expTime < now;
+                            addInfoRow("音乐包到期", sdfDate.format(new java.util.Date(expTime))
+                                    + (expired ? " (已过期)" : " ✓"));
                         }
                     }
                 }
@@ -282,7 +261,11 @@ public class ProfileActivity extends AppCompatActivity {
                 }
                 addInfoRow("会员类型", vipStr);
 
+                // Show VIP expiry from account — try both common field names
                 long vipExpireTime = account.optLong("vipExpiresTime", 0);
+                if (vipExpireTime <= 0) {
+                    vipExpireTime = account.optLong("vipExpireTime", 0);
+                }
                 if (vipExpireTime > 0) {
                     java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
                     boolean isExpired = vipExpireTime < System.currentTimeMillis();

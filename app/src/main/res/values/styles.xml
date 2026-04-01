@@ -5,7 +5,10 @@
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
         <item name="android:windowBackground">@color/bg_dark</item>
-        <!-- Disable system swipe-to-dismiss on watches to handle swipe gestures manually -->
+    </style>
+
+    <!-- MainActivity-only theme: disables system swipe-to-dismiss so overlay right-swipe is handled in code -->
+    <style name="AppTheme.Main">
         <item name="android:windowSwipeToDismiss">false</item>
     </style>
 </resources>
