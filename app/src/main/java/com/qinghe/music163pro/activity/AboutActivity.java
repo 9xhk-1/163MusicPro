@@ -47,7 +47,7 @@ public class AboutActivity extends AppCompatActivity {
 
         // Version
         content.addView(makeSpacer(px(4)));
-        String versionName = "20260331-fix1";
+        String versionName = "20260401";
         try {
             versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (Exception ignored) {}
@@ -68,6 +68,22 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeText(
                 "适用于小天才手表的网易云音乐播放器。支持在线搜索、播放、下载、收藏、歌词显示、铃声设置等功能。"
                 + "支持扫码登录、短信登录和Cookie登录，可播放VIP音乐。",
+                0xFFAAAAAA, px(15), false, Gravity.START));
+
+        // Divider
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeDivider());
+
+        // v20260401 update summary
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeText("v20260401 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeSpacer(px(4)));
+        content.addView(makeText(
+                "• 修复右滑退出被全局禁用导致所有界面无法右划的问题\n"
+                + "• 仅 MainActivity 禁用系统右滑退出，其余所有界面恢复正常右滑退出\n"
+                + "• 歌词界面/更多功能界面右滑正确关闭对应面板，主播放界面右滑无响应\n"
+                + "• 修复个人中心 VIP 到期日期不显示的问题\n"
+                + "• VIP详情兼容黑胶VIP、红钻VIP、音乐包多种类型及到期时间/剩余天数显示",
                 0xFFAAAAAA, px(15), false, Gravity.START));
 
         // Divider

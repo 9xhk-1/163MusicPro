@@ -11,4 +11,5 @@
     <style name="AppTheme.Main">
         <item name="android:windowSwipeToDismiss">false</item>
     </style>
+
 </resources>

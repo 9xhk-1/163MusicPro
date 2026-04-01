@@ -229,7 +229,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Request storage permission for saving favorites to /sdcard/163Music/
         requestStoragePermission();
 
-        // Activity-level gesture detector: left-swipe for lyrics, right-swipe to dismiss overlays
+        // Activity-level gesture detector:
+        // - Right swipe: dismiss overlay if one is open; do nothing (no exit) on main screen
+        // - Left swipe: open lyrics overlay (only when no overlay is showing)
         activityGestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
             @Override
             public boolean onDown(MotionEvent e) {
@@ -244,13 +246,13 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
                 if (Math.abs(diffX) > 80 && diffY < 200 && Math.abs(velocityX) > 200) {
                     if (diffX > 0) {
-                        // Right swipe
+                        // Right swipe: dismiss overlay if open; otherwise do nothing (exit disabled)
                         if (overlayContainer != null) {
                             dismissOverlay();
-                            return true;
                         }
+                        return true;
                     } else {
-                        // Left swipe - show lyrics (only when no overlay is showing)
+                        // Left swipe: show lyrics (only when no overlay is showing)
                         if (overlayContainer == null) {
                             showLyricsOverlay();
                             return true;
