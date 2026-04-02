@@ -159,6 +159,31 @@ public class MusicApiHelper {
         void onError(String message);
     }
 
+    public interface SongWikiCallback {
+        void onResult(JSONObject wikiJson);
+        void onError(String message);
+    }
+
+    public interface ArtistDescCallback {
+        void onResult(String briefDesc, JSONArray introduction);
+        void onError(String message);
+    }
+
+    public interface CommentCallback {
+        void onResult(JSONObject commentData);
+        void onError(String message);
+    }
+
+    public interface CommentActionCallback {
+        void onResult(boolean success);
+        void onError(String message);
+    }
+
+    public interface LyricsFullCallback {
+        void onResult(String lrcText, String tlyricText);
+        void onError(String message);
+    }
+
     // ==================== Search ====================
 
     public static void searchSongs(String keyword, String cookie, SearchCallback callback) {
@@ -1176,6 +1201,266 @@ public class MusicApiHelper {
             MusicLog.w(TAG, "提取UID失败", e);
         }
         return -1;
+    }
+
+    // ==================== Song Wiki ====================
+
+    public static void getSongWikiSummary(long songId, String cookie, SongWikiCallback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject data = new JSONObject();
+                data.put("songId", songId);
+                String csrfToken = extractCsrfToken(cookie);
+                data.put("csrf_token", csrfToken);
+                String response = weapiPost("/api/song/play/about/block/page", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                mainHandler.post(() -> callback.onResult(json));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "获取歌曲百科失败: " + songId, e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    // ==================== Artist Description ====================
+
+    public static void getArtistDesc(long artistId, String cookie, ArtistDescCallback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject data = new JSONObject();
+                data.put("id", artistId);
+                String csrfToken = extractCsrfToken(cookie);
+                data.put("csrf_token", csrfToken);
+                String response = weapiPost("/api/artist/introduction", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                String briefDesc = json.optString("briefDesc", "");
+                JSONArray introduction = json.optJSONArray("introduction");
+                mainHandler.post(() -> callback.onResult(briefDesc, introduction != null ? introduction : new JSONArray()));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "获取歌手简介失败: " + artistId, e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    // ==================== Comments ====================
+
+    /**
+     * Get comments for a song.
+     * sortType: 99=recommended, 2=hot, 3=newest
+     */
+    public static void getComments(long songId, int pageNo, int pageSize, int sortType,
+                                    String cursor, String cookie, CommentCallback callback) {
+        executor.execute(() -> {
+            try {
+                String threadId = "R_SO_4_" + songId;
+                JSONObject data = new JSONObject();
+                data.put("threadId", threadId);
+                data.put("pageNo", pageNo);
+                data.put("showInner", true);
+                data.put("pageSize", pageSize);
+                data.put("sortType", sortType);
+                // Build cursor based on sortType
+                String cursorVal;
+                if (cursor != null && !cursor.isEmpty()) {
+                    cursorVal = cursor;
+                } else {
+                    switch (sortType) {
+                        case 2:
+                            cursorVal = "normalHot#" + ((pageNo - 1) * pageSize);
+                            break;
+                        case 3:
+                            cursorVal = "0";
+                            break;
+                        case 99:
+                        default:
+                            cursorVal = String.valueOf((pageNo - 1) * pageSize);
+                            break;
+                    }
+                }
+                data.put("cursor", cursorVal);
+                String csrfToken = extractCsrfToken(cookie);
+                data.put("csrf_token", csrfToken);
+                String response = weapiPost("/api/v2/resource/comments", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                mainHandler.post(() -> callback.onResult(json));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "获取评论失败: " + songId, e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    /**
+     * Post a new comment on a song.
+     */
+    public static void postComment(long songId, String content, String cookie, CommentActionCallback callback) {
+        executor.execute(() -> {
+            try {
+                String threadId = "R_SO_4_" + songId;
+                JSONObject data = new JSONObject();
+                data.put("threadId", threadId);
+                data.put("content", content);
+                String csrfToken = extractCsrfToken(cookie);
+                data.put("csrf_token", csrfToken);
+                String response = weapiPost("/api/resource/comments/add", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                int code = json.optInt("code", -1);
+                mainHandler.post(() -> callback.onResult(code == 200));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "发送评论失败", e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    /**
+     * Reply to a comment on a song.
+     */
+    public static void replyComment(long songId, long commentId, String content, String cookie, CommentActionCallback callback) {
+        executor.execute(() -> {
+            try {
+                String threadId = "R_SO_4_" + songId;
+                JSONObject data = new JSONObject();
+                data.put("threadId", threadId);
+                data.put("commentId", commentId);
+                data.put("content", content);
+                String csrfToken = extractCsrfToken(cookie);
+                data.put("csrf_token", csrfToken);
+                String response = weapiPost("/api/resource/comments/reply", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                int code = json.optInt("code", -1);
+                mainHandler.post(() -> callback.onResult(code == 200));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "回复评论失败", e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    /**
+     * Like or unlike a comment.
+     * @param like true to like, false to unlike
+     */
+    public static void likeComment(long songId, long commentId, boolean like, String cookie, CommentActionCallback callback) {
+        executor.execute(() -> {
+            try {
+                String threadId = "R_SO_4_" + songId;
+                String action = like ? "like" : "unlike";
+                JSONObject data = new JSONObject();
+                data.put("threadId", threadId);
+                data.put("commentId", commentId);
+                String csrfToken = extractCsrfToken(cookie);
+                data.put("csrf_token", csrfToken);
+                String response = weapiPost("/api/v1/comment/" + action, data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                int code = json.optInt("code", -1);
+                mainHandler.post(() -> callback.onResult(code == 200));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "点赞评论失败", e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    /**
+     * Get floor (sub) comments for a parent comment.
+     */
+    public static void getFloorComments(long songId, long parentCommentId, int limit, long time,
+                                         String cookie, CommentCallback callback) {
+        executor.execute(() -> {
+            try {
+                String threadId = "R_SO_4_" + songId;
+                JSONObject data = new JSONObject();
+                data.put("parentCommentId", parentCommentId);
+                data.put("threadId", threadId);
+                data.put("time", time);
+                data.put("limit", limit);
+                String csrfToken = extractCsrfToken(cookie);
+                data.put("csrf_token", csrfToken);
+                String response = weapiPost("/api/resource/comment/floor/get", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                mainHandler.post(() -> callback.onResult(json));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "获取楼层评论失败", e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    // ==================== Lyrics with Translation ====================
+
+    /**
+     * Fetch lyrics with translation for a song by its ID.
+     * Returns both original LRC and translated LRC (tlyric).
+     */
+    public static void getLyricsWithTranslation(long songId, String cookie, LyricsFullCallback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject data = new JSONObject();
+                data.put("id", songId);
+                data.put("cp", false);
+                data.put("tv", 0);
+                data.put("lv", 0);
+                data.put("rv", 0);
+                data.put("kv", 0);
+                data.put("yv", 0);
+                data.put("ytv", 0);
+                data.put("yrv", 0);
+                String csrfToken = extractCsrfToken(cookie);
+                data.put("csrf_token", csrfToken);
+                String response = weapiPost("/api/song/lyric/v1", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                String lrc = "";
+                JSONObject lrcObj = json.optJSONObject("lrc");
+                if (lrcObj != null) {
+                    lrc = lrcObj.optString("lyric", "");
+                }
+                String tlyric = "";
+                JSONObject tlyricObj = json.optJSONObject("tlyric");
+                if (tlyricObj != null) {
+                    tlyric = tlyricObj.optString("lyric", "");
+                }
+                final String finalLrc = lrc;
+                final String finalTlyric = tlyric;
+                mainHandler.post(() -> callback.onResult(finalLrc, finalTlyric));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "获取歌词(含翻译)失败: " + songId, e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    /**
+     * Fetch translated lyrics synchronously (for downloads).
+     * Returns the tlyric LRC text, or null if unavailable.
+     */
+    public static String fetchTranslatedLyricsSync(long songId, String cookie) {
+        try {
+            JSONObject data = new JSONObject();
+            data.put("id", songId);
+            data.put("cp", false);
+            data.put("tv", 0);
+            data.put("lv", 0);
+            data.put("rv", 0);
+            data.put("kv", 0);
+            data.put("yv", 0);
+            data.put("ytv", 0);
+            data.put("yrv", 0);
+            String csrfToken = extractCsrfToken(cookie);
+            data.put("csrf_token", csrfToken);
+            String response = weapiPost("/api/song/lyric/v1", data.toString(), cookie);
+            JSONObject json = new JSONObject(response);
+            JSONObject tlyricObj = json.optJSONObject("tlyric");
+            if (tlyricObj != null) {
+                String tlyric = tlyricObj.optString("lyric", "");
+                if (!tlyric.isEmpty()) return tlyric;
+            }
+            return null;
+        } catch (Exception e) {
+            MusicLog.w(TAG, "翻译歌词同步获取失败: " + songId, e);
+            return null;
+        }
     }
 
     // ==================== weapi POST ====================
