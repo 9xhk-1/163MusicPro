@@ -45,6 +45,7 @@
         <activity android:name=".activity.TopListDetailActivity" android:exported="false" />
         <activity android:name=".activity.HistoryActivity" android:exported="false" />
         <activity android:name=".activity.SongRecognitionActivity" android:exported="false" />
+        <activity android:name=".activity.WebVerifyActivity" android:exported="false" />
 
         <service
             android:name=".service.MusicPlaybackService"

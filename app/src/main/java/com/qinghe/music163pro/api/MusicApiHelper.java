@@ -104,6 +104,8 @@ public class MusicApiHelper {
     public interface LoginCallback {
         void onResult(int code, String message, String cookie);
         void onError(String message);
+        /** Called when server requires CAPTCHA verification (code -462). Open verifyUrl in a WebView. */
+        default void onVerificationRequired(String verifyUrl) {}
     }
 
     public interface LyricsCallback {
@@ -518,6 +520,17 @@ public class MusicApiHelper {
                     int code = json.optInt("code", -1);
                     String message = json.optString("message", json.optString("msg", ""));
                     if (message.isEmpty()) message = "code=" + code;
+
+                    // -462 = needs CAPTCHA verification before login can proceed
+                    if (code == -462) {
+                        JSONObject dataObj = json.optJSONObject("data");
+                        String verifyUrl = dataObj != null ? dataObj.optString("url", dataObj.optString("verifyUrl", "")) : "";
+                        MusicLog.w(TAG, "短信登录需要滑块验证，verifyUrl=" + verifyUrl);
+                        MusicLog.d(TAG, "短信登录 -462 Set-Cookie: " + extractSetCookies(conn));
+                        final String finalVerifyUrl = verifyUrl;
+                        mainHandler.post(() -> callback.onVerificationRequired(finalVerifyUrl));
+                        return;
+                    }
 
                     String cookieStr = "";
                     if (code == 200) {
@@ -1411,8 +1424,8 @@ public class MusicApiHelper {
     /**
      * Recognize a song from PCM audio data (听歌识曲).
      * Per NeteaseCloudMusic_PythonSDK: audio_match(duration, audioFP) → /audio/match
-     * GET https://interface.music.163.com/api/music/audio/match
-     *   ?sessionId=0123456789abcdef&algorithmCode=shazam_v2&duration={sec}&rawdata={audioFP}&times=1&decrypt=1
+     * POST https://interface.music.163.com/api/music/audio/match (POST to avoid 414 URI Too Long)
+     * Body: sessionId=xxx&algorithmCode=shazam_v2&duration={sec}&rawdata={audioFP}&times=1&decrypt=1
      * Response: {code, data: {result: {songId, songName, artists:[{name}], album:{name}}}}
      *
      * @param pcmData  raw PCM bytes (16-bit LE, 16kHz, mono) — this is the audioFP/rawdata
@@ -1427,28 +1440,37 @@ public class MusicApiHelper {
                 // Calculate duration: 16kHz * 2 bytes/sample (16-bit mono) = 32000 bytes/sec
                 int durationSec = Math.max(1, pcmData.length / 32000);
 
-                // Encode PCM as base64 (audioFP in audio_match.js)
+                // Encode PCM as base64 (audioFP in Python SDK)
                 String audioBase64 = android.util.Base64.encodeToString(pcmData, android.util.Base64.NO_WRAP);
 
-                // Build GET URL — same as audio_match.js
-                String apiUrl = "https://interface.music.163.com/api/music/audio/match"
-                        + "?sessionId=0123456789abcdef"
+                // Use POST to avoid 414 URI Too Long (base64 audio is very large)
+                String apiUrl = "https://interface.music.163.com/api/music/audio/match";
+                String postBody = "sessionId=0123456789abcdef"
                         + "&algorithmCode=shazam_v2"
                         + "&duration=" + durationSec
                         + "&rawdata=" + URLEncoder.encode(audioBase64, "UTF-8")
                         + "&times=1"
                         + "&decrypt=1";
-                MusicLog.i(TAG, "[REQ] GET audio/match duration=" + durationSec + "s");
+                MusicLog.i(TAG, "[REQ] POST audio/match duration=" + durationSec + "s bytes=" + pcmData.length);
 
                 URL url = new URL(apiUrl);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
+                conn.setRequestMethod("POST");
                 conn.setRequestProperty("User-Agent", USER_AGENT);
                 conn.setRequestProperty("Referer", DOMAIN);
+                conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                if (cookie != null && !cookie.isEmpty()) {
+                    conn.setRequestProperty("Cookie", cookie);
+                }
                 conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
-                conn.setReadTimeout(READ_TIMEOUT_MS);
+                conn.setReadTimeout(60000); // audio recognition may take longer
+                conn.setDoOutput(true);
 
                 try {
+                    OutputStream os = conn.getOutputStream();
+                    os.write(postBody.getBytes("UTF-8"));
+                    os.close();
+
                     int responseCode = conn.getResponseCode();
                     BufferedReader reader;
                     if (responseCode >= 200 && responseCode < 400) {
@@ -1466,7 +1488,7 @@ public class MusicApiHelper {
                     }
                     reader.close();
                     String response = sb.toString();
-                    MusicLog.api(TAG, "GET", "audio/match", responseCode, response);
+                    MusicLog.api(TAG, "POST", "audio/match", responseCode, response);
 
                     JSONObject json = new JSONObject(response);
                     // Response structure: {code, data: {result: {songId, songName, artists:[{name}], album:{name}}}}
@@ -1500,7 +1522,7 @@ public class MusicApiHelper {
 
     /**
      * Recognize a song from humming PCM audio data (哼歌识曲).
-     * GET https://interface.music.163.com/api/music/audio/hum (same style as audio_match.js)
+     * POST https://interface.music.163.com/api/music/audio/hum (POST to avoid 414 URI Too Long)
      *
      * @param pcmData  raw PCM bytes (16-bit LE, 16kHz, mono)
      * @param cookie   user cookie (may be null/empty, not required)
@@ -1516,23 +1538,32 @@ public class MusicApiHelper {
 
                 String audioBase64 = android.util.Base64.encodeToString(pcmData, android.util.Base64.NO_WRAP);
 
-                // Build GET URL (same style as audio_match.js)
-                String apiUrl = "https://interface.music.163.com/api/music/audio/hum"
-                        + "?sessionId=0123456789abcdef"
+                // Use POST to avoid 414 URI Too Long
+                String apiUrl = "https://interface.music.163.com/api/music/audio/hum";
+                String postBody = "sessionId=0123456789abcdef"
                         + "&duration=" + durationSec
                         + "&rawdata=" + URLEncoder.encode(audioBase64, "UTF-8")
                         + "&times=1";
-                MusicLog.i(TAG, "[REQ] GET audio/hum duration=" + durationSec + "s");
+                MusicLog.i(TAG, "[REQ] POST audio/hum duration=" + durationSec + "s bytes=" + pcmData.length);
 
                 URL url = new URL(apiUrl);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
+                conn.setRequestMethod("POST");
                 conn.setRequestProperty("User-Agent", USER_AGENT);
                 conn.setRequestProperty("Referer", DOMAIN);
+                conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                if (cookie != null && !cookie.isEmpty()) {
+                    conn.setRequestProperty("Cookie", cookie);
+                }
                 conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
-                conn.setReadTimeout(READ_TIMEOUT_MS);
+                conn.setReadTimeout(60000);
+                conn.setDoOutput(true);
 
                 try {
+                    OutputStream os = conn.getOutputStream();
+                    os.write(postBody.getBytes("UTF-8"));
+                    os.close();
+
                     int responseCode = conn.getResponseCode();
                     BufferedReader reader;
                     if (responseCode >= 200 && responseCode < 400) {
@@ -1550,7 +1581,7 @@ public class MusicApiHelper {
                     }
                     reader.close();
                     String response = sb.toString();
-                    MusicLog.api(TAG, "GET", "audio/hum", responseCode, response);
+                    MusicLog.api(TAG, "POST", "audio/hum", responseCode, response);
 
                     JSONObject json = new JSONObject(response);
                     // Same response structure as audio/match: {code, data: {result: {songId, songName, artists, album}}}
