@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
  * Displays scrolling lyrics synchronized with music playback.
  * Reads lyrics from local .lrc file if available, otherwise fetches from API.
  */
-public class LyricsActivity extends AppCompatActivity {
+public class LyricsActivity extends AppCompatActivity implements MusicPlayerManager.PlayerCallback {
 
     private static final String PREFS_NAME = "music163_settings";
     private static final Pattern LRC_PATTERN = Pattern.compile("\\[(\\d{1,3}):(\\d{2})\\.?(\\d{0,3})\\](.*)");
@@ -42,6 +42,7 @@ public class LyricsActivity extends AppCompatActivity {
     private final List<LyricLine> lyricLines = new ArrayList<>();
     private final List<TextView> lyricViews = new ArrayList<>();
     private int currentHighlightIndex = -1;
+    private String currentSongKey = "";
 
     private final Handler scrollHandler = new Handler();
     private Runnable scrollRunnable;
@@ -83,15 +84,23 @@ public class LyricsActivity extends AppCompatActivity {
             return;
         }
 
-        tvSongName.setText(song.getName() + " - " + song.getArtist());
-
-        loadLyrics(song);
+        showSong(song);
     }
 
-    private void loadLyrics(Song song) {
+    private void showSong(Song song) {
+        currentSongKey = buildSongKey(song);
+        tvSongName.setText(song.getName() + " - " + song.getArtist());
+        resetLyricsState();
+        loadLyrics(song, currentSongKey);
+    }
+
+    private void loadLyrics(Song song, String requestSongKey) {
         // Try to load from local .lrc file first
         String localLrc = loadLocalLrc(song);
         if (localLrc != null && !localLrc.isEmpty()) {
+            if (!requestSongKey.equals(currentSongKey)) {
+                return;
+            }
             parseLrc(localLrc);
             displayLyrics();
             startScrollSync();
@@ -108,6 +117,9 @@ public class LyricsActivity extends AppCompatActivity {
         MusicApiHelper.getLyrics(song.getId(), cookie, new MusicApiHelper.LyricsCallback() {
             @Override
             public void onResult(String lrcText) {
+                if (!requestSongKey.equals(currentSongKey)) {
+                    return;
+                }
                 if (lrcText == null || lrcText.isEmpty()) {
                     showNoLyrics();
                     return;
@@ -119,6 +131,9 @@ public class LyricsActivity extends AppCompatActivity {
 
             @Override
             public void onError(String message) {
+                if (!requestSongKey.equals(currentSongKey)) {
+                    return;
+                }
                 showNoLyrics();
             }
         });
@@ -202,6 +217,8 @@ public class LyricsActivity extends AppCompatActivity {
 
     private void showNoLyrics() {
         llContainer.removeAllViews();
+        lyricViews.clear();
+        currentHighlightIndex = -1;
         TextView tv = new TextView(this);
         tv.setText("暂无歌词");
         tv.setTextColor(0xFF888888);
@@ -213,6 +230,7 @@ public class LyricsActivity extends AppCompatActivity {
 
     private void startScrollSync() {
         if (lyricLines.isEmpty()) return;
+        stopScrollSync();
 
         scrollRunnable = new Runnable() {
             @Override
@@ -248,6 +266,48 @@ public class LyricsActivity extends AppCompatActivity {
             }
         };
         scrollHandler.post(scrollRunnable);
+    }
+
+    private void stopScrollSync() {
+        scrollHandler.removeCallbacksAndMessages(null);
+        scrollRunnable = null;
+    }
+
+    private void resetLyricsState() {
+        stopScrollSync();
+        lyricLines.clear();
+        lyricViews.clear();
+        currentHighlightIndex = -1;
+        llContainer.removeAllViews();
+        svLyrics.scrollTo(0, 0);
+        tvTime.setText("0:00 / 0:00");
+    }
+
+    private String buildSongKey(Song song) {
+        return song.getId() + "|" + song.getName() + "|" + song.getArtist();
+    }
+
+    @Override
+    public void onSongChanged(Song song) {
+        if (song == null) {
+            return;
+        }
+        String newSongKey = buildSongKey(song);
+        if (newSongKey.equals(currentSongKey)) {
+            return;
+        }
+        showSong(song);
+    }
+
+    @Override
+    public void onPlayStateChanged(boolean isPlaying) {
+        if (isPlaying && scrollRunnable == null && !lyricLines.isEmpty()) {
+            startScrollSync();
+        }
+    }
+
+    @Override
+    public void onError(String message) {
     }
 
     private int findCurrentLyricIndex(int positionMs) {
@@ -288,20 +348,30 @@ public class LyricsActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (scrollRunnable != null) {
-            scrollHandler.post(scrollRunnable);
+        playerManager.setCallback(this);
+        Song song = playerManager.getCurrentSong();
+        if (song == null) {
+            Toast.makeText(this, "暂无歌曲", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        if (!buildSongKey(song).equals(currentSongKey)) {
+            showSong(song);
+        } else if (!lyricLines.isEmpty()) {
+            startScrollSync();
         }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        scrollHandler.removeCallbacksAndMessages(null);
+        playerManager.setCallback(null);
+        stopScrollSync();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        scrollHandler.removeCallbacksAndMessages(null);
+        stopScrollSync();
     }
 }

@@ -14,7 +14,7 @@ import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 
 /**
- * Login activity - contains Cookie input, QR login and SMS login.
+ * Login activity - contains Cookie input and QR login.
  * Moved from the old SettingsActivity.
  */
 public class LoginActivity extends AppCompatActivity {
@@ -41,9 +41,6 @@ public class LoginActivity extends AppCompatActivity {
         etCookie = findViewById(R.id.et_cookie);
         TextView btnSave = findViewById(R.id.btn_save_cookie);
         TextView btnQrLogin = findViewById(R.id.btn_qr_login);
-        TextView btnSmsLogin = findViewById(R.id.btn_sms_login);
-        TextView btnPasswordLogin = findViewById(R.id.btn_password_login);
-
         // Load saved values
         etCookie.setText(prefs.getString("cookie", ""));
 
@@ -61,20 +58,12 @@ public class LoginActivity extends AppCompatActivity {
         btnQrLogin.setOnClickListener(v ->
             startActivity(new Intent(this, QrLoginActivity.class))
         );
-
-        btnSmsLogin.setOnClickListener(v ->
-            startActivity(new Intent(this, SmsLoginActivity.class))
-        );
-
-        btnPasswordLogin.setOnClickListener(v ->
-            startActivity(new Intent(this, PasswordLoginActivity.class))
-        );
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        // Refresh cookie field in case QR/SMS login updated it
+        // Refresh cookie field in case QR login updated it
         etCookie.setText(prefs.getString("cookie", ""));
     }
 }
