@@ -71,33 +71,5 @@
             android:clickable="true"
             android:focusable="true" />
 
-        <!-- SMS Login button -->
-        <TextView
-            android:id="@+id/btn_sms_login"
-            android:layout_width="match_parent"
-            android:layout_height="34dp"
-            android:layout_marginTop="4dp"
-            android:background="@color/colorPrimary"
-            android:gravity="center"
-            android:text="@string/sms_login"
-            android:textColor="@color/white"
-            android:textSize="13sp"
-            android:clickable="true"
-            android:focusable="true" />
-
-        <!-- Password Login button -->
-        <TextView
-            android:id="@+id/btn_password_login"
-            android:layout_width="match_parent"
-            android:layout_height="34dp"
-            android:layout_marginTop="4dp"
-            android:background="@color/colorAccent"
-            android:gravity="center"
-            android:text="密码登录"
-            android:textColor="@color/white"
-            android:textSize="13sp"
-            android:clickable="true"
-            android:focusable="true" />
-
     </LinearLayout>
 </ScrollView>

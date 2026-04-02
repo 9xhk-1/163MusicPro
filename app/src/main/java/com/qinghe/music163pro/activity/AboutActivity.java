@@ -47,7 +47,7 @@ public class AboutActivity extends AppCompatActivity {
 
         // Version
         content.addView(makeSpacer(px(4)));
-        String versionName = "20260401";
+        String versionName = "20260402";
         try {
             versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (Exception ignored) {}
@@ -67,7 +67,21 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeSpacer(px(4)));
         content.addView(makeText(
                 "适用于小天才手表的网易云音乐播放器。支持在线搜索、播放、下载、收藏、歌词显示、铃声设置等功能。"
-                + "支持扫码登录、短信登录和Cookie登录，可播放VIP音乐。",
+                + "支持扫码登录和Cookie登录，可播放VIP音乐。",
+                0xFFAAAAAA, px(15), false, Gravity.START));
+
+        // Divider
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeDivider());
+
+        // v20260402 update summary (latest)
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeText("v20260402 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeSpacer(px(4)));
+        content.addView(makeText(
+                "• 移除不可用功能入口：听歌识曲、短信登录、密码登录\n"
+                + "• 修复歌词页面切歌后歌词不刷新的问题\n"
+                + "• 切歌时歌词页自动加载新歌词并更新歌曲名称",
                 0xFFAAAAAA, px(15), false, Gravity.START));
 
         // Divider
@@ -79,9 +93,24 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeText("v20260401 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
         content.addView(makeSpacer(px(4)));
         content.addView(makeText(
+                "• 新增日志系统（API调用/功能操作全记录，写入/sdcard/163Music/app.log）\n"
+                + "• 修复VIP到期时间不显示（API字段expireTime）\n"
+                + "• 修复短信/密码登录「登录失败:null」（正确读取HTTP错误流）\n"
+                + "• 更多页面新增「识别歌曲」功能（听歌识曲 / 哼歌识曲）",
+                0xFFAAAAAA, px(15), false, Gravity.START));
+
+        // Divider
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeDivider());
+
+        // v20260401 (old entry – right-swipe fix)
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeText("v20260401（右滑修复版）更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeSpacer(px(4)));
+        content.addView(makeText(
                 "• 修复右滑退出被全局禁用导致所有界面无法右划的问题\n"
                 + "• 仅 MainActivity 禁用系统右滑退出，其余所有界面恢复正常右滑退出\n"
-                + "• 歌词界面/更多功能界面右滑正确关闭对应面板，主播放界面右滑直接退出应用\n",
+                + "• 歌词界面/更多功能界面右滑正确关闭对应面板，主播放界面右滑直接退出应用",
                 0xFFAAAAAA, px(15), false, Gravity.START));
 
         // Divider

@@ -106,14 +106,16 @@ public class ProfileActivity extends AppCompatActivity {
             long now = System.currentTimeMillis();
             boolean foundAny = false;
 
-            // Try all known VIP sub-objects in the data for expTime
+            // Try all known VIP sub-objects; field may be "expireTime" or "expTime"
             String[] keys   = {"associator", "redVipLevel", "musicPackage"};
             String[] labels = {"黑胶VIP",     "红钻VIP",      "音乐包"};
 
             for (int i = 0; i < keys.length; i++) {
                 JSONObject obj = data.optJSONObject(keys[i]);
                 if (obj == null) continue;
-                long expTime = obj.optLong("expTime", 0);
+                // Support both field name variants used by different API versions
+                long expTime = obj.optLong("expireTime", 0);
+                if (expTime <= 0) expTime = obj.optLong("expTime", 0);
                 if (expTime <= 0) continue;
 
                 if (!foundAny) {
@@ -219,7 +221,8 @@ public class ProfileActivity extends AppCompatActivity {
                 if (vipRights != null) {
                     JSONObject assoc = vipRights.optJSONObject("associator");
                     if (assoc != null) {
-                        profileVipExp = assoc.optLong("expTime", 0);
+                        profileVipExp = assoc.optLong("expireTime", 0);
+                        if (profileVipExp <= 0) profileVipExp = assoc.optLong("expTime", 0);
                         if (profileVipExp > 0) {
                             long now = System.currentTimeMillis();
                             boolean expired = profileVipExp < now;
@@ -233,7 +236,8 @@ public class ProfileActivity extends AppCompatActivity {
                     }
                     JSONObject musicPkg = vipRights.optJSONObject("musicPackage");
                     if (musicPkg != null) {
-                        long expTime = musicPkg.optLong("expTime", 0);
+                        long expTime = musicPkg.optLong("expireTime", 0);
+                        if (expTime <= 0) expTime = musicPkg.optLong("expTime", 0);
                         if (expTime > 0) {
                             long now = System.currentTimeMillis();
                             boolean expired = expTime < now;

@@ -7,6 +7,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:allowBackup="true"
@@ -43,6 +44,8 @@
         <activity android:name=".activity.TopListActivity" android:exported="false" />
         <activity android:name=".activity.TopListDetailActivity" android:exported="false" />
         <activity android:name=".activity.HistoryActivity" android:exported="false" />
+        <activity android:name=".activity.SongRecognitionActivity" android:exported="false" />
+        <activity android:name=".activity.WebVerifyActivity" android:exported="false" />
 
         <service
             android:name=".service.MusicPlaybackService"

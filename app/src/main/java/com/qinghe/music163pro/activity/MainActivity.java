@@ -42,6 +42,7 @@ import com.qinghe.music163pro.manager.RingtoneManagerHelper;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.service.MusicPlaybackService;
+import com.qinghe.music163pro.util.MusicLog;
 
 import java.io.File;
 
@@ -87,6 +88,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private LinearLayout lyricsContainer;
     private final Handler lyricsScrollHandler = new Handler();
     private Runnable lyricsScrollRunnable;
+    private TextView tvLyricsSongLabel;
+    private TextView tvLyricsTimeRef;
 
     private static class LyricLine {
         long timeMs;
@@ -101,6 +104,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // Initialize file logging
+        MusicLog.init(new File("/sdcard/163Music"));
 
         tvSongName = findViewById(R.id.tv_song_name);
         tvArtist = findViewById(R.id.tv_artist);
@@ -781,16 +787,16 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
         // Song name at top
-        TextView tvSongLabel = new TextView(this);
-        tvSongLabel.setText(song.getName() + " - " + song.getArtist());
-        tvSongLabel.setTextColor(0xFFFFFFFF);
-        tvSongLabel.setTextSize(13);
-        tvSongLabel.setGravity(Gravity.CENTER);
-        tvSongLabel.setPadding(dp(6), dp(6), dp(6), dp(4));
-        tvSongLabel.setSingleLine(true);
-        tvSongLabel.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
-        tvSongLabel.setSelected(true);
-        mainLayout.addView(tvSongLabel);
+        tvLyricsSongLabel = new TextView(this);
+        tvLyricsSongLabel.setText(song.getName() + " - " + song.getArtist());
+        tvLyricsSongLabel.setTextColor(0xFFFFFFFF);
+        tvLyricsSongLabel.setTextSize(13);
+        tvLyricsSongLabel.setGravity(Gravity.CENTER);
+        tvLyricsSongLabel.setPadding(dp(6), dp(6), dp(6), dp(4));
+        tvLyricsSongLabel.setSingleLine(true);
+        tvLyricsSongLabel.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
+        tvLyricsSongLabel.setSelected(true);
+        mainLayout.addView(tvLyricsSongLabel);
 
         // Lyrics scroll view
         lyricsScrollView = new ScrollView(this);
@@ -808,20 +814,20 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         mainLayout.addView(lyricsScrollView);
 
         // Time display at bottom
-        final TextView tvLyricsTime = new TextView(this);
-        tvLyricsTime.setTextColor(0xFF757575);
-        tvLyricsTime.setTextSize(10);
-        tvLyricsTime.setGravity(Gravity.CENTER);
-        tvLyricsTime.setPadding(0, dp(2), 0, dp(4));
-        tvLyricsTime.setText("← 右滑返回");
-        mainLayout.addView(tvLyricsTime);
+        tvLyricsTimeRef = new TextView(this);
+        tvLyricsTimeRef.setTextColor(0xFF757575);
+        tvLyricsTimeRef.setTextSize(10);
+        tvLyricsTimeRef.setGravity(Gravity.CENTER);
+        tvLyricsTimeRef.setPadding(0, dp(2), 0, dp(4));
+        tvLyricsTimeRef.setText("← 右滑返回");
+        mainLayout.addView(tvLyricsTimeRef);
 
         overlayContainer.addView(mainLayout);
         rootView.addView(overlayContainer);
         lyricsOverlayShowing = true;
 
         // Load lyrics
-        loadLyricsForOverlay(song, tvLyricsTime);
+        loadLyricsForOverlay(song, tvLyricsTimeRef);
     }
 
     private void loadLyricsForOverlay(Song song, TextView tvLyricsTime) {
@@ -1019,6 +1025,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         currentHighlightIndex = -1;
         lyricsScrollView = null;
         lyricsContainer = null;
+        tvLyricsSongLabel = null;
+        tvLyricsTimeRef = null;
     }
 
     // ==================== Playback Speed ====================
@@ -1953,6 +1961,21 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         startPlaybackService(song.getName(), song.getArtist(), true);
         // Save to play history
         HistoryManager.getInstance().addToHistory(song);
+        // Refresh lyrics overlay if it is currently showing
+        if (lyricsOverlayShowing && lyricsContainer != null && tvLyricsTimeRef != null) {
+            // Stop current sync
+            lyricsScrollHandler.removeCallbacksAndMessages(null);
+            lyricsScrollRunnable = null;
+            lyricLines.clear();
+            lyricViews.clear();
+            currentHighlightIndex = -1;
+            // Update song name label
+            if (tvLyricsSongLabel != null) {
+                tvLyricsSongLabel.setText(song.getName() + " - " + song.getArtist());
+            }
+            // Reload lyrics for new song
+            loadLyricsForOverlay(song, tvLyricsTimeRef);
+        }
     }
 
     @Override
