@@ -56,6 +56,8 @@ public class AboutActivity extends AppCompatActivity {
         // Developer
         content.addView(makeSpacer(px(4)));
         content.addView(makeText("开发者: Qinghe", 0xFFCCCCCC, px(16), false, Gravity.CENTER));
+        content.addView(makeSpacer(px(4)));
+        content.addView(makeText("GitHub: https://github.com/9xhk-1/163MusicPro", 0xFF5599CC, px(13), false, Gravity.CENTER));
 
         // Divider
         content.addView(makeSpacer(px(8)));
