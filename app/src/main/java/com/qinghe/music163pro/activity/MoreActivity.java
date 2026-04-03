@@ -31,6 +31,7 @@ public class MoreActivity extends AppCompatActivity {
 
     private TextView btnProfile;
     private TextView btnPersonalFM;
+    private TextView btnMyPlaylists;
     private GestureDetector gestureDetector;
 
     @Override
@@ -45,6 +46,7 @@ public class MoreActivity extends AppCompatActivity {
         }
 
         TextView btnFavorites = findViewById(R.id.btn_menu_favorites);
+        btnMyPlaylists = findViewById(R.id.btn_menu_my_playlists);
         TextView btnSearch = findViewById(R.id.btn_menu_search);
         TextView btnDownloads = findViewById(R.id.btn_menu_downloads);
         TextView btnRingtones = findViewById(R.id.btn_menu_ringtones);
@@ -57,6 +59,9 @@ public class MoreActivity extends AppCompatActivity {
 
         btnFavorites.setOnClickListener(v ->
                 startActivity(new Intent(this, FavoritesListActivity.class)));
+
+        btnMyPlaylists.setOnClickListener(v ->
+                startActivity(new Intent(this, MyPlaylistsActivity.class)));
 
         btnSearch.setOnClickListener(v ->
                 startActivity(new Intent(this, SearchActivity.class)));
@@ -118,6 +123,7 @@ public class MoreActivity extends AppCompatActivity {
         boolean loggedIn = cookie != null && !cookie.isEmpty() && cookie.contains("MUSIC_U");
         btnProfile.setVisibility(loggedIn ? View.VISIBLE : View.GONE);
         btnPersonalFM.setVisibility(loggedIn ? View.VISIBLE : View.GONE);
+        btnMyPlaylists.setVisibility(loggedIn ? View.VISIBLE : View.GONE);
     }
 
     private void startPersonalFM() {

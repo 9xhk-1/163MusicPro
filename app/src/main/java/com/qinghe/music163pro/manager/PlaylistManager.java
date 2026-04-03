@@ -79,7 +79,10 @@ public class PlaylistManager {
                         obj.getLong("id"),
                         obj.optString("name", ""),
                         obj.optInt("trackCount", 0),
-                        obj.optString("creator", "")
+                        obj.optString("creator", ""),
+                        obj.optLong("userId", 0),
+                        obj.optBoolean("subscribed", false),
+                        obj.optString("specialType", "0")
                 );
                 list.add(p);
             }
@@ -98,6 +101,9 @@ public class PlaylistManager {
                 obj.put("name", p.getName());
                 obj.put("trackCount", p.getTrackCount());
                 obj.put("creator", p.getCreator());
+                obj.put("userId", p.getUserId());
+                obj.put("subscribed", p.isSubscribed());
+                obj.put("specialType", p.getSpecialType());
                 arr.put(obj);
             }
 

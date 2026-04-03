@@ -37,6 +37,22 @@
             android:focusable="true" />
 
         <TextView
+            android:id="@+id/btn_menu_my_playlists"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginBottom="4dp"
+            android:background="@color/colorPrimary"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:text="📋  我的歌单"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/btn_menu_search"
             android:layout_width="match_parent"
             android:layout_height="48dp"

@@ -318,6 +318,9 @@ public class SongInfoActivity extends AppCompatActivity {
             JSONArray blocks = data.optJSONArray("blocks");
             if (blocks == null || blocks.length() == 0) return;
 
+            // Clear accumulated songs before processing all blocks
+            currentBlockSongs.clear();
+
             // Iterate through ALL blocks and display their content
             for (int i = 0; i < blocks.length(); i++) {
                 JSONObject block = blocks.optJSONObject(i);
@@ -334,7 +337,8 @@ public class SongInfoActivity extends AppCompatActivity {
         // API returns "code" field (not "blockCode")
         String blockCode = block.optString("code", "");
         currentBlockCode = blockCode;
-        currentBlockSongs.clear();
+        // Note: don't clear currentBlockSongs here - accumulate all similar songs
+        // so click handlers can reference the full list even after other blocks process
 
         // Get a user-friendly title for the block
         String blockTitle = getBlockTitle(blockCode);
@@ -467,7 +471,7 @@ public class SongInfoActivity extends AppCompatActivity {
                         final int idx = currentBlockSongs.size() - blockSongList.size() + i;
                         TextView tv = makeText("▶ " + display, COLOR_ACCENT, px(14), false, Gravity.START);
                         tv.setPadding(0, px(2), 0, px(2));
-                        tv.setOnClickListener(v -> playSimilarSongs(idx));
+                        tv.setOnClickListener(v -> playSimilarSongs(currentBlockSongs, idx));
                         contentLayout.addView(tv);
                     } else {
                         contentLayout.addView(makeText("• " + display, COLOR_TEXT_DESC, px(14), false, Gravity.START));
@@ -692,7 +696,7 @@ public class SongInfoActivity extends AppCompatActivity {
                 final int songIdx = currentBlockSongs.size() - 1;
                 if (resId > 0) {
                     card.setClickable(true);
-                    card.setOnClickListener(v -> playSimilarSongs(songIdx));
+                    card.setOnClickListener(v -> playSimilarSongs(currentBlockSongs, songIdx));
                 }
             } else if (isPlaylistBlock) {
                 long plId = resInfo != null ? resInfo.optLong("id", 0) : 0;
@@ -840,11 +844,11 @@ public class SongInfoActivity extends AppCompatActivity {
     // ── Playback helpers ────────────────────────────────────────────────
 
     /**
-     * Play a song from the collected similar songs list, filling the playlist with all similar songs.
+     * Play a song from a captured similar songs list, filling the playlist with all similar songs.
      */
-    private void playSimilarSongs(int index) {
-        if (currentBlockSongs.isEmpty() || index < 0 || index >= currentBlockSongs.size()) return;
-        MusicPlayerManager.getInstance().setPlaylist(new ArrayList<>(currentBlockSongs), index);
+    private void playSimilarSongs(List<Song> songList, int index) {
+        if (songList.isEmpty() || index < 0 || index >= songList.size()) return;
+        MusicPlayerManager.getInstance().setPlaylist(new ArrayList<>(songList), index);
         MusicPlayerManager.getInstance().playCurrent();
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);

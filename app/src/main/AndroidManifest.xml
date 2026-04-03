@@ -50,6 +50,7 @@
         <activity android:name=".activity.CommentActivity" android:exported="false" />
         <activity android:name=".activity.CommentFloorActivity" android:exported="false" />
         <activity android:name=".activity.PlaylistDetailActivity" android:exported="false" />
+        <activity android:name=".activity.MyPlaylistsActivity" android:exported="false" />
 
         <service
             android:name=".service.MusicPlaybackService"
