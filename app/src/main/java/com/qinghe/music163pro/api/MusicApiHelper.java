@@ -190,6 +190,16 @@ public class MusicApiHelper {
         void onError(String message);
     }
 
+    public interface SimiSongCallback {
+        void onResult(JSONArray songs);
+        void onError(String message);
+    }
+
+    public interface SimiPlaylistCallback {
+        void onResult(JSONArray playlists);
+        void onError(String message);
+    }
+
     // ==================== Search ====================
 
     public static void searchSongs(String keyword, String cookie, SearchCallback callback) {
@@ -1281,6 +1291,58 @@ public class MusicApiHelper {
                 mainHandler.post(() -> callback.onResult(briefDesc, introduction != null ? introduction : new JSONArray()));
             } catch (Exception e) {
                 MusicLog.w(TAG, "获取歌手简介失败: " + artistId, e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    // ==================== Similar Songs & Playlists ====================
+
+    /**
+     * Get similar songs via /api/v1/discovery/simiSong.
+     * Returns JSONArray of song objects with id, name, artists[], album{}, duration, etc.
+     */
+    public static void getSimiSong(long songId, String cookie, SimiSongCallback callback) {
+        executor.execute(() -> {
+            try {
+                MusicLog.op(TAG, "获取相似歌曲", "songId=" + songId);
+                JSONObject data = new JSONObject();
+                data.put("songid", songId);
+                data.put("limit", 10);
+                data.put("offset", 0);
+                String csrfToken = extractCsrfToken(cookie);
+                data.put("csrf_token", csrfToken);
+                String response = weapiPost("/api/v1/discovery/simiSong", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                JSONArray songs = json.optJSONArray("songs");
+                mainHandler.post(() -> callback.onResult(songs != null ? songs : new JSONArray()));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "获取相似歌曲失败: " + songId, e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    /**
+     * Get similar playlists via /api/discovery/simiPlaylist.
+     * Returns JSONArray of playlist objects with id, name, playCount, trackCount, coverImgUrl, etc.
+     */
+    public static void getSimiPlaylist(long songId, String cookie, SimiPlaylistCallback callback) {
+        executor.execute(() -> {
+            try {
+                MusicLog.op(TAG, "获取相似歌单", "songId=" + songId);
+                JSONObject data = new JSONObject();
+                data.put("songid", songId);
+                data.put("limit", 10);
+                data.put("offset", 0);
+                String csrfToken = extractCsrfToken(cookie);
+                data.put("csrf_token", csrfToken);
+                String response = weapiPost("/api/discovery/simiPlaylist", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                JSONArray playlists = json.optJSONArray("playlists");
+                mainHandler.post(() -> callback.onResult(playlists != null ? playlists : new JSONArray()));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "获取相似歌单失败: " + songId, e);
                 mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
             }
         });

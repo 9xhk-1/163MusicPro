@@ -294,12 +294,15 @@ public class SongInfoActivity extends AppCompatActivity {
             public void onResult(JSONObject wikiJson) {
                 contentLayout.removeView(tvWikiLoading);
                 parseSongWiki(wikiJson);
+                // After wiki, fetch dedicated similar songs/playlists
+                fetchSimiSongs();
             }
 
             @Override
             public void onError(String message) {
                 MusicLog.e(TAG, "歌曲百科加载失败: " + message);
                 tvWikiLoading.setText("歌曲百科加载失败");
+                fetchSimiSongs();
             }
         });
     }
@@ -329,7 +332,8 @@ public class SongInfoActivity extends AppCompatActivity {
     }
 
     private void displayBlock(JSONObject block) {
-        String blockCode = block.optString("blockCode", "");
+        // API returns "code" field (not "blockCode")
+        String blockCode = block.optString("code", "");
         currentBlockCode = blockCode;
 
         // Get a user-friendly title for the block
@@ -363,21 +367,28 @@ public class SongInfoActivity extends AppCompatActivity {
     }
 
     private String getBlockTitle(String blockCode) {
-        if (blockCode == null) return "其他信息";
+        if (blockCode == null || blockCode.isEmpty()) return "其他信息";
         switch (blockCode) {
+            // Actual API codes (no _BLOCK suffix)
+            case "SONG_PLAY_ABOUT_SONG_BASIC": return "\uD83C\uDFB5 歌曲简介";
+            case "SONG_PLAY_ABOUT_SIMILAR_SONG": return "\uD83C\uDFB6 相似歌曲";
+            case "SONG_PLAY_ABOUT_RELATED_PLAYLIST": return "\uD83D\uDCCB 相关歌单";
+            case "SONG_PLAY_ABOUT_MUSIC_MEMORY": return "\uD83D\uDCCC 回忆坐标";
+            case "SONG_PLAY_ABOUT_MUSIC_SONG_GRADE": return "⭐ 歌曲评分";
+            case "SONG_PLAY_ABOUT_ARTIST": return "\uD83C\uDFA4 相关歌手";
+            case "SONG_PLAY_ABOUT_ALBUM": return "\uD83D\uDCBF 所属专辑";
+            case "SONG_PLAY_ABOUT_REC_SONG": return "\uD83D\uDD04 推荐歌曲";
+            case "SONG_PLAY_ABOUT_TOPIC": return "\uD83D\uDCAC 相关话题";
+            case "SONG_PLAY_ABOUT_SONG_WIKI": return "\uD83D\uDCD6 歌曲百科";
+            case "SONG_PLAY_ABOUT_RELATED_CREATION": return "✨ 相关创作";
+            // Legacy codes with _BLOCK suffix (keep for compatibility)
             case "SONG_PLAY_ABOUT_SONG_BLOCK": return "\uD83C\uDFB5 歌曲简介";
             case "SONG_PLAY_ABOUT_ARTIST_BLOCK": return "\uD83C\uDFA4 相关歌手";
             case "SONG_PLAY_ABOUT_ALBUM_BLOCK": return "\uD83D\uDCBF 所属专辑";
             case "SONG_PLAY_ABOUT_SIMILAR_SONG_BLOCK": return "\uD83C\uDFB6 相似歌曲";
-            case "SONG_PLAY_ABOUT_RELATED_CREATION_BLOCK": return "✨ 相关创作";
-            case "SONG_PLAY_ABOUT_TOPIC_BLOCK": return "\uD83D\uDCAC 相关话题";
-            case "SONG_PLAY_ABOUT_REC_SONG_BLOCK": return "\uD83D\uDD04 推荐歌曲";
-            case "SONG_PLAY_ABOUT_SONG_WIKI_BLOCK": return "\uD83D\uDCD6 歌曲百科";
             case "SONG_PLAY_ABOUT_PLAYLIST_BLOCK": return "\uD83D\uDCCB 相关歌单";
             case "SONG_PLAY_ABOUT_MEMORY_BLOCK": return "\uD83D\uDCCC 回忆坐标";
-            case "SONG_PLAY_ABOUT_SIMILAR_WIKI_BLOCK": return "\uD83D\uDD0D 音乐百科相似";
             default:
-                // Show cleaned-up block code
                 String cleaned = blockCode.replace("SONG_PLAY_ABOUT_", "")
                         .replace("_BLOCK", "")
                         .replace("_", " ");
@@ -801,6 +812,91 @@ public class SongInfoActivity extends AppCompatActivity {
         }
 
         contentLayout.addView(makeSpacer(px(16)));
+    }
+
+    // ─── Step 4: Fetch similar songs via dedicated API ──────────────────
+
+    private void fetchSimiSongs() {
+        MusicApiHelper.getSimiSong(songId, cookie, new MusicApiHelper.SimiSongCallback() {
+            @Override
+            public void onResult(JSONArray songs) {
+                if (songs.length() > 0) {
+                    contentLayout.addView(makeSpacer(px(6)));
+                    contentLayout.addView(makeDivider());
+                    contentLayout.addView(makeSpacer(px(6)));
+                    addSectionHeader("\uD83C\uDFB6 相似歌曲");
+                    for (int i = 0; i < songs.length(); i++) {
+                        JSONObject song = songs.optJSONObject(i);
+                        if (song == null) continue;
+                        final long sId = song.optLong("id", 0);
+                        final String sName = song.optString("name", "");
+                        String sArtist = "";
+                        JSONArray artists = song.optJSONArray("artists");
+                        if (artists != null && artists.length() > 0) {
+                            sArtist = artists.optJSONObject(0).optString("name", "");
+                        }
+                        if (sName.isEmpty() || sId <= 0) continue;
+                        String display = sArtist.isEmpty() ? sName : sName + " - " + sArtist;
+                        final String fArtist = sArtist;
+                        TextView tv = makeText("\u25B6 " + display, COLOR_ACCENT, px(14), false, Gravity.START);
+                        tv.setPadding(px(4), px(4), px(4), px(4));
+                        tv.setOnClickListener(v -> playSongById(sId, sName, fArtist));
+                        contentLayout.addView(tv);
+                        contentLayout.addView(makeSpacer(px(1)));
+                    }
+                }
+                // After similar songs, fetch similar playlists
+                fetchSimiPlaylists();
+            }
+
+            @Override
+            public void onError(String message) {
+                MusicLog.e(TAG, "获取相似歌曲失败: " + message);
+                fetchSimiPlaylists();
+            }
+        });
+    }
+
+    // ─── Step 5: Fetch similar playlists via dedicated API ──────────────
+
+    private void fetchSimiPlaylists() {
+        MusicApiHelper.getSimiPlaylist(songId, cookie, new MusicApiHelper.SimiPlaylistCallback() {
+            @Override
+            public void onResult(JSONArray playlists) {
+                if (playlists.length() > 0) {
+                    contentLayout.addView(makeSpacer(px(6)));
+                    contentLayout.addView(makeDivider());
+                    contentLayout.addView(makeSpacer(px(6)));
+                    addSectionHeader("\uD83D\uDCCB 相关歌单");
+                    for (int i = 0; i < playlists.length(); i++) {
+                        JSONObject pl = playlists.optJSONObject(i);
+                        if (pl == null) continue;
+                        final long plId = pl.optLong("id", 0);
+                        String plName = pl.optString("name", "");
+                        int playCount = pl.optInt("playCount", 0);
+                        int trackCount = pl.optInt("trackCount", 0);
+                        if (plName.isEmpty() || plId <= 0) continue;
+                        String display = plName;
+                        if (trackCount > 0) {
+                            display += "  (" + trackCount + "首)";
+                        }
+                        if (playCount > 0) {
+                            display += "  \u25B6 " + formatCount(playCount);
+                        }
+                        TextView tv = makeText("\uD83D\uDCCB " + display, COLOR_ACCENT, px(14), false, Gravity.START);
+                        tv.setPadding(px(4), px(4), px(4), px(4));
+                        tv.setOnClickListener(v -> loadAndPlayPlaylist(plId));
+                        contentLayout.addView(tv);
+                        contentLayout.addView(makeSpacer(px(1)));
+                    }
+                }
+            }
+
+            @Override
+            public void onError(String message) {
+                MusicLog.e(TAG, "获取相似歌单失败: " + message);
+            }
+        });
     }
 
     // ── Playback helpers ────────────────────────────────────────────────
