@@ -480,11 +480,12 @@ public class SongInfoActivity extends AppCompatActivity {
                         }
                         if (isPlaylistBlock) {
                             final long plId = pl.optLong("id", 0);
-                            final String fDisplay = display;
+                            final String fPlName = plName;
+                            final int fTrackCount = pl.optInt("trackCount", 0);
                             TextView tv = makeText("📋 " + fDisplay, COLOR_ACCENT, px(14), false, Gravity.START);
                             tv.setPadding(0, px(2), 0, px(2));
                             if (plId > 0) {
-                                tv.setOnClickListener(v -> loadAndPlayPlaylist(plId));
+                                tv.setOnClickListener(v -> openPlaylistDetail(plId, fPlName, fTrackCount, ""));
                             }
                             contentLayout.addView(tv);
                         } else {
@@ -683,11 +684,22 @@ public class SongInfoActivity extends AppCompatActivity {
                 long plId = resInfo != null ? resInfo.optLong("id", 0) : 0;
                 if (plId <= 0 && extInfo != null) plId = extInfo.optLong("id", 0);
                 if (plId <= 0) plId = parseResourceId(resource);
-                card.addView(makeSmallLabel("📋 点击加入播放列表"));
+                String plName = "";
+                if (resInfo != null) plName = resInfo.optString("name", "");
+                if (plName.isEmpty() && resUiElement != null) {
+                    JSONObject mt = resUiElement.optJSONObject("mainTitle");
+                    if (mt != null) plName = mt.optString("title", "");
+                }
+                int plTrackCount = 0;
+                if (extInfo != null) plTrackCount = extInfo.optInt("trackCount", 0);
+                if (plTrackCount <= 0 && resInfo != null) plTrackCount = resInfo.optInt("trackCount", 0);
+                card.addView(makeSmallLabel("📋 点击查看歌单"));
                 final long finalPlId = plId;
+                final String finalPlName = plName;
+                final int finalPlTrackCount = plTrackCount;
                 if (finalPlId > 0) {
                     card.setClickable(true);
-                    card.setOnClickListener(v -> loadAndPlayPlaylist(finalPlId));
+                    card.setOnClickListener(v -> openPlaylistDetail(finalPlId, finalPlName, finalPlTrackCount, ""));
                 }
             }
             contentLayout.addView(card);
@@ -825,28 +837,13 @@ public class SongInfoActivity extends AppCompatActivity {
         finish();
     }
 
-    private void loadAndPlayPlaylist(long playlistId) {
-        Toast.makeText(this, "正在加载歌单...", Toast.LENGTH_SHORT).show();
-        MusicApiHelper.getPlaylistDetail(playlistId, cookie, new MusicApiHelper.PlaylistDetailCallback() {
-            @Override
-            public void onResult(List<Song> songs) {
-                if (songs.isEmpty()) {
-                    Toast.makeText(SongInfoActivity.this, "歌单为空", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                MusicPlayerManager.getInstance().setPlaylist(new ArrayList<>(songs), 0);
-                MusicPlayerManager.getInstance().playCurrent();
-                Intent intent = new Intent(SongInfoActivity.this, MainActivity.class);
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                startActivity(intent);
-                finish();
-            }
-
-            @Override
-            public void onError(String message) {
-                Toast.makeText(SongInfoActivity.this, "加载歌单失败: " + message, Toast.LENGTH_SHORT).show();
-            }
-        });
+    private void openPlaylistDetail(long playlistId, String name, int trackCount, String creator) {
+        Intent intent = new Intent(this, PlaylistDetailActivity.class);
+        intent.putExtra("playlist_id", playlistId);
+        intent.putExtra("playlist_name", name != null ? name : "");
+        intent.putExtra("track_count", trackCount);
+        intent.putExtra("creator", creator != null ? creator : "");
+        startActivity(intent);
     }
 
     // ── UI helpers ──────────────────────────────────────────────────────
