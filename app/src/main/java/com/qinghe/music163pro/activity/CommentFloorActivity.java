@@ -593,10 +593,9 @@ public class CommentFloorActivity extends AppCompatActivity {
 
         // Long-press to delete sub-comment (with confirmation)
         final String displayNick = nickname;
-        final String displayContent = content;
         item.setOnLongClickListener(v -> {
-            String preview = displayContent.length() > 40
-                    ? displayContent.substring(0, 40) + "..." : displayContent;
+            String preview = content.length() > 40
+                    ? content.substring(0, 40) + "..." : content;
             showConfirmDialog("删除评论",
                     "确定删除「" + displayNick + "」的评论？\n\n" + preview, () -> {
                 MusicApiHelper.deleteComment(songId, commentId, cookie,
