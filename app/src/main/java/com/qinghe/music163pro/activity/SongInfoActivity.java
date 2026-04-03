@@ -236,7 +236,7 @@ public class SongInfoActivity extends AppCompatActivity {
         // Popularity
         double pop = song.optDouble("pop", 0);
         if (pop > 0) {
-            addInfoRow("热度", String.valueOf((int) pop));
+            addInfoRow("热度", String.valueOf(Math.round(pop)));
         }
 
         // Quality info
