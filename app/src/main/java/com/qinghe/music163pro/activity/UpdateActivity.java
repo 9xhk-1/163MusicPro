@@ -1,6 +1,8 @@
 package com.qinghe.music163pro.activity;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
@@ -16,9 +18,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
-import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.util.UpdateChecker;
 
 import java.io.File;
@@ -32,6 +35,7 @@ public class UpdateActivity extends AppCompatActivity {
 
     private static final String APK_SAVE_PATH =
             Environment.getExternalStorageDirectory() + "/163Music/update.apk";
+    private static final int STORAGE_PERMISSION_REQUEST = 200;
 
     private TextView tvProgress;
     private ProgressBar progressBar;
@@ -133,7 +137,7 @@ public class UpdateActivity extends AppCompatActivity {
         btnUpdate.setPadding(0, px(12), 0, px(12));
         btnUpdate.setClickable(true);
         btnUpdate.setFocusable(true);
-        btnUpdate.setOnClickListener(v -> startDownload());
+        btnUpdate.setOnClickListener(v -> requestPermissionAndDownload());
 
         btnRow.addView(btnCancel);
         btnRow.addView(btnUpdate);
@@ -141,6 +145,33 @@ public class UpdateActivity extends AppCompatActivity {
 
         scrollView.addView(root);
         setContentView(scrollView);
+    }
+
+    private void requestPermissionAndDownload() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
+                        new String[]{
+                                Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                                Manifest.permission.READ_EXTERNAL_STORAGE
+                        }, STORAGE_PERMISSION_REQUEST);
+                return;
+            }
+        }
+        startDownload();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == STORAGE_PERMISSION_REQUEST) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startDownload();
+            } else {
+                Toast.makeText(this, "需要存储权限才能下载更新", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     private void startDownload() {

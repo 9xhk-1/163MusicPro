@@ -47,7 +47,7 @@ public class AboutActivity extends AppCompatActivity {
 
         // Version
         content.addView(makeSpacer(px(4)));
-        String versionName = "20260404";
+        String versionName = "20260404-fix1";
         try {
             versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (Exception ignored) {}
@@ -76,7 +76,19 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeSpacer(px(8)));
         content.addView(makeDivider());
 
-        // v20260404 update summary (latest)
+        // v20260404-fix1 update summary (latest)
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeText("v20260404-fix1 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeSpacer(px(4)));
+        content.addView(makeText(
+                "• 修复首次安装时点击更新报错的问题：更新界面现在会在下载前请求存储权限",
+                0xFFAAAAAA, px(15), false, Gravity.START));
+
+        // Divider
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeDivider());
+
+        // v20260404 update summary
         content.addView(makeSpacer(px(8)));
         content.addView(makeText("v20260404 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
         content.addView(makeSpacer(px(4)));
