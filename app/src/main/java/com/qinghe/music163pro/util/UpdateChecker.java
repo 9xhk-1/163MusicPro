@@ -36,7 +36,7 @@ public class UpdateChecker {
     }
 
     /**
-     * POST /check_version with the app's versionCode.
+     * POST /check with the app's versionCode.
      * Calls callback on main thread.
      */
     public static void checkVersion(Context context, CheckCallback callback) {
@@ -52,7 +52,7 @@ public class UpdateChecker {
         new Thread(() -> {
             HttpURLConnection conn = null;
             try {
-                URL url = new URL(BASE_URL + "/check_version");
+                URL url = new URL(BASE_URL + "/check");
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
