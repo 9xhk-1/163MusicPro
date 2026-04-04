@@ -57,6 +57,7 @@ public class PlaylistDetailActivity extends AppCompatActivity {
     private boolean isLikedPlaylist;
     private long currentUserId = -1;
     private boolean isCloudMode;
+    private boolean isSubscribed = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -302,6 +303,7 @@ public class PlaylistDetailActivity extends AppCompatActivity {
                     creatorUserId = apiCreatorUserId;
                 }
                 isLikedPlaylist = (specialType == 5);
+                isSubscribed = subscribed;
                 if (apiCreator != null && !apiCreator.isEmpty()) {
                     creator = apiCreator;
                 }
@@ -331,7 +333,7 @@ public class PlaylistDetailActivity extends AppCompatActivity {
      * Cloud mode:
      *   - "我喜欢的音乐" (specialType=5) → no unsub, no delete
      *   - My created playlist → no unsub, can delete
-     *   - Others' subscribed playlist → can unsub, no delete
+     *   - Others' playlist → can sub/unsub, no delete
      * Local mode:
      *   - All playlists → can unsub (local remove), no delete
      */
@@ -346,7 +348,7 @@ public class PlaylistDetailActivity extends AppCompatActivity {
                 btnFav.setVisibility(View.GONE);
                 btnDelete.setVisibility(View.VISIBLE);
             } else {
-                // Others' playlist - can unsub but cannot delete
+                // Others' playlist - can sub/unsub but cannot delete
                 btnFav.setVisibility(View.VISIBLE);
                 btnDelete.setVisibility(View.GONE);
                 updateFavButton();
@@ -365,10 +367,9 @@ public class PlaylistDetailActivity extends AppCompatActivity {
             return;
         }
         if (isCloudMode) {
-            // In cloud mode, the playlist is always "subscribed" if user opens it from their list
-            // Show unsubscribe button
-            btnFav.setText("\u2665");
-            btnFav.setTextColor(0xFFFF4444);
+            // In cloud mode, show actual subscription state
+            btnFav.setText(isSubscribed ? "\u2665" : "\u2661");
+            btnFav.setTextColor(isSubscribed ? 0xFFFF4444 : 0xFFAAAAAA);
         } else {
             boolean saved = playlistManager.isPlaylistSaved(playlistId);
             btnFav.setText(saved ? "\u2665" : "\u2661");
@@ -380,30 +381,58 @@ public class PlaylistDetailActivity extends AppCompatActivity {
         if (playlistId <= 0) return;
 
         if (isCloudMode) {
-            // Cloud mode: unsubscribe from cloud
-            Toast.makeText(this, "正在取消收藏...", Toast.LENGTH_SHORT).show();
+            // Cloud mode: toggle between subscribe/unsubscribe based on current state
             String cookie = playerManager.getCookie();
-            MusicApiHelper.subscribePlaylist(playlistId, false, cookie,
-                    new MusicApiHelper.PlaylistActionCallback() {
-                @Override
-                public void onResult(boolean success) {
-                    if (success) {
-                        // Also remove from local storage
-                        playlistManager.removePlaylist(playlistId);
-                        Toast.makeText(PlaylistDetailActivity.this,
-                                "已取消云端收藏", Toast.LENGTH_SHORT).show();
-                        finish();
-                    } else {
-                        Toast.makeText(PlaylistDetailActivity.this,
-                                "取消收藏失败", Toast.LENGTH_SHORT).show();
+            if (cookie == null || cookie.isEmpty()) {
+                Toast.makeText(this, "请先登录", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (isSubscribed) {
+                Toast.makeText(this, "正在取消收藏...", Toast.LENGTH_SHORT).show();
+                MusicApiHelper.subscribePlaylist(playlistId, false, cookie,
+                        new MusicApiHelper.PlaylistActionCallback() {
+                    @Override
+                    public void onResult(boolean success) {
+                        if (success) {
+                            isSubscribed = false;
+                            playlistManager.removePlaylist(playlistId);
+                            updateFavButton();
+                            Toast.makeText(PlaylistDetailActivity.this,
+                                    "已取消云端收藏", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(PlaylistDetailActivity.this,
+                                    "取消收藏失败", Toast.LENGTH_SHORT).show();
+                        }
                     }
-                }
-                @Override
-                public void onError(String message) {
-                    Toast.makeText(PlaylistDetailActivity.this,
-                            "取消收藏失败: " + message, Toast.LENGTH_SHORT).show();
-                }
-            });
+                    @Override
+                    public void onError(String message) {
+                        Toast.makeText(PlaylistDetailActivity.this,
+                                "取消收藏失败: " + message, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } else {
+                Toast.makeText(this, "正在收藏...", Toast.LENGTH_SHORT).show();
+                MusicApiHelper.subscribePlaylist(playlistId, true, cookie,
+                        new MusicApiHelper.PlaylistActionCallback() {
+                    @Override
+                    public void onResult(boolean success) {
+                        if (success) {
+                            isSubscribed = true;
+                            updateFavButton();
+                            Toast.makeText(PlaylistDetailActivity.this,
+                                    "已收藏到云端", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(PlaylistDetailActivity.this,
+                                    "收藏失败", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                    @Override
+                    public void onError(String message) {
+                        Toast.makeText(PlaylistDetailActivity.this,
+                                "收藏失败: " + message, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
         } else {
             // Local mode: toggle local save
             boolean saved = playlistManager.isPlaylistSaved(playlistId);
