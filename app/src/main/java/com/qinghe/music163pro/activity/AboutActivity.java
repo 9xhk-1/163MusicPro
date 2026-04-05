@@ -80,7 +80,19 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeSpacer(px(8)));
         content.addView(makeDivider());
 
-        // v20260404-fix1 update summary (latest)
+        // v20260405 update summary 
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeText("v20260405 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeSpacer(px(4)));
+        content.addView(makeText(
+                "• 新增官网链接跳转",
+                0xFFAAAAAA, px(15), false, Gravity.START));
+        
+        // Divider
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeDivider());
+
+        // v20260404-fix1 update summary 
         content.addView(makeSpacer(px(8)));
         content.addView(makeText("v20260404-fix1 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
         content.addView(makeSpacer(px(4)));
