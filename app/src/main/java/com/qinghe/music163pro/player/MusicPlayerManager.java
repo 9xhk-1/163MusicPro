@@ -59,8 +59,8 @@ public class MusicPlayerManager {
     /**
      * Speed mode:
      *  0 = 音调不变 (time-stretch: speed changes, pitch preserved)
-     *  1 = 音调改变但速度不变 (pitch-shift only: pitch changes, speed stays 1.0)
-     *  2 = 音调改变且速度改变 (sample rate: both speed and pitch change)
+     *  1 = 音调改变且速度改变 (sample rate: both speed and pitch change)
+     *  2 = 音调改变但速度不变 (pitch-shift only: pitch changes, speed stays 1.0)
      */
     private int speedMode = 0;
     private final Random random = new Random();
@@ -176,7 +176,7 @@ public class MusicPlayerManager {
 
     /**
      * Set speed mode.
-     * @param speedMode 0=音调不变, 1=音调改变但速度不变, 2=音调改变且速度改变
+     * @param speedMode 0=音调不变, 1=音调改变且速度改变, 2=音调改变但速度不变
      */
     public void setSpeedMode(int speedMode) {
         this.speedMode = speedMode;
@@ -193,12 +193,12 @@ public class MusicPlayerManager {
                 boolean wasPlaying = mediaPlayer.isPlaying();
                 PlaybackParams params = mediaPlayer.getPlaybackParams();
                 if (speedMode == 1) {
-                    // 音调改变但速度不变: pitch shifts, tempo stays at 1.0
-                    params.setSpeed(1.0f);
-                    params.setPitch(playbackSpeed);
-                } else if (speedMode == 2) {
                     // 音调改变且速度改变: sample rate mode, both change
                     params.setSpeed(playbackSpeed);
+                    params.setPitch(playbackSpeed);
+                } else if (speedMode == 2) {
+                    // 音调改变但速度不变: pitch shifts, tempo stays at 1.0
+                    params.setSpeed(1.0f);
                     params.setPitch(playbackSpeed);
                 } else {
                     // 音调不变 (mode 0): time-stretch, pitch preserved

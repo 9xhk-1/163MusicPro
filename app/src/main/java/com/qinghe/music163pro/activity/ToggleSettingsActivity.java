@@ -96,13 +96,16 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         prefs.edit().putInt("speed_mode", next).apply();
         MusicPlayerManager.getInstance().setSpeedMode(next);
         updateSpeedModeText();
-        String[] modeNames = {"音调不变", "音调改变但速度不变", "音调改变且速度改变"};
+        String[] modeNames = {"音调不变", "音调改变且速度改变", "音调改变但速度不变"};
         Toast.makeText(this, "变速模式已切换为: " + modeNames[next], Toast.LENGTH_SHORT).show();
+        if (next == 2) {
+            Toast.makeText(this, "注意：此模式变速幅度不能太大，否则播放可能会出问题（如有杂音等）", Toast.LENGTH_LONG).show();
+        }
     }
 
     private void updateSpeedModeText() {
         int mode = prefs.getInt("speed_mode", 0);
-        String[] labels = {"音调不变", "音调改变但速度不变", "音调改变且速度改变"};
+        String[] labels = {"音调不变", "音调改变且速度改变", "音调改变但速度不变"};
         btnSpeedMode.setText("🎵  变速模式: " + labels[mode]);
     }
 }
