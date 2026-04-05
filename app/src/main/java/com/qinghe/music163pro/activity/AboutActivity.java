@@ -8,6 +8,7 @@ import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.text.util.*;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -58,7 +59,9 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeText("开发者: Qinghe", 0xFFCCCCCC, px(16), false, Gravity.CENTER));
         content.addView(makeSpacer(px(4)));
         content.addView(makeText("官网: ", 0xFFCCCCCC, px(16), false, Gravity.CENTER));
-        content.addView(makeText("https://163.imoow.com", 0xFF5599CC, px(16), false, Gravity.CENTER));
+        TextView linkTv = makeText("https://163.imoow.com", 0xFF5599CC, px(16), false, Gravity.CENTER)
+        Linkify.addLinks(linkTv, Linkify.WEB_URLS);
+        content.addView(linkTv);
 
         // Divider
         content.addView(makeSpacer(px(8)));
