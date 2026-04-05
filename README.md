@@ -133,3 +133,7 @@ app/src/main/java/com/qinghe/music163pro/
 ## 📄 License
 
 本项目仅供学习交流使用。网易云音乐相关 API 和内容版权归网易公司所有。
+
+## ℹ️ 注意
+
+本项目使用vibe coding辅助编写
