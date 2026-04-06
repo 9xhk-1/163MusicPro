@@ -168,7 +168,6 @@
                 android:layout_height="36dp"
                 android:padding="8dp"
                 android:src="@drawable/ic_more_horiz"
-                android:colorFilter="@color/colorAccent"
                 android:clickable="true"
                 android:focusable="true" />
 
