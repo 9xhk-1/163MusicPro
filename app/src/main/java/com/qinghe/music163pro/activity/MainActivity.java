@@ -1728,7 +1728,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         Slider sbStart = new Slider(this);
         sbStart.setMax(totalSec);
-        sbStart.setProgress(startSec[0]);
+        sbStart.setValue(startSec[0]);
         LinearLayout.LayoutParams seekParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         sbStart.setLayoutParams(seekParams);
@@ -1744,7 +1744,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         Slider sbEnd = new Slider(this);
         sbEnd.setMax(totalSec);
-        sbEnd.setProgress(endSec[0]);
+        sbEnd.setValue(endSec[0]);
         sbEnd.setLayoutParams(seekParams);
         contentLayout.addView(sbEnd);
 
