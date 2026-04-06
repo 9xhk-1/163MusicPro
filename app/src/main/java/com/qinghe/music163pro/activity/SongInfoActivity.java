@@ -419,7 +419,6 @@ public class SongInfoActivity extends AppCompatActivity {
             default:                                return R.drawable.ic_info;
         }
     }
-    }
 
     private void displayCreative(JSONObject creative) {
         String headline = creative.optString("headline", "");

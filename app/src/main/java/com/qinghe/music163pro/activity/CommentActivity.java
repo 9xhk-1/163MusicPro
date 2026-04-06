@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -27,6 +28,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.util.MusicLog;
 
@@ -608,9 +610,17 @@ public class CommentActivity extends AppCompatActivity {
     }
 
     private void updateLikeText(TextView tv, boolean liked, int count) {
-        String text = count > 0 ? (liked ? "赞 " : "赞 ") + count : "赞";
+        String text = count > 0 ? " " + count : "";
         tv.setText(text);
-        tv.setTextColor(liked ? COLOR_ACCENT : COLOR_TEXT_SECONDARY);
+        int iconRes = liked ? R.drawable.ic_thumb_up : R.drawable.ic_thumb_up_outline;
+        android.graphics.drawable.Drawable icon = getResources().getDrawable(iconRes, null);
+        int iconSize = px(14);
+        icon.setBounds(0, 0, iconSize, iconSize);
+        icon.setColorFilter(liked ? COLOR_ACCENT : 0x80FFFFFF,
+                android.graphics.PorterDuff.Mode.SRC_IN);
+        tv.setCompoundDrawables(icon, null, null, null);
+        tv.setCompoundDrawablePadding(px(3));
+        tv.setTextColor(liked ? COLOR_ACCENT : 0x80FFFFFF);
     }
 
     // ──────────────────────────────────────────────────────
