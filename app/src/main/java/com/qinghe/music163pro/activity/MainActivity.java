@@ -1775,8 +1775,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                     updateDuration.run();
                 }
             }
-            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
-            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+            
+            
         });
 
         sbEnd.addOnChangeListener(new Slider.OnChangeListener() {
@@ -1792,8 +1792,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                     updateDuration.run();
                 }
             }
-            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
-            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+            
+            
         });
 
         // Button row: Preview + Confirm
