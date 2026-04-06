@@ -25,7 +25,7 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
-import android.widget.SeekBar;
+import com.google.android.material.slider.Slider;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -58,7 +58,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private TextView tvArtist;
     private TextView btnPlay;
     private TextView btnFuncMore;
-    private SeekBar seekBar;
+    private Slider seekBar;
     private TextView tvCurrentTime;
     private TextView tvTotalTime;
     private MusicPlayerManager playerManager;
@@ -201,7 +201,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Changed: "more functions" overlay instead of toggle favorite
         btnFuncMore.setOnClickListener(v -> showFunctionsOverlay());
 
-        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        seekBar.addOnChangeListener(new Slider.OnChangeListener() {
             @Override
             public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
                 if (fromUser) {
@@ -1763,11 +1763,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         sbStart.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+            public void onValueChange(Slider slider, float value, boolean fromUser) {
                 if (fromUser) {
                     if (progress >= endSec[0]) progress = endSec[0] - 1;
                     if (progress < 0) progress = 0;
-                    seekBar.setProgress(progress);
+                    seekBar.setValue(progress);
                     startSec[0] = progress;
                     tvStart.setText("起始: " + progress + "s");
                     updateDuration.run();
@@ -1779,11 +1779,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         sbEnd.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+            public void onValueChange(Slider slider, float value, boolean fromUser) {
                 if (fromUser) {
                     if (progress <= startSec[0]) progress = startSec[0] + 1;
                     if (progress > totalSec) progress = totalSec;
-                    seekBar.setProgress(progress);
+                    seekBar.setValue(progress);
                     endSec[0] = progress;
                     tvEnd.setText("结束: " + progress + "s");
                     updateDuration.run();
@@ -2360,8 +2360,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 int current = playerManager.getCurrentPosition();
                 int duration = playerManager.getDuration();
                 if (duration > 0) {
-                    seekBar.setMax(1000);
-                    seekBar.setProgress((int) (1000L * current / duration));
+                    seekBar.setValue(100);
+                    seekBar.setValue((float) (100.0 * current / duration));
                     tvCurrentTime.setText(formatTime(current));
                     tvTotalTime.setText(formatTime(duration));
                 }
