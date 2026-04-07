@@ -78,12 +78,52 @@ jobs:
           name: "163MusicPro ${{ steps.version.outputs.name }}"
           body: |
             ## 163MusicPro ${{ steps.version.outputs.name }}
-
-            自动构建发布版本。
-
-            ### 安装说明
-            1. 下载下方 APK 文件
-            2. 传输到手表并安装
           files: ${{ steps.apk.outputs.path }}
           draft: false
           prerelease: false
+      - name: Sync APK to Gitee and Update source.json
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          TAG_NAME: ${{ steps.version.outputs.tag }}
+          APK_PATH: ${{ steps.apk.outputs.path }}
+          APK_NAME: ${{ steps.apk.outputs.name }}
+        run: |
+          echo "=== Step 1: Push APK to Gitee ==="
+          
+          # 配置 Git 用户信息
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+          # 克隆 Gitee 仓库 (使用 shallow clone 加快速度)
+          # 注意：xtcqinghe/163-music-pro 需要替换为你实际的 Gitee 用户名/仓库名，如果就是这个名字则无需修改
+          GITEE_REPO_URL="https://oauth2:${GITEE_TOKEN}@gitee.com/xtcqinghe/163-music-pro.git"
+          git clone --depth 1 --branch master $GITEE_REPO_URL gitee_repo
+          
+          # 进入 Gitee 仓库目录
+          cd gitee_repo
+          
+          # 复制 APK 并重命名为 {tag}.apk
+          # 注意：APK_PATH 是相对路径，需要从项目根目录引用
+          cp ../$APK_PATH "./${TAG_NAME}.apk"
+          
+          # 提交到 Gitee
+          git add "${TAG_NAME}.apk"
+          git commit -m "Auto sync APK: ${TAG_NAME} from GitHub Actions"
+          git push origin master
+          
+          echo "=== Step 2: Update source.json in current GitHub Repo ==="
+          
+          # 回到 GitHub 工作目录
+          cd ..
+          
+          # 创建/更新 source.json
+          # 注意：URL 中不能有空格，已修正你描述中的空格问题
+          echo "[\"https://gitee.com/xtcqinghe/163-music-pro/raw/master/${TAG_NAME}.apk\"]" > source.json
+          
+          # 提交并推送到当前 GitHub 仓库 (main 分支)
+          git add source.json
+          git commit -m "chore: update source.json for ${TAG_NAME}"
+          
+          # 推送回 GitHub
+          # 使用 github.token 自动认证，无需额外配置 Secret
+          git push origin main
