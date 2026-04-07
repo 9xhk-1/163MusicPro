@@ -80,6 +80,18 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeSpacer(px(8)));
         content.addView(makeDivider());
 
+        // v20260407 update summary
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeText("v20260407 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeSpacer(px(4)));
+        content.addView(makeText(
+                "• 新增下载路线选择，提升下载速度",
+                0xFFAAAAAA, px(15), false, Gravity.START));
+        
+        // Divider
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeDivider());
+
         // v20260406 update summary
         content.addView(makeSpacer(px(8)));
         content.addView(makeText("v20260406 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
