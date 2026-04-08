@@ -33,12 +33,16 @@ public class SettingsActivity extends AppCompatActivity {
 
         View btnToggle = findViewById(R.id.btn_settings_toggle);
         View btnCheckUpdate = findViewById(R.id.btn_settings_check_update);
+        View btnFeedback = findViewById(R.id.btn_settings_feedback);
         View btnAbout = findViewById(R.id.btn_settings_about);
 
         btnToggle.setOnClickListener(v ->
                 startActivity(new Intent(this, ToggleSettingsActivity.class)));
 
         btnCheckUpdate.setOnClickListener(v -> checkUpdateManually());
+
+        btnFeedback.setOnClickListener(v ->
+                startActivity(new Intent(this, FeedbackActivity.class)));
 
         btnAbout.setOnClickListener(v ->
                 startActivity(new Intent(this, AboutActivity.class)));

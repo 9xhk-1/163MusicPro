@@ -53,6 +53,7 @@
         <activity android:name=".activity.PlaylistDetailActivity" android:exported="false" />
         <activity android:name=".activity.MyPlaylistsActivity" android:exported="false" />
         <activity android:name=".activity.UpdateActivity" android:exported="false" />
+        <activity android:name=".activity.FeedbackActivity" android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
