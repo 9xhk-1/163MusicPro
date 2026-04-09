@@ -2,7 +2,6 @@ package com.qinghe.music163pro.activity;
 
 import android.Manifest;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
@@ -20,24 +19,15 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.qinghe.music163pro.R;
-import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
+import com.qinghe.music163pro.util.AudioFingerprintHelper;
 import com.qinghe.music163pro.util.MusicLog;
+import com.qinghe.music163pro.api.MusicApiHelper;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 
-/**
- * Song recognition activity.
- * Provides two modes:
- * - 听歌识曲: listen to music playing and identify the song
- * - 哼歌识曲: hum a melody and identify the song
- *
- * Records 10 seconds of 16kHz mono PCM, then sends to NetEase API.
- * Designed for watch screen 320×360 dpi.
- */
 public class SongRecognitionActivity extends AppCompatActivity {
 
     private static final String TAG = "SongRecognitionActivity";
@@ -46,25 +36,21 @@ public class SongRecognitionActivity extends AppCompatActivity {
     private static final int RECORD_SECONDS = 10;
 
     private TextView tvStatus;
-    private TextView btnListen;
-    private TextView btnHum;
-    private TextView btnStop;
-    private TextView tvResult;
+    private TextView tvHint;
+    private TextView btnRecord;
 
     private volatile boolean isRecording = false;
+    private volatile boolean isRecognizing = false;
     private AudioRecord audioRecord;
     private final Handler handler = new Handler();
     private Runnable countdownRunnable;
-
-    /** null = no mode selected yet; true = listen; false = hum */
-    private Boolean pendingHumMode = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
-        if (prefs.getBoolean("keep_screen_on", false)) {
+        if (getSharedPreferences("music163_settings", MODE_PRIVATE)
+                .getBoolean("keep_screen_on", false)) {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
 
@@ -79,75 +65,83 @@ public class SongRecognitionActivity extends AppCompatActivity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(px(10), px(8), px(10), px(12));
+        root.setGravity(Gravity.CENTER_HORIZONTAL);
+        root.setPadding(px(14), px(12), px(14), px(16));
 
-        // Title
         TextView title = new TextView(this);
-        title.setText("识别歌曲");
+        title.setText("听歌识曲");
         title.setTextColor(0xFFFFFFFF);
-        title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(15));
+        title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(18));
         title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
         title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, px(8));
         root.addView(title);
 
-        // Status text
+        addSpacer(root, px(10));
+
+        tvHint = new TextView(this);
+        tvHint.setText("开始录音后靠近声源\n录完后自动识别");
+        tvHint.setTextColor(0xB3FFFFFF);
+        tvHint.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
+        tvHint.setGravity(Gravity.CENTER);
+        root.addView(tvHint);
+
+        addSpacer(root, px(18));
+
+        btnRecord = new TextView(this);
+        btnRecord.setTextColor(0xFFFFFFFF);
+        btnRecord.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(16));
+        btnRecord.setTypeface(btnRecord.getTypeface(), android.graphics.Typeface.BOLD);
+        btnRecord.setGravity(Gravity.CENTER);
+        btnRecord.setPadding(px(12), px(26), px(12), px(26));
+        btnRecord.setClickable(true);
+        btnRecord.setFocusable(true);
+        btnRecord.setOnClickListener(v -> {
+            if (isRecognizing) {
+                return;
+            }
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecognition();
+            }
+        });
+        LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        btnRecord.setLayoutParams(buttonParams);
+        root.addView(btnRecord);
+
+        addSpacer(root, px(14));
+
         tvStatus = new TextView(this);
-        tvStatus.setText("点击下方按钮开始识别");
         tvStatus.setTextColor(0x80FFFFFF);
-        tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
+        tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
         tvStatus.setGravity(Gravity.CENTER);
-        tvStatus.setPadding(0, 0, 0, px(10));
         root.addView(tvStatus);
 
-        // 听歌识曲 button
-        btnListen = makeTileButton("🎧  听歌识曲\n播放音乐中识别歌曲");
-        btnListen.setOnClickListener(v -> startRecognition(false));
-        root.addView(btnListen);
+        addSpacer(root, px(10));
 
-        addSpacer(root, px(4));
-
-        // 哼歌识曲 button
-        btnHum = makeTileButton("🎤  哼歌识曲\n哼唱旋律识别歌曲");
-        btnHum.setOnClickListener(v -> startRecognition(true));
-        root.addView(btnHum);
-
-        addSpacer(root, px(8));
-
-        // Stop recording button — visible only during recording
-        btnStop = makeTileButton("⏹  停止录音");
-        btnStop.setBackgroundColor(0xFFBB86FC);
-        btnStop.setVisibility(android.view.View.GONE);
-        btnStop.setOnClickListener(v -> stopRecording());
-        root.addView(btnStop);
-
-        addSpacer(root, px(8));
-        tvResult = new TextView(this);
-        tvResult.setText("");
-        tvResult.setTextColor(0xFFFFFFFF);
-        tvResult.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
-        tvResult.setPadding(px(6), px(6), px(6), px(6));
-        tvResult.setBackgroundColor(0xFF1E1E1E);
-        tvResult.setVisibility(android.view.View.GONE);
-        root.addView(tvResult);
+        TextView tip = new TextView(this);
+        tip.setText("最长录音 " + RECORD_SECONDS + " 秒\n识别失败会停留在当前界面");
+        tip.setTextColor(0x66FFFFFF);
+        tip.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(11));
+        tip.setGravity(Gravity.CENTER);
+        root.addView(tip);
 
         scroll.addView(root);
         setContentView(scroll);
+
+        updateIdleUi();
     }
 
-    private void startRecognition(boolean humMode) {
-        if (isRecording) {
-            Toast.makeText(this, "正在录音中...", Toast.LENGTH_SHORT).show();
-            return;
-        }
+    private void startRecognition() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
                 != PackageManager.PERMISSION_GRANTED) {
-            pendingHumMode = humMode;
             ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO);
             return;
         }
-        doRecord(humMode);
+        doRecord();
     }
 
     @Override
@@ -155,33 +149,27 @@ public class SongRecognitionActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_RECORD_AUDIO) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                if (pendingHumMode != null) {
-                    doRecord(pendingHumMode);
-                    pendingHumMode = null;
-                }
+                doRecord();
             } else {
                 Toast.makeText(this, "需要录音权限才能识别歌曲", Toast.LENGTH_SHORT).show();
             }
         }
     }
 
-    private void doRecord(boolean humMode) {
-        String modeLabel = humMode ? "哼歌识曲" : "听歌识曲";
-        MusicLog.op(TAG, "开始录音", modeLabel);
-        setButtonsEnabled(false);
-        btnStop.setVisibility(android.view.View.VISIBLE);
+    private void doRecord() {
+        MusicLog.op(TAG, "开始录音", null);
+        isRecognizing = false;
+        setRecordButtonState("结束录音", 0xFFD32F2F, true);
+        tvHint.setText("正在录音，请保持环境安静");
 
         final int[] remaining = {RECORD_SECONDS};
-        tvResult.setVisibility(android.view.View.GONE);
-        tvStatus.setText(modeLabel + "：录音中 " + RECORD_SECONDS + "s...");
-
-        // Countdown UI updater
+        tvStatus.setText("录音中 " + RECORD_SECONDS + "s...");
         countdownRunnable = new Runnable() {
             @Override
             public void run() {
                 remaining[0]--;
-                if (remaining[0] > 0) {
-                    tvStatus.setText(modeLabel + "：录音中 " + remaining[0] + "s...");
+                if (remaining[0] > 0 && isRecording) {
+                    tvStatus.setText("录音中 " + remaining[0] + "s...");
                     handler.postDelayed(this, 1000);
                 }
             }
@@ -191,59 +179,68 @@ public class SongRecognitionActivity extends AppCompatActivity {
         new Thread(() -> {
             byte[] pcm = recordPcm(RECORD_SECONDS);
             handler.removeCallbacks(countdownRunnable);
-
             if (pcm == null || pcm.length == 0) {
                 runOnUiThread(() -> {
-                    tvStatus.setText("录音失败，请检查麦克风权限");
-                    btnStop.setVisibility(android.view.View.GONE);
-                    setButtonsEnabled(true);
+                    updateIdleUi();
+                    tvStatus.setText("录音失败");
+                    Toast.makeText(this, "录音失败，请检查麦克风", Toast.LENGTH_SHORT).show();
                 });
                 return;
             }
-
-            runOnUiThread(() -> {
-                tvStatus.setText("正在识别...");
-                btnStop.setVisibility(android.view.View.GONE);
-            });
-            MusicLog.d(TAG, "录音完成，开始识别 " + modeLabel + " bytes=" + pcm.length);
-
-            String cookie = MusicPlayerManager.getInstance().getCookie();
-            MusicApiHelper.RecognitionCallback cb = new MusicApiHelper.RecognitionCallback() {
-                @Override
-                public void onResult(String songName, String artist, String album, long songId) {
-                    String info = songName + "\n" + artist + (album.isEmpty() ? "" : "\n" + album);
-                    tvStatus.setText(modeLabel + " 识别成功！");
-                    tvResult.setText(info);
-                    tvResult.setVisibility(android.view.View.VISIBLE);
-                    setButtonsEnabled(true);
-                    MusicLog.i(TAG, "识别成功: " + info + " id=" + songId);
-
-                    // Offer to play the identified song
-                    if (songId > 0) {
-                        tvResult.setOnClickListener(v -> playSong(songId, songName, artist, album));
-                        tvResult.append("\n\n点击此处播放");
-                    }
-                }
-
-                @Override
-                public void onError(String message) {
-                    tvStatus.setText("识别失败: " + message);
-                    tvResult.setVisibility(android.view.View.GONE);
-                    btnStop.setVisibility(android.view.View.GONE);
-                    setButtonsEnabled(true);
-                    MusicLog.w(TAG, modeLabel + " 识别失败: " + message);
-                }
-            };
-
-            if (humMode) {
-                MusicApiHelper.recognizeHum(pcm, cookie, cb);
-            } else {
-                MusicApiHelper.recognizeSong(pcm, cookie, cb);
-            }
+            runOnUiThread(() -> beginRecognition(pcm));
         }).start();
     }
 
-    /** Record raw 16-bit PCM at 16kHz mono for the given number of seconds. */
+    private void beginRecognition(byte[] pcm) {
+        isRecognizing = true;
+        setRecordButtonState("识别中...", 0xFF616161, false);
+        tvHint.setText("正在生成指纹并请求接口");
+        tvStatus.setText("请稍候...");
+        MusicLog.d(TAG, "录音完成，开始生成指纹 bytes=" + pcm.length);
+
+        AudioFingerprintHelper.generateFingerprint(this, pcm, SAMPLE_RATE, new AudioFingerprintHelper.Callback() {
+            @Override
+            public void onSuccess(String fingerprintBase64, int durationSec) {
+                String cookie = MusicPlayerManager.getInstance().getCookie();
+                MusicApiHelper.recognizeSong(fingerprintBase64, durationSec, cookie,
+                        new MusicApiHelper.RecognitionCallback() {
+                            @Override
+                            public void onResult(java.util.List<Song> songs) {
+                                isRecognizing = false;
+                                updateIdleUi();
+                                openResultPage(songs);
+                            }
+
+                            @Override
+                            public void onError(String message) {
+                                isRecognizing = false;
+                                updateIdleUi();
+                                Toast.makeText(SongRecognitionActivity.this,
+                                        "识别失败: " + message, Toast.LENGTH_SHORT).show();
+                                tvStatus.setText("识别失败，请重试");
+                                MusicLog.w(TAG, "识别失败: " + message);
+                            }
+                        });
+            }
+
+            @Override
+            public void onError(String message) {
+                isRecognizing = false;
+                updateIdleUi();
+                Toast.makeText(SongRecognitionActivity.this,
+                        "指纹生成失败: " + message, Toast.LENGTH_SHORT).show();
+                tvStatus.setText("指纹生成失败");
+                MusicLog.w(TAG, "指纹生成失败: " + message);
+            }
+        });
+    }
+
+    private void openResultPage(java.util.List<Song> songs) {
+        Intent intent = new Intent(this, SongRecognitionResultActivity.class);
+        intent.putExtra(SongRecognitionResultActivity.EXTRA_RESULTS, new ArrayList<>(songs));
+        startActivity(intent);
+    }
+
     private byte[] recordPcm(int seconds) {
         int bufferSize = AudioRecord.getMinBufferSize(
                 SAMPLE_RATE,
@@ -280,7 +277,10 @@ public class SongRecognitionActivity extends AppCompatActivity {
                 }
             }
 
-            audioRecord.stop();
+            try {
+                audioRecord.stop();
+            } catch (Exception ignored) {
+            }
             audioRecord.release();
             audioRecord = null;
             isRecording = false;
@@ -289,56 +289,40 @@ public class SongRecognitionActivity extends AppCompatActivity {
             MusicLog.e(TAG, "录音异常", e);
             isRecording = false;
             if (audioRecord != null) {
-                try { audioRecord.release(); } catch (Exception ignored) {}
+                try {
+                    audioRecord.release();
+                } catch (Exception ignored) {
+                }
                 audioRecord = null;
             }
             return null;
         }
     }
 
-    /** Stop the current recording early and proceed to recognition. */
     private void stopRecording() {
-        if (isRecording) {
-            isRecording = false;
-            handler.removeCallbacks(countdownRunnable);
-            tvStatus.setText("录音已停止，正在识别...");
-            btnStop.setVisibility(android.view.View.GONE);
+        if (!isRecording) {
+            return;
+        }
+        isRecording = false;
+        handler.removeCallbacks(countdownRunnable);
+        setRecordButtonState("识别中...", 0xFF616161, false);
+        tvHint.setText("录音结束，开始识别");
+        tvStatus.setText("处理中...");
+    }
+
+    private void updateIdleUi() {
+        setRecordButtonState("开始录音", 0xFFBB86FC, true);
+        tvHint.setText("开始录音后靠近声源\n录完后自动识别");
+        if (!isRecording && !isRecognizing) {
+            tvStatus.setText("点击按钮开始识别");
         }
     }
 
-    private void playSong(long songId, String name, String artist, String album) {
-        Song song = new Song(songId, name, artist, album);
-        java.util.List<Song> list = new ArrayList<>();
-        list.add(song);
-        MusicPlayerManager.getInstance().setPlaylist(list, 0);
-        MusicPlayerManager.getInstance().playCurrent();
-        Intent intent = new Intent(this, MainActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        startActivity(intent);
-        finish();
-    }
-
-    private void setButtonsEnabled(boolean enabled) {
-        btnListen.setEnabled(enabled);
-        btnHum.setEnabled(enabled);
-        btnListen.setAlpha(enabled ? 1f : 0.5f);
-        btnHum.setAlpha(enabled ? 1f : 0.5f);
-    }
-
-    private TextView makeTileButton(String text) {
-        TextView tv = new TextView(this);
-        tv.setText(text);
-        tv.setTextColor(0xFFFFFFFF);
-        tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
-        tv.setPadding(px(12), px(10), px(12), px(10));
-        tv.setBackgroundColor(0xFFBB86FC);
-        tv.setClickable(true);
-        tv.setFocusable(true);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
-        tv.setLayoutParams(lp);
-        return tv;
+    private void setRecordButtonState(String text, int backgroundColor, boolean enabled) {
+        btnRecord.setText(text);
+        btnRecord.setBackgroundColor(backgroundColor);
+        btnRecord.setEnabled(enabled);
+        btnRecord.setAlpha(enabled ? 1f : 0.75f);
     }
 
     private void addSpacer(LinearLayout parent, int heightPx) {
@@ -357,9 +341,17 @@ public class SongRecognitionActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         isRecording = false;
+        isRecognizing = false;
         handler.removeCallbacksAndMessages(null);
         if (audioRecord != null) {
-            try { audioRecord.stop(); audioRecord.release(); } catch (Exception ignored) {}
+            try {
+                audioRecord.stop();
+            } catch (Exception ignored) {
+            }
+            try {
+                audioRecord.release();
+            } catch (Exception ignored) {
+            }
             audioRecord = null;
         }
     }

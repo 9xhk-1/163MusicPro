@@ -46,6 +46,7 @@
         <activity android:name=".activity.TopListDetailActivity" android:exported="false" />
         <activity android:name=".activity.HistoryActivity" android:exported="false" />
         <activity android:name=".activity.SongRecognitionActivity" android:exported="false" />
+        <activity android:name=".activity.SongRecognitionResultActivity" android:exported="false" />
         <activity android:name=".activity.WebVerifyActivity" android:exported="false" />
         <activity android:name=".activity.SongInfoActivity" android:exported="false" />
         <activity android:name=".activity.CommentActivity" android:exported="false" />

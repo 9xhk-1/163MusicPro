@@ -47,6 +47,7 @@ public class MoreActivity extends AppCompatActivity {
         View btnFavorites = findViewById(R.id.btn_menu_favorites);
         btnMyPlaylists = findViewById(R.id.btn_menu_my_playlists);
         View btnSearch = findViewById(R.id.btn_menu_search);
+        View btnSongRecognition = findViewById(R.id.btn_menu_song_recognition);
         View btnDownloads = findViewById(R.id.btn_menu_downloads);
         View btnRingtones = findViewById(R.id.btn_menu_ringtones);
         View btnTopList = findViewById(R.id.btn_menu_toplist);
@@ -64,6 +65,9 @@ public class MoreActivity extends AppCompatActivity {
 
         btnSearch.setOnClickListener(v ->
                 startActivity(new Intent(this, SearchActivity.class)));
+
+        btnSongRecognition.setOnClickListener(v ->
+                startActivity(new Intent(this, SongRecognitionActivity.class)));
 
         btnDownloads.setOnClickListener(v ->
                 startActivity(new Intent(this, DownloadListActivity.class)));
