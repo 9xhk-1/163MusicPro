@@ -17,6 +17,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.qinghe.music163pro.R;
+import com.qinghe.music163pro.util.WatchConfirmDialog;
 import com.qinghe.music163pro.manager.HistoryManager;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
@@ -28,7 +29,7 @@ import java.util.List;
  * History activity - shows play history sorted by time (newest first).
  * Designed for watch screen (320x360 dpi).
  */
-public class HistoryActivity extends AppCompatActivity {
+public class HistoryActivity extends BaseWatchActivity {
 
     private ListView lvHistory;
     private final List<Song> displayList = new ArrayList<>();
@@ -39,11 +40,6 @@ public class HistoryActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
-        if (prefs.getBoolean("keep_screen_on", false)) {
-            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        }
 
         playerManager = MusicPlayerManager.getInstance();
 
@@ -172,94 +168,11 @@ public class HistoryActivity extends AppCompatActivity {
             Toast.makeText(this, "已清空", Toast.LENGTH_SHORT).show();
         });
     }
-
     /**
      * Show a confirmation dialog adapted for watch (360x320 px screen).
-     * Uses fixed pixel values for consistent sizing on watch displays.
      */
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
-        FrameLayout rootView = findViewById(android.R.id.content);
-
-        FrameLayout overlay = new FrameLayout(this);
-        overlay.setLayoutParams(new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        overlay.setBackgroundColor(0xCC000000);
-
-        LinearLayout dialog = new LinearLayout(this);
-        dialog.setOrientation(LinearLayout.VERTICAL);
-        dialog.setBackgroundColor(0xFF424242);
-        dialog.setPadding(px(16), px(12), px(16), px(12));
-        FrameLayout.LayoutParams dlgParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        dlgParams.gravity = Gravity.CENTER;
-        dlgParams.leftMargin = px(16);
-        dlgParams.rightMargin = px(16);
-        dialog.setLayoutParams(dlgParams);
-
-        TextView tvTitle = new TextView(this);
-        tvTitle.setText(title);
-        tvTitle.setTextColor(0xFFFFFFFF);
-        tvTitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(18));
-        tvTitle.setGravity(Gravity.CENTER);
-        tvTitle.setPadding(0, 0, 0, px(6));
-        dialog.addView(tvTitle);
-
-        TextView tvMessage = new TextView(this);
-        tvMessage.setText(message);
-        tvMessage.setTextColor(0xB3FFFFFF);
-        tvMessage.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(15));
-        tvMessage.setGravity(Gravity.CENTER);
-        tvMessage.setPadding(0, 0, 0, px(12));
-        dialog.addView(tvMessage);
-
-        LinearLayout btnRow = new LinearLayout(this);
-        btnRow.setOrientation(LinearLayout.HORIZONTAL);
-        btnRow.setGravity(Gravity.CENTER);
-        dialog.addView(btnRow);
-
-        TextView btnCancel = new TextView(this);
-        btnCancel.setText("取消");
-        btnCancel.setTextColor(0xFFFFFFFF);
-        btnCancel.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(16));
-        btnCancel.setGravity(Gravity.CENTER);
-        btnCancel.setPadding(px(12), px(8), px(12), px(8));
-        btnCancel.setBackgroundColor(0xFF2D2D2D);
-        LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-        cancelParams.rightMargin = px(4);
-        btnCancel.setLayoutParams(cancelParams);
-        btnCancel.setClickable(true);
-        btnCancel.setFocusable(true);
-        btnCancel.setOnClickListener(v -> rootView.removeView(overlay));
-        btnRow.addView(btnCancel);
-
-        TextView btnConfirm = new TextView(this);
-        btnConfirm.setText("确定");
-        btnConfirm.setTextColor(0xFFFFFFFF);
-        btnConfirm.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(16));
-        btnConfirm.setGravity(Gravity.CENTER);
-        btnConfirm.setPadding(px(12), px(8), px(12), px(8));
-        btnConfirm.setBackgroundColor(0xFFBB86FC);
-        LinearLayout.LayoutParams confirmParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-        confirmParams.leftMargin = px(4);
-        btnConfirm.setLayoutParams(confirmParams);
-        btnConfirm.setClickable(true);
-        btnConfirm.setFocusable(true);
-        btnConfirm.setOnClickListener(v -> {
-            rootView.removeView(overlay);
-            onConfirm.run();
-        });
-        btnRow.addView(btnConfirm);
-
-        overlay.addView(dialog);
-        overlay.setOnClickListener(v -> rootView.removeView(overlay));
-        dialog.setOnClickListener(v -> { /* consume click */ });
-        rootView.addView(overlay);
-    }
-
-    private int px(int baseValue) {
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        return (int) (baseValue * screenWidth / 320f + 0.5f);
+        WatchConfirmDialog.show(this, title, message, onConfirm,
+                new WatchConfirmDialog.Options(0xFF424242, 0xFFBB86FC, true));
     }
 }
