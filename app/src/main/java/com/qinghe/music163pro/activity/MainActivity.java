@@ -682,7 +682,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             rootView.removeView(volumeIndicator);
         }
 
-        int percent = max > 0 ? Math.round(current * 100f / max) : 0;
+        boolean hasVolumeInfo = max > 0;
+        int percent = hasVolumeInfo ? Math.round(current * 100f / max) : 0;
         int availableWidth = Math.max(getResources().getDisplayMetrics().widthPixels - dp(24), dp(96));
         int popupWidth = availableWidth > dp(132) ? Math.min(availableWidth, dp(176)) : availableWidth;
 
@@ -726,7 +727,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         titleView.setTextSize(11);
 
         TextView valueView = new TextView(this);
-        valueView.setText(current + "/" + max);
+        valueView.setText(hasVolumeInfo ? (current + "/" + max) : "不可用");
         valueView.setTextColor(ContextCompat.getColor(this, R.color.text_primary));
         valueView.setTextSize(16);
         valueView.setTypeface(valueView.getTypeface(), android.graphics.Typeface.BOLD);
@@ -735,7 +736,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         titleWrap.addView(valueView);
 
         TextView percentView = new TextView(this);
-        percentView.setText(percent + "%");
+        percentView.setText(hasVolumeInfo ? (percent + "%") : "--");
         percentView.setTextColor(ContextCompat.getColor(this, R.color.colorPrimary));
         percentView.setTextSize(14);
         percentView.setTypeface(percentView.getTypeface(), android.graphics.Typeface.BOLD);
@@ -749,8 +750,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(6));
         progressParams.topMargin = dp(10);
         progressBar.setLayoutParams(progressParams);
-        progressBar.setMax(Math.max(max, 1));
-        progressBar.setProgress(current);
+        progressBar.setMax(hasVolumeInfo ? max : 1);
+        progressBar.setProgress(hasVolumeInfo ? current : 0);
         progressBar.setProgressDrawable(ContextCompat.getDrawable(this, R.drawable.progress_volume_indicator));
         progressBar.setSplitTrack(false);
 
