@@ -682,22 +682,14 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
         boolean hasVolumeInfo = max > 0;
         int percent = hasVolumeInfo ? Math.round(current * 100f / max) : 0;
-        ensureVolumeIndicator();
+        ensureVolumeIndicator(hasVolumeInfo, current, max, percent);
         updateVolumeIndicator(hasVolumeInfo, current, max, percent);
 
         volumeHandler.removeCallbacksAndMessages(null);
-        volumeHandler.postDelayed(() -> {
-            if (volumeIndicator != null) {
-                FrameLayout rootView = (FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content);
-                rootView.removeView(volumeIndicator);
-                volumeIndicator = null;
-                volumeProgressBar = null;
-                volumePercentView = null;
-            }
-        }, 1500);
+        volumeHandler.postDelayed(this::dismissVolumeIndicator, 1500);
     }
 
-    private void ensureVolumeIndicator() {
+    private void ensureVolumeIndicator(boolean hasVolumeInfo, int current, int max, int percent) {
         if (volumeIndicator != null) {
             return;
         }
@@ -724,6 +716,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 0, dp(8), 1f);
         progressBar.setLayoutParams(progressParams);
         progressBar.setProgressDrawable(ContextCompat.getDrawable(this, R.drawable.progress_volume_indicator));
+        progressBar.setMax(hasVolumeInfo ? max : 1);
+        progressBar.setProgress(hasVolumeInfo ? current : 0);
 
         TextView percentView = new TextView(this);
         LinearLayout.LayoutParams percentParams = new LinearLayout.LayoutParams(
@@ -733,6 +727,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         percentView.setTextColor(ContextCompat.getColor(this, R.color.colorPrimary));
         percentView.setTextSize(13);
         percentView.setTypeface(percentView.getTypeface(), android.graphics.Typeface.BOLD);
+        percentView.setText(hasVolumeInfo ? (percent + "%") : "--");
 
         card.addView(progressBar);
         card.addView(percentView);
@@ -763,6 +758,18 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         volumeProgressBar.setMax(hasVolumeInfo ? max : 1);
         volumeProgressBar.setProgress(hasVolumeInfo ? current : 0);
         volumePercentView.setText(hasVolumeInfo ? (percent + "%") : "--");
+    }
+
+    private void dismissVolumeIndicator() {
+        if (volumeIndicator == null) {
+            return;
+        }
+        if (volumeIndicator.getParent() instanceof FrameLayout) {
+            ((FrameLayout) volumeIndicator.getParent()).removeView(volumeIndicator);
+        }
+        volumeIndicator = null;
+        volumeProgressBar = null;
+        volumePercentView = null;
     }
 
     private void onFuncFavorite(Song song) {
@@ -2484,5 +2491,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         stopRingtonePreview();
         stopSeekBarUpdate();
         lyricsScrollHandler.removeCallbacksAndMessages(null);
+        volumeHandler.removeCallbacksAndMessages(null);
+        dismissVolumeIndicator();
     }
 }

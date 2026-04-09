@@ -87,7 +87,7 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeText(
                 "• 精简音量显示卡片，只保留同一行的进度条和百分比\n"
                 + "• 调整音量卡片尺寸与间距，更适配 320×360 手表屏幕\n"
-                + "• 连续点击音量加减时保持卡片常亮更新，减少闪烁",
+                + "• 连续点击音量加减时保持卡片常驻更新，减少闪烁",
                 0xFFAAAAAA, px(15), false, Gravity.START));
 
         // Divider
