@@ -764,7 +764,6 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         progressBar.setMax(hasVolumeInfo ? max : 1);
         progressBar.setProgress(hasVolumeInfo ? current : 0);
         progressBar.setProgressDrawable(ContextCompat.getDrawable(this, R.drawable.progress_volume_indicator));
-        progressBar.setSplitTrack(false);
 
         card.addView(topRow);
         card.addView(progressBar);
