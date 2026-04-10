@@ -23,6 +23,8 @@ public class ToggleSettingsActivity extends AppCompatActivity {
 
     private static final String PREFS_NAME = "music163_settings";
     private static final String PREF_RECOGNITION_MODE = "song_recognition_mode";
+    private static final int MODE_MANUAL = 0;
+    private static final int MODE_AUTO = 1;
 
     private SwitchMaterial switchKeepScreenOn;
     private SwitchMaterial switchFavMode;
@@ -114,7 +116,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     }
 
     private void cycleRecognitionMode() {
-        int current = prefs.getInt(PREF_RECOGNITION_MODE, 0);
+        int current = prefs.getInt(PREF_RECOGNITION_MODE, MODE_AUTO);
         int next = (current + 1) % 2;
         prefs.edit().putInt(PREF_RECOGNITION_MODE, next).apply();
         updateRecognitionModeValue();
@@ -123,7 +125,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     }
 
     private void updateRecognitionModeValue() {
-        int mode = prefs.getInt(PREF_RECOGNITION_MODE, 0);
+        int mode = prefs.getInt(PREF_RECOGNITION_MODE, MODE_AUTO);
         String[] labels = {"手动暂停", "自动识别"};
         tvRecognitionModeValue.setText(labels[mode]);
     }

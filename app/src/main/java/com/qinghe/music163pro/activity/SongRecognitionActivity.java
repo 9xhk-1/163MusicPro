@@ -581,7 +581,7 @@ public class SongRecognitionActivity extends AppCompatActivity {
 
     private boolean isAutoMode() {
         return getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-                .getInt(PREF_RECOGNITION_MODE, MODE_MANUAL) == MODE_AUTO;
+                .getInt(PREF_RECOGNITION_MODE, MODE_AUTO) == MODE_AUTO;
     }
 
     private void clearAutoQueue() {

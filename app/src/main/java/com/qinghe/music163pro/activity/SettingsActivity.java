@@ -34,6 +34,7 @@ public class SettingsActivity extends AppCompatActivity {
         View btnToggle = findViewById(R.id.btn_settings_toggle);
         View btnCheckUpdate = findViewById(R.id.btn_settings_check_update);
         View btnAbout = findViewById(R.id.btn_settings_about);
+        View btnOpenSource = findViewById(R.id.btn_settings_open_source);
 
         btnToggle.setOnClickListener(v ->
                 startActivity(new Intent(this, ToggleSettingsActivity.class)));
@@ -42,6 +43,9 @@ public class SettingsActivity extends AppCompatActivity {
 
         btnAbout.setOnClickListener(v ->
                 startActivity(new Intent(this, AboutActivity.class)));
+
+        btnOpenSource.setOnClickListener(v ->
+                startActivity(new Intent(this, OpenSourceActivity.class)));
     }
 
     private void checkUpdateManually() {
