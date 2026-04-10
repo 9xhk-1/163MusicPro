@@ -34,6 +34,7 @@ public class MusicPlayerManager {
     private static final String KEY_SOURCE_PLAYLIST_CREATOR = "source_playlist_creator";
     private static final String KEY_SOURCE_PLAYLIST_CREATOR_USER_ID = "source_playlist_creator_user_id";
     private static final String KEY_SOURCE_PLAYLIST_IS_LIKED = "source_playlist_is_liked";
+    private static final String KEY_PERSONAL_FM_MODE = "personal_fm_mode";
 
     public enum PlayMode {
         LIST_LOOP,      // 列表循环
@@ -74,6 +75,8 @@ public class MusicPlayerManager {
     private String sourcePlaylistCreator;
     private long sourcePlaylistCreatorUserId;
     private boolean sourcePlaylistIsLiked;
+    private boolean personalFmMode = false;
+    private boolean personalFmLoading = false;
 
     private MusicPlayerManager() {}
 
@@ -96,13 +99,9 @@ public class MusicPlayerManager {
         playlist.clear();
         playlist.addAll(songs);
         currentIndex = startIndex;
-        // Clear playlist source when setting a new playlist without source info
-        sourcePlaylistId = -1;
-        sourcePlaylistName = null;
-        sourcePlaylistTrackCount = 0;
-        sourcePlaylistCreator = null;
-        sourcePlaylistCreatorUserId = -1;
-        sourcePlaylistIsLiked = false;
+        clearSourcePlaylistInfo();
+        personalFmMode = false;
+        personalFmLoading = false;
         savePlaybackState();
     }
 
@@ -122,6 +121,18 @@ public class MusicPlayerManager {
         sourcePlaylistCreator = creator;
         sourcePlaylistCreatorUserId = creatorUserId;
         sourcePlaylistIsLiked = isLiked;
+        personalFmMode = false;
+        personalFmLoading = false;
+        savePlaybackState();
+    }
+
+    public void setPersonalFmPlaylist(List<Song> songs, int startIndex) {
+        playlist.clear();
+        playlist.addAll(songs);
+        currentIndex = startIndex;
+        clearSourcePlaylistInfo();
+        personalFmMode = true;
+        personalFmLoading = false;
         savePlaybackState();
     }
 
@@ -133,6 +144,10 @@ public class MusicPlayerManager {
     public boolean getSourcePlaylistIsLiked() { return sourcePlaylistIsLiked; }
 
     public boolean hasSourcePlaylist() { return sourcePlaylistId > 0; }
+
+    public boolean isPersonalFmMode() {
+        return personalFmMode;
+    }
 
     public List<Song> getPlaylist() {
         return playlist;
@@ -370,41 +385,25 @@ public class MusicPlayerManager {
                 break;
             case LIST_LOOP:
             default:
-                currentIndex = (currentIndex + 1) % playlist.size();
-                playCurrent();
+                playNextSequential();
                 break;
         }
     }
 
     public void next() {
         if (playlist.isEmpty()) return;
-        if (playMode == PlayMode.RANDOM) {
-            if (playlist.size() > 1) {
-                int newIndex;
-                do {
-                    newIndex = random.nextInt(playlist.size());
-                } while (newIndex == currentIndex);
-                currentIndex = newIndex;
-            }
-        } else {
-            currentIndex = (currentIndex + 1) % playlist.size();
-        }
-        playCurrent();
+        playNextSequential();
     }
 
     public void previous() {
         if (playlist.isEmpty()) return;
-        if (playMode == PlayMode.RANDOM) {
-            if (playlist.size() > 1) {
-                int newIndex;
-                do {
-                    newIndex = random.nextInt(playlist.size());
-                } while (newIndex == currentIndex);
-                currentIndex = newIndex;
-            }
-        } else {
-            currentIndex = (currentIndex - 1 + playlist.size()) % playlist.size();
-        }
+        currentIndex = (currentIndex - 1 + playlist.size()) % playlist.size();
+        playCurrent();
+    }
+
+    public void playFromCurrentPlaylist(int index) {
+        if (index < 0 || index >= playlist.size()) return;
+        currentIndex = index;
         playCurrent();
     }
 
@@ -572,6 +571,7 @@ public class MusicPlayerManager {
             editor.putString(KEY_SOURCE_PLAYLIST_CREATOR, sourcePlaylistCreator);
             editor.putLong(KEY_SOURCE_PLAYLIST_CREATOR_USER_ID, sourcePlaylistCreatorUserId);
             editor.putBoolean(KEY_SOURCE_PLAYLIST_IS_LIKED, sourcePlaylistIsLiked);
+            editor.putBoolean(KEY_PERSONAL_FM_MODE, personalFmMode);
 
             editor.apply();
         } catch (Exception e) {
@@ -623,11 +623,87 @@ public class MusicPlayerManager {
             sourcePlaylistCreator = prefs.getString(KEY_SOURCE_PLAYLIST_CREATOR, null);
             sourcePlaylistCreatorUserId = prefs.getLong(KEY_SOURCE_PLAYLIST_CREATOR_USER_ID, 0);
             sourcePlaylistIsLiked = prefs.getBoolean(KEY_SOURCE_PLAYLIST_IS_LIKED, false);
+            personalFmMode = prefs.getBoolean(KEY_PERSONAL_FM_MODE, false);
+            personalFmLoading = false;
 
             return true;
         } catch (Exception e) {
             Log.w(TAG, "Error restoring playback state", e);
             return false;
         }
+    }
+
+    private void clearSourcePlaylistInfo() {
+        sourcePlaylistId = -1;
+        sourcePlaylistName = null;
+        sourcePlaylistTrackCount = 0;
+        sourcePlaylistCreator = null;
+        sourcePlaylistCreatorUserId = -1;
+        sourcePlaylistIsLiked = false;
+    }
+
+    private void playNextSequential() {
+        if (playlist.isEmpty()) return;
+        if (personalFmMode && currentIndex >= playlist.size() - 1) {
+            loadMorePersonalFmAndAdvance();
+            return;
+        }
+        currentIndex = (currentIndex + 1) % playlist.size();
+        playCurrent();
+    }
+
+    private void loadMorePersonalFmAndAdvance() {
+        if (personalFmLoading) return;
+        String cookie = getCookie();
+        if (cookie == null || cookie.isEmpty()) {
+            currentIndex = (currentIndex + 1) % playlist.size();
+            playCurrent();
+            return;
+        }
+        personalFmLoading = true;
+        MusicApiHelper.getPersonalFM(cookie, new MusicApiHelper.PersonalFMCallback() {
+            @Override
+            public void onResult(List<Song> songs) {
+                personalFmLoading = false;
+                int appended = appendUniqueSongs(songs);
+                if (appended > 0) {
+                    currentIndex++;
+                } else {
+                    currentIndex = (currentIndex + 1) % playlist.size();
+                }
+                savePlaybackState();
+                playCurrent();
+            }
+
+            @Override
+            public void onError(String message) {
+                personalFmLoading = false;
+                if (callback != null) {
+                    mainHandler.post(() -> callback.onError("刷新私人漫游失败: " + message));
+                }
+                currentIndex = (currentIndex + 1) % playlist.size();
+                playCurrent();
+            }
+        });
+    }
+
+    private int appendUniqueSongs(List<Song> songs) {
+        if (songs == null || songs.isEmpty()) {
+            return 0;
+        }
+        java.util.HashSet<Long> existingIds = new java.util.HashSet<>();
+        for (Song song : playlist) {
+            existingIds.add(song.getId());
+        }
+        int appended = 0;
+        for (Song song : songs) {
+            if (song == null || existingIds.contains(song.getId())) {
+                continue;
+            }
+            existingIds.add(song.getId());
+            playlist.add(song);
+            appended++;
+        }
+        return appended;
     }
 }

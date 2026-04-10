@@ -140,7 +140,7 @@ public class MoreActivity extends AppCompatActivity {
                     return;
                 }
                 MusicPlayerManager playerManager = MusicPlayerManager.getInstance();
-                playerManager.setPlaylist(new ArrayList<>(songs), 0);
+                playerManager.setPersonalFmPlaylist(new ArrayList<>(songs), 0);
                 playerManager.playCurrent();
                 Intent intent = new Intent(MoreActivity.this, MainActivity.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);

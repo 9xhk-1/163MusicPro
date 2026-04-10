@@ -1430,48 +1430,45 @@ public class MusicApiHelper {
     // ==================== Personal FM ====================
 
     /**
-     * Get personal FM songs.
+     * Get one personal FM batch.
      * (same as NeteaseCloudMusicApiBackup module/personal_fm.js)
-     * Calls the API multiple times to accumulate more songs since each call returns ~3.
+     * Each request returns about 3 songs.
      */
     public static void getPersonalFM(String cookie, PersonalFMCallback callback) {
         executor.execute(() -> {
             try {
                 String csrfToken = extractCsrfToken(cookie);
-                List<Song> allSongs = new ArrayList<>();
+                List<Song> songs = new ArrayList<>();
                 java.util.Set<Long> seenIds = new java.util.HashSet<>();
 
-                // Call the API multiple times to get more songs (each returns ~3)
-                for (int batch = 0; batch < 5 && allSongs.size() < 15; batch++) {
-                    JSONObject data = new JSONObject();
-                    data.put("csrf_token", csrfToken);
+                JSONObject data = new JSONObject();
+                data.put("csrf_token", csrfToken);
 
-                    String response = weapiPost("/api/v1/radio/get", data.toString(), cookie);
-                    JSONObject json = new JSONObject(response);
-                    JSONArray dataArr = json.optJSONArray("data");
-                    if (dataArr != null) {
-                        for (int i = 0; i < dataArr.length(); i++) {
-                            JSONObject s = dataArr.getJSONObject(i);
-                            long id = s.getLong("id");
-                            if (seenIds.contains(id)) continue;
-                            seenIds.add(id);
-                            String name = s.getString("name");
-                            String artist = "";
-                            JSONArray artists = s.optJSONArray("artists");
-                            if (artists != null && artists.length() > 0) {
-                                artist = artists.getJSONObject(0).optString("name", "");
-                            }
-                            String album = "";
-                            JSONObject albumObj = s.optJSONObject("album");
-                            if (albumObj != null) {
-                                album = albumObj.optString("name", "");
-                            }
-                            allSongs.add(new Song(id, name, artist, album));
+                String response = weapiPost("/api/v1/radio/get", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                JSONArray dataArr = json.optJSONArray("data");
+                if (dataArr != null) {
+                    for (int i = 0; i < dataArr.length(); i++) {
+                        JSONObject s = dataArr.getJSONObject(i);
+                        long id = s.getLong("id");
+                        if (seenIds.contains(id)) continue;
+                        seenIds.add(id);
+                        String name = s.getString("name");
+                        String artist = "";
+                        JSONArray artists = s.optJSONArray("artists");
+                        if (artists != null && artists.length() > 0) {
+                            artist = artists.getJSONObject(0).optString("name", "");
                         }
+                        String album = "";
+                        JSONObject albumObj = s.optJSONObject("album");
+                        if (albumObj != null) {
+                            album = albumObj.optString("name", "");
+                        }
+                        songs.add(new Song(id, name, artist, album));
                     }
                 }
 
-                final List<Song> result = allSongs;
+                final List<Song> result = songs;
                 MusicLog.d(TAG, "私人漫游获取完成: " + result.size() + " 首");
                 mainHandler.post(() -> callback.onResult(result));
             } catch (Exception e) {
