@@ -1513,8 +1513,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             itemLayout.addView(tvArtist);
 
             itemLayout.setOnClickListener(v -> {
-                playerManager.setPlaylist(new java.util.ArrayList<>(playlist), index);
-                playerManager.playCurrent();
+                playerManager.playFromCurrentPlaylist(index);
                 dismissOverlay();
             });
 
