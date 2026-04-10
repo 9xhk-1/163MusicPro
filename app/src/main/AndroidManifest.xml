@@ -36,6 +36,7 @@
         <activity android:name=".activity.LoginActivity" android:exported="false" />
         <activity android:name=".activity.ToggleSettingsActivity" android:exported="false" />
         <activity android:name=".activity.AboutActivity" android:exported="false" />
+        <activity android:name=".activity.OpenSourceActivity" android:exported="false" />
         <activity android:name=".activity.QrLoginActivity" android:exported="false" />
         <activity android:name=".activity.SmsLoginActivity" android:exported="false" />
         <activity android:name=".activity.PasswordLoginActivity" android:exported="false" />
@@ -46,6 +47,7 @@
         <activity android:name=".activity.TopListDetailActivity" android:exported="false" />
         <activity android:name=".activity.HistoryActivity" android:exported="false" />
         <activity android:name=".activity.SongRecognitionActivity" android:exported="false" />
+        <activity android:name=".activity.SongRecognitionResultActivity" android:exported="false" />
         <activity android:name=".activity.WebVerifyActivity" android:exported="false" />
         <activity android:name=".activity.SongInfoActivity" android:exported="false" />
         <activity android:name=".activity.CommentActivity" android:exported="false" />

@@ -22,10 +22,14 @@ import com.qinghe.music163pro.player.MusicPlayerManager;
 public class ToggleSettingsActivity extends AppCompatActivity {
 
     private static final String PREFS_NAME = "music163_settings";
+    private static final String PREF_RECOGNITION_MODE = "song_recognition_mode";
+    private static final int MODE_MANUAL = 0;
+    private static final int MODE_AUTO = 1;
 
     private SwitchMaterial switchKeepScreenOn;
     private SwitchMaterial switchFavMode;
     private TextView tvSpeedModeValue;
+    private TextView tvRecognitionModeValue;
     private SharedPreferences prefs;
 
     /** Suppress listener callbacks while programmatically setting switch state. */
@@ -46,7 +50,9 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         switchKeepScreenOn = findViewById(R.id.switch_keep_screen_on);
         switchFavMode = findViewById(R.id.switch_fav_mode);
         tvSpeedModeValue = findViewById(R.id.tv_speed_mode_value);
+        tvRecognitionModeValue = findViewById(R.id.tv_recognition_mode_value);
         LinearLayout rowSpeedMode = findViewById(R.id.row_speed_mode);
+        LinearLayout rowRecognitionMode = findViewById(R.id.row_recognition_mode);
 
         // Initialise switch states from prefs
         syncSwitchStates();
@@ -72,6 +78,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
 
         // Speed mode: tap row to cycle through 3 values
         rowSpeedMode.setOnClickListener(v -> cycleSpeedMode());
+        rowRecognitionMode.setOnClickListener(v -> cycleRecognitionMode());
     }
 
     @Override
@@ -86,6 +93,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         switchFavMode.setChecked(prefs.getBoolean("fav_mode_cloud", false));
         updatingSwitch = false;
         updateSpeedModeValue();
+        updateRecognitionModeValue();
     }
 
     private void cycleSpeedMode() {
@@ -105,5 +113,20 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         int mode = prefs.getInt("speed_mode", 0);
         String[] labels = {"音调不变", "音调改变且速度改变", "音调改变但速度不变"};
         tvSpeedModeValue.setText(labels[mode]);
+    }
+
+    private void cycleRecognitionMode() {
+        int current = prefs.getInt(PREF_RECOGNITION_MODE, MODE_AUTO);
+        int next = (current + 1) % 2;
+        prefs.edit().putInt(PREF_RECOGNITION_MODE, next).apply();
+        updateRecognitionModeValue();
+        String[] labels = {"手动暂停", "自动识别"};
+        Toast.makeText(this, "听歌识曲模式: " + labels[next], Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateRecognitionModeValue() {
+        int mode = prefs.getInt(PREF_RECOGNITION_MODE, MODE_AUTO);
+        String[] labels = {"手动暂停", "自动识别"};
+        tvRecognitionModeValue.setText(labels[mode]);
     }
 }

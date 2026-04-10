@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+        window.globalThis = window;
+    </script>
+    <script src="afp.wasm.js"></script>
+    <script src="afp.js"></script>
+    <script>
+        function readPcm16Sample(binary, byteOffset) {
+            // Android AudioRecord returns 16-bit little-endian PCM.
+            if (byteOffset + 1 >= binary.length) {
+                return 0;
+            }
+            var low = binary.charCodeAt(byteOffset) & 0xFF;
+            var high = binary.charCodeAt(byteOffset + 1) & 0xFF;
+            var value = (high << 8) | low;
+            // Convert unsigned 16-bit little-endian PCM to signed two's complement.
+            return value >= 0x8000 ? value - 0x10000 : value;
+        }
+
+        function pcm16Base64To8kFloatArray(base64) {
+            var binary = atob(base64 || '');
+            var inputSamples = Math.floor(binary.length / 2);
+            if (inputSamples <= 0) {
+                return new Float32Array(0);
+            }
+            var outputSamples = Math.max(1, Math.ceil(inputSamples / 2));
+            var result = new Float32Array(outputSamples);
+            // The reference demo resamples to 8k before fingerprinting.
+            // For the fixed 16k mono recorder here, averaging adjacent samples keeps the
+            // pipeline lightweight on watch hardware while matching the expected input rate.
+            for (var i = 0, out = 0; out < outputSamples; out++, i += 2) {
+                var first = readPcm16Sample(binary, i * 2);
+                var mixed = first;
+                if (i + 1 < inputSamples) {
+                    var second = readPcm16Sample(binary, (i + 1) * 2);
+                    mixed = (first + second) / 2;
+                }
+                var normalized = mixed / 32768;
+                if (normalized > 1) normalized = 1;
+                if (normalized < -1) normalized = -1;
+                result[out] = normalized;
+            }
+            return result;
+        }
+
+        function generateFingerprintFromPcm(base64) {
+            try {
+                var samples = pcm16Base64To8kFloatArray(base64);
+                if (!samples.length) {
+                    AndroidFingerprintBridge.onError('录音数据为空');
+                    return;
+                }
+                Promise.resolve(GenerateFP(samples)).then(function (fingerprint) {
+                    AndroidFingerprintBridge.onSuccess(fingerprint);
+                }).catch(function (error) {
+                    AndroidFingerprintBridge.onError(error && error.message ? error.message : String(error));
+                });
+            } catch (error) {
+                AndroidFingerprintBridge.onError(error && error.message ? error.message : String(error));
+            }
+        }
+    </script>
+</head>
+<body></body>
+</html>

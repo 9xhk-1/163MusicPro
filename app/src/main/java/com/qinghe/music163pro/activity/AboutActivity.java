@@ -48,7 +48,7 @@ public class AboutActivity extends AppCompatActivity {
 
         // Version
         content.addView(makeSpacer(px(4)));
-        String versionName = "20260709-fix1";
+        String versionName = "20260410";
         try {
             versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (Exception ignored) {}
@@ -80,9 +80,23 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeSpacer(px(8)));
         content.addView(makeDivider());
 
-        // v20260709-fix1 update summary
+        // v20260410 update summary
         content.addView(makeSpacer(px(8)));
-        content.addView(makeText("v20260709-fix1 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeText("v20260410 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeSpacer(px(4)));
+        content.addView(makeText(
+                "• 增加了听歌识曲功能\n"
+                + "• 修复版本号错误的问题\n"
+                + "• 增加开源信息显示",
+                0xFFAAAAAA, px(15), false, Gravity.START));
+
+        // Divider
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeDivider());
+
+        // v20260409-fix1 update summary
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeText("v20260409-fix1 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
         content.addView(makeSpacer(px(4)));
         content.addView(makeText(
                 "• 优化音量显示卡片",
@@ -92,9 +106,9 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeSpacer(px(8)));
         content.addView(makeDivider());
 
-        // v20260709 update summary
+        // v20260409 update summary
         content.addView(makeSpacer(px(8)));
-        content.addView(makeText("v20260709 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeText("v20260409 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
         content.addView(makeSpacer(px(4)));
         content.addView(makeText(
                 "• 重做音量提示弹窗，采用卡片式显示",

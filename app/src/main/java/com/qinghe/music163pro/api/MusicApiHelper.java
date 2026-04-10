@@ -18,6 +18,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -156,8 +157,7 @@ public class MusicApiHelper {
     }
 
     public interface RecognitionCallback {
-        /** Called with matched song info: name, artist, album (any may be empty). */
-        void onResult(String songName, String artist, String album, long songId);
+        void onResult(List<Song> songs);
         void onError(String message);
     }
 
@@ -2115,42 +2115,34 @@ public class MusicApiHelper {
     // ==================== Song Recognition ====================
 
     /**
-     * Recognize a song from PCM audio data (听歌识曲).
-     * Per NeteaseCloudMusic_PythonSDK: audio_match(duration, audioFP) → /audio/match
-     * POST https://interface.music.163.com/api/music/audio/match (POST to avoid 414 URI Too Long)
-     * Body: sessionId=xxx&algorithmCode=shazam_v2&duration={sec}&rawdata={audioFP}&times=1&decrypt=1
-     * Response: {code, data: {result: {songId, songName, artists:[{name}], album:{name}}}}
+     * Recognize songs from a NetEase audio fingerprint generated on-device.
      *
-     * @param pcmData  raw PCM bytes (16-bit LE, 16kHz, mono) — this is the audioFP/rawdata
-     * @param cookie   user cookie (may be null/empty, not required)
+     * @param fingerprintBase64 base64 fingerprint generated from 8k mono float PCM
+     * @param durationSec audio duration in seconds
+     * @param cookie user cookie (may be null/empty)
      * @param callback result callback
      */
-    public static void recognizeSong(byte[] pcmData, String cookie, RecognitionCallback callback) {
+    public static void recognizeSong(String fingerprintBase64, int durationSec, String cookie,
+                                     RecognitionCallback callback) {
         executor.execute(() -> {
             try {
-                MusicLog.op(TAG, "听歌识曲", "pcm_bytes=" + pcmData.length);
+                MusicLog.op(TAG, "听歌识曲", "duration=" + durationSec + "s");
 
-                // Calculate duration: 16kHz * 2 bytes/sample (16-bit mono) = 32000 bytes/sec
-                int durationSec = Math.max(1, pcmData.length / 32000);
-
-                // Encode PCM as base64 (audioFP in Python SDK)
-                String audioBase64 = android.util.Base64.encodeToString(pcmData, android.util.Base64.NO_WRAP);
-
-                // Use POST to avoid 414 URI Too Long (base64 audio is very large)
                 String apiUrl = "https://interface.music.163.com/api/music/audio/match";
-                String postBody = "sessionId=0123456789abcdef"
+                String postBody = "sessionId=" + UUID.randomUUID().toString().replace("-", "")
                         + "&algorithmCode=shazam_v2"
-                        + "&duration=" + durationSec
-                        + "&rawdata=" + URLEncoder.encode(audioBase64, "UTF-8")
+                        + "&duration=" + Math.max(1, durationSec)
+                        + "&rawdata=" + URLEncoder.encode(fingerprintBase64, "UTF-8")
                         + "&times=1"
                         + "&decrypt=1";
-                MusicLog.i(TAG, "[REQ] POST audio/match duration=" + durationSec + "s bytes=" + pcmData.length);
+                MusicLog.i(TAG, "[REQ] POST audio/match duration=" + durationSec + "s");
 
                 URL url = new URL(apiUrl);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("User-Agent", USER_AGENT);
                 conn.setRequestProperty("Referer", DOMAIN);
+                conn.setRequestProperty("Origin", DOMAIN);
                 conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
                 if (cookie != null && !cookie.isEmpty()) {
                     conn.setRequestProperty("Cookie", cookie);
@@ -2184,25 +2176,41 @@ public class MusicApiHelper {
                     MusicLog.api(TAG, "POST", "audio/match", responseCode, response);
 
                     JSONObject json = new JSONObject(response);
-                    // Response structure: {code, data: {result: {songId, songName, artists:[{name}], album:{name}}}}
                     JSONObject dataObj = json.optJSONObject("data");
-                    JSONObject result = dataObj != null ? dataObj.optJSONObject("result") : null;
-                    if (result == null) {
-                        mainHandler.post(() -> callback.onError("未识别到歌曲"));
+                    JSONArray resultArray = dataObj != null ? dataObj.optJSONArray("result") : null;
+                    List<Song> matches = new ArrayList<>();
+                    LinkedHashSet<Long> seenSongIds = new LinkedHashSet<>();
+
+                    if (resultArray != null) {
+                        for (int i = 0; i < resultArray.length(); i++) {
+                            JSONObject matchObj = resultArray.optJSONObject(i);
+                            if (matchObj == null) continue;
+                            Song song = parseRecognitionSong(matchObj.optJSONObject("song"));
+                            if (song == null) {
+                                song = parseRecognitionSong(matchObj);
+                            }
+                            if (song == null) continue;
+                            long songId = song.getId();
+                            if (songId > 0 && !seenSongIds.add(songId)) {
+                                continue;
+                            }
+                            matches.add(song);
+                        }
+                    } else {
+                        Song single = parseRecognitionSong(dataObj != null ? dataObj.optJSONObject("result") : null);
+                        if (single != null) {
+                            matches.add(single);
+                        }
+                    }
+
+                    if (matches.isEmpty()) {
+                        String message = json.optString("message", "未识别到歌曲");
+                        mainHandler.post(() -> callback.onError(message));
                         return;
                     }
 
-                    String songName = result.optString("songName", "未知歌曲");
-                    org.json.JSONArray artists = result.optJSONArray("artists");
-                    String artist = (artists != null && artists.length() > 0)
-                            ? artists.getJSONObject(0).optString("name", "未知歌手")
-                            : "未知歌手";
-                    JSONObject albumObj = result.optJSONObject("album");
-                    String album = albumObj != null ? albumObj.optString("name", "") : "";
-                    long songId = result.optLong("songId", 0);
-
-                    MusicLog.i(TAG, "听歌识曲成功: " + songName + " - " + artist);
-                    mainHandler.post(() -> callback.onResult(songName, artist, album, songId));
+                    MusicLog.i(TAG, "听歌识曲成功: matches=" + matches.size());
+                    mainHandler.post(() -> callback.onResult(matches));
                 } finally {
                     conn.disconnect();
                 }
@@ -2213,97 +2221,35 @@ public class MusicApiHelper {
         });
     }
 
-    /**
-     * Recognize a song from humming PCM audio data (哼歌识曲).
-     * POST https://interface.music.163.com/api/music/audio/hum (POST to avoid 414 URI Too Long)
-     *
-     * @param pcmData  raw PCM bytes (16-bit LE, 16kHz, mono)
-     * @param cookie   user cookie (may be null/empty, not required)
-     * @param callback result callback
-     */
-    public static void recognizeHum(byte[] pcmData, String cookie, RecognitionCallback callback) {
-        executor.execute(() -> {
-            try {
-                MusicLog.op(TAG, "哼歌识曲", "pcm_bytes=" + pcmData.length);
+    private static Song parseRecognitionSong(JSONObject songObj) {
+        if (songObj == null) {
+            return null;
+        }
 
-                // Calculate duration: 16kHz * 2 bytes/sample (16-bit mono) = 32000 bytes/sec
-                int durationSec = Math.max(1, pcmData.length / 32000);
-
-                String audioBase64 = android.util.Base64.encodeToString(pcmData, android.util.Base64.NO_WRAP);
-
-                // Use POST to avoid 414 URI Too Long
-                String apiUrl = "https://interface.music.163.com/api/music/audio/hum";
-                String postBody = "sessionId=0123456789abcdef"
-                        + "&duration=" + durationSec
-                        + "&rawdata=" + URLEncoder.encode(audioBase64, "UTF-8")
-                        + "&times=1";
-                MusicLog.i(TAG, "[REQ] POST audio/hum duration=" + durationSec + "s bytes=" + pcmData.length);
-
-                URL url = new URL(apiUrl);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("User-Agent", USER_AGENT);
-                conn.setRequestProperty("Referer", DOMAIN);
-                conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-                if (cookie != null && !cookie.isEmpty()) {
-                    conn.setRequestProperty("Cookie", cookie);
-                }
-                conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
-                conn.setReadTimeout(60000);
-                conn.setDoOutput(true);
-
-                try {
-                    OutputStream os = conn.getOutputStream();
-                    os.write(postBody.getBytes("UTF-8"));
-                    os.close();
-
-                    int responseCode = conn.getResponseCode();
-                    BufferedReader reader;
-                    if (responseCode >= 200 && responseCode < 400) {
-                        reader = new BufferedReader(
-                                new InputStreamReader(conn.getInputStream(), "UTF-8"));
-                    } else {
-                        java.io.InputStream errStream = conn.getErrorStream();
-                        reader = new BufferedReader(new InputStreamReader(
-                                errStream != null ? errStream : conn.getInputStream(), "UTF-8"));
-                    }
-                    StringBuilder sb = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        sb.append(line);
-                    }
-                    reader.close();
-                    String response = sb.toString();
-                    MusicLog.api(TAG, "POST", "audio/hum", responseCode, response);
-
-                    JSONObject json = new JSONObject(response);
-                    // Same response structure as audio/match: {code, data: {result: {songId, songName, artists, album}}}
-                    JSONObject dataObj = json.optJSONObject("data");
-                    JSONObject result = dataObj != null ? dataObj.optJSONObject("result") : null;
-                    if (result == null) {
-                        mainHandler.post(() -> callback.onError("未识别到歌曲"));
-                        return;
-                    }
-
-                    String songName = result.optString("songName", "未知歌曲");
-                    org.json.JSONArray artists = result.optJSONArray("artists");
-                    String artist = (artists != null && artists.length() > 0)
-                            ? artists.getJSONObject(0).optString("name", "未知歌手")
-                            : "未知歌手";
-                    JSONObject albumObj = result.optJSONObject("album");
-                    String album = albumObj != null ? albumObj.optString("name", "") : "";
-                    long songId = result.optLong("songId", 0);
-
-                    MusicLog.i(TAG, "哼歌识曲成功: " + songName + " - " + artist);
-                    mainHandler.post(() -> callback.onResult(songName, artist, album, songId));
-                } finally {
-                    conn.disconnect();
-                }
-            } catch (Exception e) {
-                MusicLog.e(TAG, "哼歌识曲异常", e);
-                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "识别失败，请重试"));
+        long songId = songObj.optLong("id", songObj.optLong("songId", 0));
+        String songName = songObj.optString("name", songObj.optString("songName", ""));
+        JSONArray artists = songObj.optJSONArray("artist");
+        if (artists == null) {
+            artists = songObj.optJSONArray("artists");
+        }
+        String artist = "未知歌手";
+        if (artists != null && artists.length() > 0) {
+            JSONObject artistObj = artists.optJSONObject(0);
+            if (artistObj != null) {
+                artist = artistObj.optString("name", artist);
             }
-        });
+        } else if (!songObj.optString("artistName").isEmpty()) {
+            artist = songObj.optString("artistName");
+        }
+        JSONObject albumObj = songObj.optJSONObject("album");
+        if (albumObj == null) {
+            albumObj = songObj.optJSONObject("al");
+        }
+        String album = albumObj != null ? albumObj.optString("name", "") : "";
+        if (songName.isEmpty()) {
+            return null;
+        }
+        return new Song(songId, songName, artist, album);
     }
 
     // ==================== Playlist Subscribe / Unsubscribe ====================
