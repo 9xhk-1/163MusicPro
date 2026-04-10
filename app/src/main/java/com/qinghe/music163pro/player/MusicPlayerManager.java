@@ -666,12 +666,8 @@ public class MusicPlayerManager {
             @Override
             public void onResult(List<Song> songs) {
                 personalFmLoading = false;
-                int appended = appendUniqueSongs(songs);
-                if (appended > 0) {
-                    currentIndex = (currentIndex + 1) % playlist.size();
-                } else {
-                    currentIndex = (currentIndex + 1) % playlist.size();
-                }
+                appendUniqueSongs(songs);
+                currentIndex = (currentIndex + 1) % playlist.size();
                 savePlaybackState();
                 playCurrent();
             }
