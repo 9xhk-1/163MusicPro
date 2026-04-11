@@ -125,7 +125,7 @@ public class MoreActivity extends AppCompatActivity {
         String cookie = MusicPlayerManager.getInstance().getCookie();
         boolean loggedIn = cookie != null && !cookie.isEmpty() && cookie.contains("MUSIC_U");
         btnProfile.setVisibility(loggedIn ? View.VISIBLE : View.GONE);
-        btnPersonalFM.setVisibility(loggedIn ? View.VISIBLE : View.GONE);
+        //btnPersonalFM.setVisibility(loggedIn ? View.VISIBLE : View.GONE);
         btnMyPlaylists.setVisibility(loggedIn ? View.VISIBLE : View.GONE);
     }
 
