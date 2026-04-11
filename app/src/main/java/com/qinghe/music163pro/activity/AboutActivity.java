@@ -96,9 +96,9 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeSpacer(px(8)));
         content.addView(makeDivider());
 
-        // v20250411 update summary
+        // v20260411 update summary
         content.addView(makeSpacer(px(8)));
-        content.addView(makeText("v20250411 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeText("v20260411 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
         content.addView(makeSpacer(px(4)));
         content.addView(makeText(
                 "• 修复评论时间显示问题\n"
@@ -109,9 +109,9 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeSpacer(px(8)));
         content.addView(makeDivider());
 
-        // v20250410-2 update summary
+        // v20260410-2 update summary
         content.addView(makeSpacer(px(8)));
-        content.addView(makeText("v20250410-2 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeText("v20260410-2 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
         content.addView(makeSpacer(px(4)));
         content.addView(makeText(
                 "• 修复私人漫游不刷新歌曲的问题\n"
