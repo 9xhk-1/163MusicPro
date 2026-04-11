@@ -45,18 +45,6 @@
                     android:contentDescription="@string/mv_cover"
                     android:scaleType="centerCrop" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:background="@color/surface_overlay"
-                    android:paddingStart="12dp"
-                    android:paddingTop="6dp"
-                    android:paddingEnd="12dp"
-                    android:paddingBottom="6dp"
-                    android:text="▶ 点击播放"
-                    android:textColor="@color/text_primary"
-                    android:textSize="12sp" />
             </FrameLayout>
 
             <TextView

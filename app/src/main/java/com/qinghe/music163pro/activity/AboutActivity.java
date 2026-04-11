@@ -48,7 +48,7 @@ public class AboutActivity extends AppCompatActivity {
 
         // Version
         content.addView(makeSpacer(px(4)));
-        String versionName = "20250411";
+        String versionName = "20260411-2";
         try {
             versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (Exception ignored) {}
@@ -74,6 +74,22 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeText(
                 "适用于小天才手表的网易云音乐播放器。支持在线搜索、播放、下载、收藏、歌词显示、铃声设置等功能。"
                 + "支持扫码登录和Cookie登录，可播放VIP音乐。",
+                0xFFAAAAAA, px(15), false, Gravity.START));
+
+        // Divider
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeDivider());
+
+        // v20260411-2 update summary
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeText("v20260411-2 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeSpacer(px(4)));
+        content.addView(makeText(
+                "• 移除 MV 详情封面上的播放提示按钮，点击封面可直接播放\n"
+                + "• 重做 MV 播放器顶部栏并新增左上角返回按钮\n"
+                + "• 精简播放器控制栏，修复手表上进度条显示不完整的问题\n"
+                + "• 将 MV 播放画面切换为 TextureView，缓解右滑返回手势导致的视频黑屏问题\n"
+                + "• 调整 MV 播放依赖版本，恢复当前构建环境兼容性",
                 0xFFAAAAAA, px(15), false, Gravity.START));
 
         // Divider

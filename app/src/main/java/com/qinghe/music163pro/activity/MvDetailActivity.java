@@ -97,7 +97,10 @@ public class MvDetailActivity extends BaseWatchActivity {
         if (mvDetail == null) {
             return;
         }
-        mvName = mvDetail.optString("name", mvName);
+        String fetchedName = mvDetail.optString("name", "");
+        if (fetchedName != null && !fetchedName.trim().isEmpty()) {
+            mvName = fetchedName;
+        }
         String artistName = mvDetail.optString("artistName", "");
         if (artistName.isEmpty()) {
             artistName = buildArtistText(mvDetail.optJSONArray("artists"));
@@ -175,7 +178,7 @@ public class MvDetailActivity extends BaseWatchActivity {
             }
             builder.append(publishTime);
         }
-        return builder.length() > 0 ? builder.toString() : "点击封面即可播放";
+        return builder.length() > 0 ? builder.toString() : "暂无更多信息";
     }
 
     private String formatCount(long count) {

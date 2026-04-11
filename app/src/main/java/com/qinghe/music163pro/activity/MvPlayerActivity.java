@@ -2,6 +2,7 @@ package com.qinghe.music163pro.activity;
 
 import android.os.Bundle;
 import android.view.View;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,9 +27,13 @@ public class MvPlayerActivity extends BaseWatchActivity {
     private String cookie;
 
     private PlayerView playerView;
+    private ImageButton btnBack;
     private TextView tvTitle;
     private TextView tvLoading;
     private ExoPlayer player;
+    private String playbackUrl;
+    private long playbackPosition;
+    private boolean playWhenReady = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,10 +48,12 @@ public class MvPlayerActivity extends BaseWatchActivity {
         }
 
         playerView = findViewById(R.id.player_view_mv);
+        btnBack = findViewById(R.id.btn_mv_player_back);
         tvTitle = findViewById(R.id.tv_mv_player_title);
         tvLoading = findViewById(R.id.tv_mv_player_loading);
 
         playerView.setKeepScreenOn(true);
+        btnBack.setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
         tvTitle.setText(mvName != null && !mvName.isEmpty() ? mvName : "MV播放");
 
         if (mvId <= 0) {
@@ -80,11 +87,16 @@ public class MvPlayerActivity extends BaseWatchActivity {
     }
 
     private void startPlayback(String url) {
+        playbackUrl = url;
         releasePlayer();
         player = new ExoPlayer.Builder(this).build();
         playerView.setPlayer(player);
         player.setMediaItem(MediaItem.fromUri(url));
         player.prepare();
+        if (playbackPosition > 0) {
+            player.seekTo(playbackPosition);
+        }
+        player.setPlayWhenReady(playWhenReady);
         player.play();
         showLoading(false, "");
     }
@@ -96,19 +108,24 @@ public class MvPlayerActivity extends BaseWatchActivity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        if (player == null && playbackUrl != null && !playbackUrl.isEmpty()) {
+            startPlayback(playbackUrl);
+        }
+    }
+
+    @Override
     protected void onStop() {
         super.onStop();
         releasePlayer();
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        releasePlayer();
-    }
-
     private void releasePlayer() {
         if (player != null) {
+            playbackPosition = player.getCurrentPosition();
+            playWhenReady = player.getPlayWhenReady();
+            playerView.setPlayer(null);
             player.release();
             player = null;
         }
