@@ -85,11 +85,7 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeText("v20260411-2 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
         content.addView(makeSpacer(px(4)));
         content.addView(makeText(
-                "• 移除 MV 详情封面上的播放提示按钮，点击封面可直接播放\n"
-                + "• 重做 MV 播放器顶部栏并新增左上角返回按钮\n"
-                + "• 精简播放器控制栏，修复手表上进度条显示不完整的问题\n"
-                + "• 将 MV 播放画面切换为 TextureView，缓解右滑返回手势导致的视频黑屏问题\n"
-                + "• 调整 MV 播放依赖版本，恢复当前构建环境兼容性",
+                "• 增加MV功能",
                 0xFFAAAAAA, px(15), false, Gravity.START));
 
         // Divider
