@@ -2504,7 +2504,7 @@ public class MusicApiHelper {
         return sb.toString();
     }
 
-    private static JSONObject buildEapiHeader(String existingCookie) throws Exception {
+    private static JSONObject buildEapiHeader(String existingCookie) throws org.json.JSONException {
         JSONObject header = new JSONObject();
         JSONObject cookieMap = parseCookieString(existingCookie);
         header.put("osver", cookieMap.optString("osver", OS_VER));
