@@ -27,6 +27,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".activity.OpenShareLinkActivity"
+            android:exported="true" />
 
         <activity android:name=".activity.MoreActivity" android:exported="false" />
         <activity android:name=".activity.SearchActivity" android:exported="false" />
@@ -37,6 +40,7 @@
         <activity android:name=".activity.ToggleSettingsActivity" android:exported="false" />
         <activity android:name=".activity.AboutActivity" android:exported="false" />
         <activity android:name=".activity.OpenSourceActivity" android:exported="false" />
+        <activity android:name=".activity.XtcModuleActivity" android:exported="false" />
         <activity android:name=".activity.QrLoginActivity" android:exported="false" />
         <activity android:name=".activity.SmsLoginActivity" android:exported="false" />
         <activity android:name=".activity.PasswordLoginActivity" android:exported="false" />
