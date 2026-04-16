@@ -27,6 +27,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".activity.OpenShareLinkActivity"
+            android:exported="true" />
 
         <activity android:name=".activity.MoreActivity" android:exported="false" />
         <activity android:name=".activity.SearchActivity" android:exported="false" />
