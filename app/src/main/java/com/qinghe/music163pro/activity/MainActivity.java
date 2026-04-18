@@ -599,7 +599,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         row1.setGravity(Gravity.CENTER);
         row1.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        row1.addView(createFuncItem(R.drawable.ic_queue_music, "BV列表",
+        row1.addView(createFuncItem(R.drawable.ic_queue_music, "视频列表",
                 v -> onFuncShowBilibiliPlaylist(song)));
         LinearLayout timerItem = createFuncItem(R.drawable.ic_timer,
                 playerManager.isSleepTimerActive() ? "定时..." : "定时关闭",

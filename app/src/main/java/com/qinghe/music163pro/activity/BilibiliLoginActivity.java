@@ -63,7 +63,7 @@ public class BilibiliLoginActivity extends BaseWatchActivity {
         LinearLayout.LayoutParams qrParams = new LinearLayout.LayoutParams(qrSize, qrSize);
         qrParams.gravity = Gravity.CENTER_HORIZONTAL;
         ivQrCode.setLayoutParams(qrParams);
-        ivQrCode.setBackgroundColor(Color.WHITE);
+        ivQrCode.setBackgroundColor(getResources().getColor(R.color.qr_background));
         ivQrCode.setPadding(px(4), px(4), px(4), px(4));
         qrCard.addView(ivQrCode);
 

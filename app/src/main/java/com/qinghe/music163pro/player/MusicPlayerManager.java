@@ -461,14 +461,6 @@ public class MusicPlayerManager {
      * Bilibili audio URLs are time-limited, so always fetch fresh.
      */
     private void playBilibiliSong(Song song) {
-        // If we have a cached URL that's an http(s) URL, try it first
-        String cachedUrl = song.getUrl();
-        if (cachedUrl != null && !cachedUrl.isEmpty()
-                && (cachedUrl.startsWith("http://") || cachedUrl.startsWith("https://"))) {
-            // Try playing the cached URL, but Bilibili URLs expire too
-            // For simplicity, always fetch fresh
-        }
-
         String bilibiliCookie = getBilibiliCookie();
         BilibiliApiHelper.getAudioStreamUrl(song.getBvid(), song.getCid(), bilibiliCookie,
                 new BilibiliApiHelper.AudioStreamCallback() {

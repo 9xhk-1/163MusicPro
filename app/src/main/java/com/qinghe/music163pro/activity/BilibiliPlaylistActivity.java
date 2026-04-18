@@ -266,6 +266,7 @@ public class BilibiliPlaylistActivity extends BaseWatchActivity {
         List<Song> songs = new ArrayList<>();
         for (BilibiliApiHelper.BilibiliPage page : pages) {
             Song song = new Song();
+            // Use negative cid as id to avoid collision with NetEase song IDs.
             song.setId(-page.cid);
             song.setName(TextUtils.isEmpty(page.part) ? page.videoTitle : page.part);
             song.setArtist(page.ownerName);
@@ -305,7 +306,9 @@ public class BilibiliPlaylistActivity extends BaseWatchActivity {
         }
         boolean favorite = !TextUtils.isEmpty(bvid) && favoritesManager.isFavorite(bvid);
         btnFavorite.setImageResource(favorite ? R.drawable.ic_favorite : R.drawable.ic_favorite_border);
-        btnFavorite.setColorFilter(favorite ? 0xFFE53935 : getResources().getColor(R.color.text_primary));
+        btnFavorite.setColorFilter(favorite
+                ? getResources().getColor(R.color.favorite_red)
+                : getResources().getColor(R.color.text_primary));
     }
 
     private String formatDuration(int seconds) {

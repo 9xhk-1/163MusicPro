@@ -31,4 +31,6 @@
     <color name="black">#FF000000</color>
     <color name="gray_light">#80FFFFFF</color>
     <color name="gray_text">#B3FFFFFF</color>
+    <color name="qr_background">#FFFFFFFF</color>
+    <color name="favorite_red">#E53935</color>
 </resources>
