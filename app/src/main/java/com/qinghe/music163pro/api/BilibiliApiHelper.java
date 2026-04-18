@@ -456,7 +456,7 @@ public class BilibiliApiHelper {
             try {
                 String normalizedKeyword = keyword != null ? keyword.trim() : "";
                 if (normalizedKeyword.isEmpty()) {
-                    postError(callback, "搜索关键词不能为空");
+                    postError(callback, "搜索关键词不能为空或仅包含空格");
                     return;
                 }
                 String requestCookie = ensureSearchCookie(cookie);
@@ -745,7 +745,23 @@ public class BilibiliApiHelper {
         if (text == null) {
             return "";
         }
-        return text.replaceAll("<[^>]+>", "").replace("&amp;", "&").replace("&quot;", "\"");
+        StringBuilder builder = new StringBuilder(text.length());
+        boolean insideTag = false;
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (ch == '<') {
+                insideTag = true;
+                continue;
+            }
+            if (ch == '>') {
+                insideTag = false;
+                continue;
+            }
+            if (!insideTag) {
+                builder.append(ch);
+            }
+        }
+        return builder.toString().replace("&amp;", "&").replace("&quot;", "\"");
     }
 
     private static int parseDurationTextToSeconds(String durationText) {
