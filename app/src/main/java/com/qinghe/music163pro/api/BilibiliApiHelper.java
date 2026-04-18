@@ -456,7 +456,7 @@ public class BilibiliApiHelper {
             try {
                 String normalizedKeyword = keyword != null ? keyword.trim() : "";
                 if (normalizedKeyword.isEmpty()) {
-                    postError(callback, "搜索关键词不能为空或仅包含空格");
+                    postError(callback, "搜索关键词不能为空");
                     return;
                 }
                 String requestCookie = ensureSearchCookie(cookie);
@@ -749,11 +749,11 @@ public class BilibiliApiHelper {
         boolean insideTag = false;
         for (int i = 0; i < text.length(); i++) {
             char ch = text.charAt(i);
-            if (ch == '<') {
+            if (!insideTag && ch == '<' && looksLikeHtmlTagStart(text, i)) {
                 insideTag = true;
                 continue;
             }
-            if (ch == '>') {
+            if (insideTag && ch == '>') {
                 insideTag = false;
                 continue;
             }
@@ -770,14 +770,30 @@ public class BilibiliApiHelper {
         }
         try {
             String[] parts = durationText.split(":");
+            if (parts.length == 0 || parts.length > 3) {
+                return 0;
+            }
             int total = 0;
             for (String part : parts) {
-                total = total * 60 + Integer.parseInt(part.trim());
+                String normalizedPart = part.trim();
+                if (normalizedPart.isEmpty()) {
+                    return 0;
+                }
+                total = total * 60 + Integer.parseInt(normalizedPart);
             }
             return total;
         } catch (Exception e) {
             return 0;
         }
+    }
+
+    private static boolean looksLikeHtmlTagStart(String text, int index) {
+        int nextIndex = index + 1;
+        if (nextIndex >= text.length()) {
+            return false;
+        }
+        char nextChar = text.charAt(nextIndex);
+        return Character.isLetter(nextChar) || nextChar == '/' || nextChar == '!';
     }
 
     // Overloaded postError for each callback type
