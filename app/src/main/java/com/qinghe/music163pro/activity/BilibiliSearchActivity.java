@@ -70,7 +70,7 @@ public class BilibiliSearchActivity extends BaseWatchActivity {
         etKeyword.setSingleLine(true);
         card.addView(etKeyword);
 
-        btnSearch = new MaterialButton(this, null, 0, R.style.Widget_App_Button);
+        btnSearch = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle);
         btnSearch.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, px(36)));
         ((LinearLayout.LayoutParams) btnSearch.getLayoutParams()).topMargin = px(8);

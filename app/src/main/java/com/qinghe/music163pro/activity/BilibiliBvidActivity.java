@@ -86,7 +86,7 @@ public class BilibiliBvidActivity extends BaseWatchActivity {
         etBvid.setSingleLine(true);
         inputCard.addView(etBvid);
 
-        btnFetch = new MaterialButton(this, null, 0, R.style.Widget_App_Button);
+        btnFetch = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle);
         LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, px(36));
         btnParams.topMargin = px(8);
@@ -111,7 +111,7 @@ public class BilibiliBvidActivity extends BaseWatchActivity {
         tvStatus.setVisibility(View.GONE);
         container.addView(tvStatus);
 
-        btnFavorite = new MaterialButton(this, null, 0, R.style.Widget_App_Button_Outlined);
+        btnFavorite = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
         btnFavorite.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, px(36)));
         ((LinearLayout.LayoutParams) btnFavorite.getLayoutParams()).topMargin = px(4);
@@ -178,7 +178,7 @@ public class BilibiliBvidActivity extends BaseWatchActivity {
                 tvStatus.setText(currentTitle + " - " + currentOwner + "\n共" + pages.size() + "集");
 
                 MaterialButton btnPlayAll = new MaterialButton(
-                        BilibiliBvidActivity.this, null, 0, R.style.Widget_App_Button_Outlined);
+                        BilibiliBvidActivity.this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
                 LinearLayout.LayoutParams playAllParams = new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, px(36));
                 playAllParams.topMargin = px(4);
