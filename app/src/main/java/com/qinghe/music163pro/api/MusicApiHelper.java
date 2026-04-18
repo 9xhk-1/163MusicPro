@@ -180,6 +180,21 @@ public class MusicApiHelper {
         void onError(String message);
     }
 
+    public static class ChorusInfo {
+        public final long startMs;
+        public final long endMs;
+
+        public ChorusInfo(long startMs, long endMs) {
+            this.startMs = Math.max(0L, startMs);
+            this.endMs = Math.max(this.startMs, endMs);
+        }
+    }
+
+    public interface ChorusCallback {
+        void onResult(ChorusInfo chorusInfo);
+        void onError(String message);
+    }
+
     public interface ArtistDescCallback {
         void onResult(String briefDesc, JSONArray introduction);
         void onError(String message);
@@ -1937,6 +1952,26 @@ public class MusicApiHelper {
         });
     }
 
+    public static void getSongChorus(long songId, String cookie, ChorusCallback callback) {
+        executor.execute(() -> {
+            try {
+                MusicLog.op(TAG, "获取副歌时间", "songId=" + songId);
+                JSONObject data = new JSONObject();
+                data.put("ids", new JSONArray().put(songId).toString());
+                String csrfToken = extractCsrfToken(cookie);
+                data.put("csrf_token", csrfToken);
+
+                String response = weapiPost("/api/song/chorus", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                ChorusInfo chorusInfo = parseChorusInfo(json);
+                mainHandler.post(() -> callback.onResult(chorusInfo));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "获取副歌时间失败: " + songId, e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
     // ==================== Song Wiki ====================
 
     public static void getSongWikiSummary(long songId, String cookie, SongWikiCallback callback) {
@@ -1955,6 +1990,80 @@ public class MusicApiHelper {
                 mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
             }
         });
+    }
+
+    private static ChorusInfo parseChorusInfo(Object source) {
+        if (source == null) {
+            return null;
+        }
+        if (source instanceof JSONObject) {
+            JSONObject json = (JSONObject) source;
+            ChorusInfo direct = extractChorusInfoFromObject(json);
+            if (direct != null) {
+                return direct;
+            }
+            JSONArray names = json.names();
+            if (names == null) {
+                return null;
+            }
+            for (int i = 0; i < names.length(); i++) {
+                String key = names.optString(i);
+                ChorusInfo nested = parseChorusInfo(json.opt(key));
+                if (nested != null) {
+                    return nested;
+                }
+            }
+            return null;
+        }
+        if (source instanceof JSONArray) {
+            JSONArray array = (JSONArray) source;
+            for (int i = 0; i < array.length(); i++) {
+                ChorusInfo nested = parseChorusInfo(array.opt(i));
+                if (nested != null) {
+                    return nested;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static ChorusInfo extractChorusInfoFromObject(JSONObject json) {
+        long startMs = firstLong(json,
+                "startTime", "startMs", "chorusStartTime", "chorusStart", "start", "beginTime", "begin");
+        if (startMs < 0L) {
+            return null;
+        }
+        long endMs = firstLong(json,
+                "endTime", "endMs", "chorusEndTime", "chorusEnd", "end", "stopTime", "stop");
+        if (endMs < startMs) {
+            long durationMs = firstLong(json, "duration", "durationMs", "length", "segmentDuration");
+            if (durationMs >= 0L) {
+                endMs = startMs + durationMs;
+            }
+        }
+        if (endMs < startMs) {
+            return null;
+        }
+        return new ChorusInfo(startMs, endMs);
+    }
+
+    private static long firstLong(JSONObject json, String... keys) {
+        for (String key : keys) {
+            if (!json.has(key) || json.isNull(key)) {
+                continue;
+            }
+            Object value = json.opt(key);
+            if (value instanceof Number) {
+                return ((Number) value).longValue();
+            }
+            if (value instanceof String) {
+                try {
+                    return Long.parseLong((String) value);
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return -1L;
     }
 
     // ==================== Artist Description ====================

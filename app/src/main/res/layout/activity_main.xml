@@ -86,15 +86,27 @@
                 android:textColor="@color/text_secondary"
                 android:textSize="9sp" />
 
-            <SeekBar
-                android:id="@+id/seek_bar"
+            <FrameLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:max="100"
-                android:progress="0"
-                android:progressTint="@color/colorPrimary"
-                android:thumbTint="@color/colorPrimary" />
+                android:layout_weight="1">
+
+                <SeekBar
+                    android:id="@+id/seek_bar"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="100"
+                    android:progress="0"
+                    android:progressTint="@color/colorPrimary"
+                    android:thumbTint="@color/colorPrimary" />
+
+                <com.qinghe.music163pro.widget.ChorusMarkerView
+                    android:id="@+id/view_chorus_marker"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clickable="false"
+                    android:focusable="false" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/tv_total_time"

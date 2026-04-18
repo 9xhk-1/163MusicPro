@@ -5,6 +5,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
@@ -46,6 +47,8 @@ import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.service.MusicPlaybackService;
 import com.qinghe.music163pro.util.MusicLog;
 import com.qinghe.music163pro.util.UpdateChecker;
+import com.qinghe.music163pro.widget.ChorusMarkerView;
+import com.google.android.material.button.MaterialButton;
 
 import java.io.File;
 
@@ -68,6 +71,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private ImageView btnPlay;
     private ImageView btnFuncMore;
     private SeekBar seekBar;
+    private ChorusMarkerView chorusMarkerView;
     private TextView tvCurrentTime;
     private TextView tvTotalTime;
     private MusicPlayerManager playerManager;
@@ -110,6 +114,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private boolean translationEnabled; // Whether translation is currently showing
     private TextView btnTranslationToggle; // Toggle button in lyrics overlay
     private final java.util.Map<Long, String> translationMap = new java.util.HashMap<>(); // timeMs -> translated text
+    private long currentChorusSongId = -1L;
+    private long currentChorusStartMs = -1L;
+    private long currentChorusEndMs = -1L;
+    private long chorusLoadingSongId = -1L;
+    private boolean currentChorusLoaded = false;
 
     private static class LyricLine {
         long timeMs;
@@ -134,6 +143,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         btnPlay = findViewById(R.id.btn_play);
         btnFuncMore = findViewById(R.id.btn_favorite);
         seekBar = findViewById(R.id.seek_bar);
+        chorusMarkerView = findViewById(R.id.view_chorus_marker);
         tvCurrentTime = findViewById(R.id.tv_current_time);
         tvTotalTime = findViewById(R.id.tv_total_time);
         ImageView btnPrev = findViewById(R.id.btn_prev);
@@ -770,6 +780,139 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         volumeIndicator = null;
         volumeProgressBar = null;
         volumePercentView = null;
+    }
+
+    private void ensureChorusLoaded(Song song) {
+        if (song == null) {
+            clearChorusInfo();
+            return;
+        }
+        if (song.getId() == currentChorusSongId && currentChorusLoaded) {
+            updateChorusMarker(playerManager.getDuration());
+            return;
+        }
+        if (song.getId() == chorusLoadingSongId) {
+            return;
+        }
+        currentChorusSongId = song.getId();
+        currentChorusStartMs = -1L;
+        currentChorusEndMs = -1L;
+        currentChorusLoaded = false;
+        chorusLoadingSongId = song.getId();
+        updateChorusMarker(playerManager.getDuration());
+        MusicApiHelper.getSongChorus(song.getId(), playerManager.getCookie(), new MusicApiHelper.ChorusCallback() {
+            @Override
+            public void onResult(MusicApiHelper.ChorusInfo chorusInfo) {
+                Song currentSong = playerManager.getCurrentSong();
+                if (chorusLoadingSongId == song.getId()) {
+                    chorusLoadingSongId = -1L;
+                }
+                if (currentSong == null || currentSong.getId() != song.getId()) {
+                    return;
+                }
+                if (chorusInfo == null) {
+                    currentChorusStartMs = -1L;
+                    currentChorusEndMs = -1L;
+                } else {
+                    currentChorusStartMs = chorusInfo.startMs;
+                    currentChorusEndMs = chorusInfo.endMs;
+                }
+                currentChorusLoaded = true;
+                updateChorusMarker(playerManager.getDuration());
+            }
+
+            @Override
+            public void onError(String message) {
+                Song currentSong = playerManager.getCurrentSong();
+                if (chorusLoadingSongId == song.getId()) {
+                    chorusLoadingSongId = -1L;
+                }
+                if (currentSong == null || currentSong.getId() != song.getId()) {
+                    return;
+                }
+                currentChorusStartMs = -1L;
+                currentChorusEndMs = -1L;
+                currentChorusLoaded = true;
+                updateChorusMarker(playerManager.getDuration());
+            }
+        });
+    }
+
+    private void clearChorusInfo() {
+        currentChorusSongId = -1L;
+        currentChorusStartMs = -1L;
+        currentChorusEndMs = -1L;
+        chorusLoadingSongId = -1L;
+        currentChorusLoaded = false;
+        updateChorusMarker(0);
+    }
+
+    private void updateChorusMarker(int durationMs) {
+        if (chorusMarkerView == null) {
+            return;
+        }
+        if (durationMs > 0 && currentChorusStartMs >= 0L) {
+            chorusMarkerView.setMarkerTimes(durationMs, currentChorusStartMs);
+        } else {
+            chorusMarkerView.setMarkerTimes(0L);
+        }
+    }
+
+    private boolean hasChorusRange() {
+        return currentChorusStartMs >= 0L && currentChorusEndMs > currentChorusStartMs;
+    }
+
+    private boolean applySmartClipRange(int totalSec,
+                                        int[] startSec,
+                                        int[] endSec,
+                                        SeekBar sbStart,
+                                        SeekBar sbEnd,
+                                        TextView tvStart,
+                                        TextView tvEnd,
+                                        Runnable updateDuration,
+                                        @androidx.annotation.Nullable TextView tvChorusRange) {
+        if (!hasChorusRange()) {
+            Toast.makeText(this, "暂无高潮数据", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        int smartStart = (int) Math.max(0L, currentChorusStartMs / 1000L);
+        int smartEnd = (int) Math.min((long) totalSec, (currentChorusEndMs + 999L) / 1000L);
+        if (smartEnd <= smartStart) {
+            smartEnd = Math.min(totalSec, smartStart + 1);
+        }
+        if (smartEnd <= smartStart) {
+            Toast.makeText(this, "高潮范围无效", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        startSec[0] = smartStart;
+        endSec[0] = smartEnd;
+        sbStart.setProgress(smartStart);
+        sbEnd.setProgress(smartEnd);
+        tvStart.setText("起始: " + smartStart + "s");
+        tvEnd.setText("结束: " + smartEnd + "s");
+        if (tvChorusRange != null) {
+            tvChorusRange.setText("高潮: " + smartStart + "s - " + smartEnd + "s");
+        }
+        updateDuration.run();
+        return true;
+    }
+
+    private MaterialButton createOverlayActionButton(String text, int backgroundColor, boolean primary) {
+        MaterialButton button = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle);
+        button.setText(text);
+        button.setAllCaps(false);
+        button.setTextSize(12f);
+        button.setTextColor(0xFFFFFFFF);
+        button.setCornerRadius(dp(8));
+        button.setInsetTop(0);
+        button.setInsetBottom(0);
+        button.setMinimumHeight(dp(36));
+        button.setPadding(dp(8), dp(10), dp(8), dp(10));
+        button.setBackgroundTintList(ColorStateList.valueOf(backgroundColor));
+        if (!primary) {
+            button.setStrokeWidth(0);
+        }
+        return button;
     }
 
     private void onFuncFavorite(Song song) {
@@ -1816,6 +1959,17 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         tvDuration.setPadding(0, dp(8), 0, dp(8));
         contentLayout.addView(tvDuration);
 
+        TextView tvChorusRange = new TextView(this);
+        tvChorusRange.setText(hasChorusRange()
+                ? "高潮: " + (currentChorusStartMs / 1000L) + "s - " + ((currentChorusEndMs + 999L) / 1000L) + "s"
+                : "高潮: 暂无数据");
+        tvChorusRange.setTextColor(ContextCompat.getColor(this,
+                hasChorusRange() ? R.color.colorAccent : R.color.text_secondary));
+        tvChorusRange.setTextSize(11);
+        tvChorusRange.setGravity(Gravity.CENTER);
+        tvChorusRange.setPadding(0, 0, 0, dp(8));
+        contentLayout.addView(tvChorusRange);
+
         Runnable updateDuration = () -> {
             int dur = endSec[0] - startSec[0];
             tvDuration.setText("节选: " + startSec[0] + "s - " + endSec[0] + "s (" + dur + "秒)");
@@ -1853,27 +2007,29 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        // Button row: Preview + Confirm
-        LinearLayout btnRow = new LinearLayout(this);
-        btnRow.setOrientation(LinearLayout.HORIZONTAL);
-        btnRow.setGravity(Gravity.CENTER);
-        btnRow.setLayoutParams(new LinearLayout.LayoutParams(
+        int grayButtonColor = ContextCompat.getColor(this, R.color.surface_elevated);
+        int primaryButtonColor = ContextCompat.getColor(this, R.color.colorPrimary);
+
+        LinearLayout topButtonRow = new LinearLayout(this);
+        topButtonRow.setOrientation(LinearLayout.HORIZONTAL);
+        topButtonRow.setGravity(Gravity.CENTER);
+        topButtonRow.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        // Preview button
-        TextView btnPreview = new TextView(this);
-        btnPreview.setText("试听");
-        btnPreview.setTextColor(0xFFFFFFFF);
-        btnPreview.setTextSize(13);
-        btnPreview.setGravity(Gravity.CENTER);
-        btnPreview.setPadding(dp(12), dp(10), dp(12), dp(10));
-        btnPreview.setBackgroundColor(0xFF3D3D3D);
+        MaterialButton btnSmartClip = createOverlayActionButton("智能截取", grayButtonColor, false);
+        LinearLayout.LayoutParams smartClipParams = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        smartClipParams.rightMargin = dp(4);
+        btnSmartClip.setLayoutParams(smartClipParams);
+        btnSmartClip.setOnClickListener(v -> applySmartClipRange(totalSec, startSec, endSec, sbStart, sbEnd,
+                tvStart, tvEnd, updateDuration, tvChorusRange));
+        topButtonRow.addView(btnSmartClip);
+
+        MaterialButton btnPreview = createOverlayActionButton("试听", grayButtonColor, false);
         LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-        previewParams.rightMargin = dp(4);
+        previewParams.leftMargin = dp(4);
         btnPreview.setLayoutParams(previewParams);
-        btnPreview.setClickable(true);
-        btnPreview.setFocusable(true);
         btnPreview.setOnClickListener(v -> {
             if (endSec[0] <= startSec[0]) {
                 Toast.makeText(this, "请选择有效的时间范围", Toast.LENGTH_SHORT).show();
@@ -1881,22 +2037,14 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             }
             previewRingtoneClip(file, startSec[0] * 1000, endSec[0] * 1000);
         });
-        btnRow.addView(btnPreview);
+        topButtonRow.addView(btnPreview);
+        contentLayout.addView(topButtonRow);
 
-        // Confirm button
-        TextView btnConfirm = new TextView(this);
-        btnConfirm.setText("确认");
-        btnConfirm.setTextColor(0xFFFFFFFF);
-        btnConfirm.setTextSize(13);
-        btnConfirm.setGravity(Gravity.CENTER);
-        btnConfirm.setPadding(dp(12), dp(10), dp(12), dp(10));
-        btnConfirm.setBackgroundColor(0xFFBB86FC);
+        MaterialButton btnConfirm = createOverlayActionButton("确认", primaryButtonColor, true);
         LinearLayout.LayoutParams confirmParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-        confirmParams.leftMargin = dp(4);
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        confirmParams.topMargin = dp(8);
         btnConfirm.setLayoutParams(confirmParams);
-        btnConfirm.setClickable(true);
-        btnConfirm.setFocusable(true);
         btnConfirm.setOnClickListener(v -> {
             if (endSec[0] <= startSec[0]) {
                 Toast.makeText(this, "请选择有效的时间范围", Toast.LENGTH_SHORT).show();
@@ -1907,9 +2055,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             setRingtoneFromFile(file, clipTitle, startSec[0], endSec[0]);
             dismissOverlay();
         });
-        btnRow.addView(btnConfirm);
-
-        contentLayout.addView(btnRow);
+        contentLayout.addView(btnConfirm);
 
         scrollView.addView(contentLayout);
         overlayContainer.addView(scrollView);
@@ -2342,14 +2488,17 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         if (song != null) {
             tvSongName.setText(song.getName());
             tvArtist.setText(song.getArtist());
+            ensureChorusLoaded(song);
         } else {
             tvSongName.setText(R.string.no_song);
             tvArtist.setText("");
+            clearChorusInfo();
         }
         btnPlay.setImageResource(playerManager.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play_arrow);
         // btnFuncMore image is static in layout
         // Update playlist indicator visibility
         updatePlaylistIndicator();
+        updateChorusMarker(playerManager.getDuration());
     }
 
     private void updatePlaylistIndicator() {
@@ -2366,6 +2515,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     public void onSongChanged(Song song) {
         tvSongName.setText(song.getName());
         tvArtist.setText(song.getArtist());
+        ensureChorusLoaded(song);
         startPlaybackService(song.getName(), song.getArtist(), true);
         // Save to play history
         HistoryManager.getInstance().addToHistory(song);
@@ -2423,6 +2573,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                     seekBar.setProgress((int) (1000L * current / duration));
                     tvCurrentTime.setText(formatTime(current));
                     tvTotalTime.setText(formatTime(duration));
+                    updateChorusMarker(duration);
                 }
             }
             seekHandler.postDelayed(this, 500);
