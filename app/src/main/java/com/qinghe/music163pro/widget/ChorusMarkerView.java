@@ -28,7 +28,7 @@ public class ChorusMarkerView extends View {
     public ChorusMarkerView(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         markerPaint.setStyle(Paint.Style.FILL);
-        markerPaint.setColor(ContextCompat.getColor(context, R.color.colorAccent));
+        markerPaint.setColor(ContextCompat.getColor(context, R.color.chorus_marker_cyan));
         setWillNotDraw(false);
     }
 

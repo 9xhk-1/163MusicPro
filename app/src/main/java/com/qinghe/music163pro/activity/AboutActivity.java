@@ -86,7 +86,8 @@ public class AboutActivity extends AppCompatActivity {
         content.addView(makeSpacer(px(4)));
         content.addView(makeText(
                 "• 增加歌曲高潮显示\n"
-                + "• 增加智能截取铃声",
+                + "• 增加智能截取铃声\n"
+                + "• 优化铃声截取界面排版",
                 0xFFAAAAAA, px(15), false, Gravity.START));
 
         // Divider

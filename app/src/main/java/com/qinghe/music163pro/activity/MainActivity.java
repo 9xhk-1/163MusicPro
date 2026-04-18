@@ -862,6 +862,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         return currentChorusStartMs >= 0L && currentChorusEndMs > currentChorusStartMs;
     }
 
+    private int millisToFloorSeconds(long ms) {
+        return (int) Math.max(0L, ms / 1000L);
+    }
+
     private int millisToCeilSeconds(long ms) {
         return (int) Math.max(0L, (ms + 999L) / 1000L);
     }
@@ -879,7 +883,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             Toast.makeText(this, "暂无高潮数据", Toast.LENGTH_SHORT).show();
             return false;
         }
-        int smartStart = (int) Math.max(0L, currentChorusStartMs / 1000L);
+        int smartStart = millisToFloorSeconds(currentChorusStartMs);
         int smartEnd = Math.min(totalSec, millisToCeilSeconds(currentChorusEndMs));
         if (smartEnd <= smartStart) {
             smartEnd = Math.min(totalSec, smartStart + 1);
@@ -1965,7 +1969,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         TextView tvChorusRange = new TextView(this);
         tvChorusRange.setText(hasChorusRange()
-                ? "高潮: " + (currentChorusStartMs / 1000L) + "s - " + millisToCeilSeconds(currentChorusEndMs) + "s"
+                ? "高潮: " + millisToFloorSeconds(currentChorusStartMs) + "s - " + millisToCeilSeconds(currentChorusEndMs) + "s"
                 : "高潮: 暂无数据");
         tvChorusRange.setTextColor(ContextCompat.getColor(this,
                 hasChorusRange() ? R.color.colorAccent : R.color.text_secondary));
