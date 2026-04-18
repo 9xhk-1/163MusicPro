@@ -86,7 +86,7 @@ public class BilibiliBvidActivity extends BaseWatchActivity {
         container.addView(etBvid);
 
         // Fetch button
-        btnFetch = new MaterialButton(this, null, R.attr.materialButtonStyle);
+        btnFetch = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle);
         LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, WatchUiUtils.px(this, 36));
         btnParams.topMargin = WatchUiUtils.px(this, 8);
@@ -158,7 +158,7 @@ public class BilibiliBvidActivity extends BaseWatchActivity {
 
                 // Show "Play All" button
                 MaterialButton btnPlayAll = new MaterialButton(
-                        BilibiliBvidActivity.this, null, R.attr.materialButtonOutlinedStyle);
+                        BilibiliBvidActivity.this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
                 LinearLayout.LayoutParams playAllParams = new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, WatchUiUtils.px(BilibiliBvidActivity.this, 36));
                 playAllParams.topMargin = WatchUiUtils.px(BilibiliBvidActivity.this, 4);
