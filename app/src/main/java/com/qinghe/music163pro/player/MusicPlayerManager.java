@@ -304,6 +304,15 @@ public class MusicPlayerManager {
             });
             mediaPlayer.setOnCompletionListener(mp -> onSongCompleted());
             mediaPlayer.setOnErrorListener((mp, what, extra) -> {
+                // On watch devices (Android 7-8.1), setPlaybackParams() fires an
+                // async error with what=-38 (ENOSYS) even though playback continues.
+                // If the player is still playing, skip the API retry and treat as benign.
+                try {
+                    if (mp != null && mp.isPlaying()) {
+                        Log.w(TAG, "Ignoring non-fatal NetEase MediaPlayer error: " + what + "/" + extra);
+                        return true;
+                    }
+                } catch (Exception ignored) {}
                 isPlaying = false;
                 notifyPlayStateChanged(false);
                 Song song = getCurrentSong();
@@ -374,6 +383,16 @@ public class MusicPlayerManager {
             });
             mediaPlayer.setOnCompletionListener(mp -> onSongCompleted());
             mediaPlayer.setOnErrorListener((mp, what, extra) -> {
+                // On watch devices (Android 7-8.1), setPlaybackParams() fires an
+                // async error with what=-38 (ENOSYS / function not implemented) even
+                // though playback continues normally.  If the player is still playing,
+                // this is a benign feature-unsupported error – just log and ignore it.
+                try {
+                    if (mp != null && mp.isPlaying()) {
+                        Log.w(TAG, "Ignoring non-fatal local-file MediaPlayer error: " + what + "/" + extra);
+                        return true;
+                    }
+                } catch (Exception ignored) {}
                 isPlaying = false;
                 notifyPlayStateChanged(false);
                 if (callback != null) {
