@@ -50,7 +50,7 @@ public class AboutActivity extends AppCompatActivity {
 
         // Version
         content.addView(makeSpacer(px(4)));
-        String versionName = "20260418-2";
+        String versionName = "20260427";
         try {
             versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (Exception ignored) {}
@@ -96,6 +96,19 @@ public class AboutActivity extends AppCompatActivity {
         // QQ row
         content.addView(makeIconTextRow(R.drawable.ic_chat_bubble, "QQ：3686072365",
                 0xFF5599CC, px(14), false));
+
+        // Divider
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeDivider());
+
+        // v20260427 update summary
+        content.addView(makeSpacer(px(8)));
+        content.addView(makeText("v20260427 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeSpacer(px(4)));
+        content.addView(makeText(
+                "• 修复无损及以上音质无法正常播放/下载的问题（切换为eapi接口以正确获取FLAC地址）\n"
+                + "• 修复下载无损音质时文件后缀错误的问题（现在FLAC文件会正确以.flac后缀保存）",
+                0xFFAAAAAA, px(15), false, Gravity.START));
 
         // Divider
         content.addView(makeSpacer(px(8)));
