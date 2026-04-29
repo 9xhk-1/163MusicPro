@@ -689,10 +689,10 @@ public class MusicApiHelper {
                 // Try preferred level first (may need VIP/SVIP for higher tiers)
                 if (cookie != null && !cookie.isEmpty()) {
                     try {
-                        url = fetchSongUrlWeapi(songId, cookie, preferredLevel);
+                        url = fetchSongUrl(songId, cookie, preferredLevel);
                         if (url != null) MusicLog.d(TAG, "获取" + preferredLevel + " URL成功: " + songId);
                     } catch (Exception e) {
-                        MusicLog.w(TAG, "weapi " + preferredLevel + " 失败: " + songId, e);
+                        MusicLog.w(TAG, "eapi " + preferredLevel + " 失败: " + songId, e);
                     }
                 }
 
@@ -701,13 +701,13 @@ public class MusicApiHelper {
                     for (String level : FREE_FALLBACK_LEVELS) {
                         if (level.equals(preferredLevel)) continue; // already tried
                         try {
-                            url = fetchSongUrlWeapi(songId, cookie, level);
+                            url = fetchSongUrl(songId, cookie, level);
                             if (url != null) {
                                 MusicLog.d(TAG, "回落到" + level + " URL成功: " + songId);
                                 break;
                             }
                         } catch (Exception e) {
-                            MusicLog.w(TAG, "weapi " + level + " 失败: " + songId, e);
+                            MusicLog.w(TAG, "eapi " + level + " 失败: " + songId, e);
                         }
                     }
                 }
@@ -773,7 +773,11 @@ public class MusicApiHelper {
             }
         });
     }
-    private static String fetchSongUrlWeapi(long songId, String cookie, String level)
+    /**
+     * Fetch song URL using eapi crypto, which is required by /api/song/enhance/player/url/v1
+     * for lossless and higher quality tiers (matches NeteaseCloudMusicApiBackup song_url_v1.js).
+     */
+    private static String fetchSongUrl(long songId, String cookie, String level)
             throws Exception {
         JSONObject data = new JSONObject();
         data.put("ids", "[" + songId + "]");
@@ -786,7 +790,7 @@ public class MusicApiHelper {
         String csrfToken = extractCsrfToken(cookie);
         data.put("csrf_token", csrfToken);
 
-        String response = weapiPost("/api/song/enhance/player/url/v1", data.toString(), cookie);
+        String response = eapiPost("/api/song/enhance/player/url/v1", data.toString(), cookie);
         return extractSongUrlFromResponse(response);
     }
 

@@ -34,7 +34,12 @@ public class DownloadManager {
     private static final String TAG = "DownloadManager";
     private static final String DOWNLOAD_DIR = "163Music/Download";
     private static final String INFO_FILE = "info.json";
-    private static final String SONG_FILE = "song.mp3";
+    private static final String SONG_FILE_MP3 = "song.mp3";
+    private static final String SONG_FILE_FLAC = "song.flac";
+    /** Supported audio file names, checked in priority order when looking up downloads. */
+    private static final String[] AUDIO_FILE_NAMES = {SONG_FILE_MP3, SONG_FILE_FLAC};
+    /** Legacy constant kept for backward-compatibility checks. */
+    private static final String SONG_FILE = SONG_FILE_MP3;
     private static final String LYRICS_FILE = "lyrics.lrc";
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -187,7 +192,9 @@ public class DownloadManager {
                 }
             }
 
-            File outputFile = new File(songDir, SONG_FILE);
+            // Determine the correct audio file name from the URL (song.flac for FLAC, song.mp3 otherwise)
+            String audioFileName = getAudioFileNameFromUrl(urlStr);
+            File outputFile = new File(songDir, audioFileName);
 
             URL url = new URL(urlStr);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -291,6 +298,32 @@ public class DownloadManager {
     }
 
     /**
+     * Find the audio file inside a download subdirectory.
+     * Checks for song.mp3, song.flac, etc. Returns null if none found.
+     */
+    private static File findAudioFileInDir(File songDir) {
+        for (String name : AUDIO_FILE_NAMES) {
+            File f = new File(songDir, name);
+            if (f.exists()) return f;
+        }
+        return null;
+    }
+
+    /**
+     * Determine the audio file name for a download URL.
+     * Returns {@link #SONG_FILE_FLAC} for FLAC streams; falls back to {@link #SONG_FILE_MP3}.
+     */
+    private static String getAudioFileNameFromUrl(String url) {
+        if (url == null) return SONG_FILE_MP3;
+        // Strip query string before checking extension
+        String path = url;
+        int qIdx = path.indexOf('?');
+        if (qIdx >= 0) path = path.substring(0, qIdx);
+        if (path.toLowerCase().endsWith(".flac")) return SONG_FILE_FLAC;
+        return SONG_FILE_MP3;
+    }
+
+    /**
      * Load song metadata from info.json in a download folder.
      * @return Song with real id, name, artist, album set; or null on failure
      */
@@ -319,10 +352,10 @@ public class DownloadManager {
             song.setSource(obj.optString("source", null));
             song.setBvid(obj.optString("bvid", ""));
             song.setCid(obj.optLong("cid", 0));
-            // Set URL to the local mp3 path
-            File mp3 = new File(songDir, SONG_FILE);
-            if (mp3.exists()) {
-                song.setUrl(mp3.getAbsolutePath());
+            // Set URL to the local audio file path
+            File audioFile = findAudioFileInDir(songDir);
+            if (audioFile != null) {
+                song.setUrl(audioFile.getAbsolutePath());
             }
             return song;
         } catch (Exception e) {
@@ -375,7 +408,7 @@ public class DownloadManager {
             File[] listing = dir.listFiles();
             if (listing != null) {
                 for (File f : listing) {
-                    if (f.isDirectory() && new File(f, SONG_FILE).exists()) {
+                    if (f.isDirectory() && findAudioFileInDir(f) != null) {
                         dirs.add(f);
                     }
                 }
@@ -417,9 +450,9 @@ public class DownloadManager {
      */
     public static String getDownloadedMp3Path(Song song) {
         File songDir = getSongDir(song);
-        File mp3 = new File(songDir, SONG_FILE);
-        if (mp3.exists()) return mp3.getAbsolutePath();
-        // Legacy flat file fallback
+        File audioFile = findAudioFileInDir(songDir);
+        if (audioFile != null) return audioFile.getAbsolutePath();
+        // Legacy flat file fallback (song.mp3 directly in the download root)
         String safeName = song.getName().replaceAll("[\\\\/:*?\"<>|]", "_");
         String safeArtist = song.getArtist().replaceAll("[\\\\/:*?\"<>|]", "_");
         String fileName = safeName + " - " + safeArtist + ".mp3";
