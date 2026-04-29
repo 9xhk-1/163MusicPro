@@ -115,7 +115,6 @@ public class AboutActivity extends AppCompatActivity {
         // Divider
         content.addView(makeSpacer(px(8)));
         content.addView(makeDivider());
-
         // v20260427 update summary
         content.addView(makeSpacer(px(8)));
         content.addView(makeText("v20260427 更新内容", 0xFFFFFFFF, px(18), true, Gravity.START));
