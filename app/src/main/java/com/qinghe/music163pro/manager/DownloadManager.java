@@ -302,11 +302,29 @@ public class DownloadManager {
      * Checks for song.mp3, song.flac, etc. Returns null if none found.
      */
     private static File findAudioFileInDir(File songDir) {
+        if (!isManagedDownloadDir(songDir)) {
+            return null;
+        }
         for (String name : AUDIO_FILE_NAMES) {
             File f = new File(songDir, name);
             if (f.exists()) return f;
         }
         return null;
+    }
+
+    private static boolean isManagedDownloadDir(File songDir) {
+        if (songDir == null || !songDir.isDirectory()) {
+            return false;
+        }
+        try {
+            File downloadRoot = new File(Environment.getExternalStorageDirectory(), DOWNLOAD_DIR);
+            String rootPath = downloadRoot.getCanonicalPath();
+            String dirPath = songDir.getCanonicalPath();
+            return dirPath.equals(rootPath) || dirPath.startsWith(rootPath + File.separator);
+        } catch (Exception e) {
+            Log.w(TAG, "Error validating download directory", e);
+            return false;
+        }
     }
 
     /**
