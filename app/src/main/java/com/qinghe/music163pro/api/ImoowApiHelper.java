@@ -42,6 +42,11 @@ public final class ImoowApiHelper {
         void onError(String error);
     }
 
+    public interface AboutCallback {
+        void onResult(AboutContent aboutContent);
+        void onError(String error);
+    }
+
     public static class QaItem {
         private final String question;
         private final String answer;
@@ -57,6 +62,42 @@ public final class ImoowApiHelper {
 
         public String getAnswer() {
             return answer;
+        }
+    }
+
+    public static class AboutContent {
+        private final String overview;
+        private final List<UpdateLogItem> updateContent;
+
+        public AboutContent(String overview, List<UpdateLogItem> updateContent) {
+            this.overview = overview;
+            this.updateContent = updateContent;
+        }
+
+        public String getOverview() {
+            return overview;
+        }
+
+        public List<UpdateLogItem> getUpdateContent() {
+            return updateContent;
+        }
+    }
+
+    public static class UpdateLogItem {
+        private final String version;
+        private final List<String> content;
+
+        public UpdateLogItem(String version, List<String> content) {
+            this.version = version;
+            this.content = content;
+        }
+
+        public String getVersion() {
+            return version;
+        }
+
+        public List<String> getContent() {
+            return content;
         }
     }
 
@@ -187,6 +228,62 @@ public final class ImoowApiHelper {
         }).start();
     }
 
+    public static void fetchAboutContent(AboutCallback callback) {
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(BASE_URL + "/about.json");
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+                conn.connect();
+
+                int code = conn.getResponseCode();
+                if (code != 200) {
+                    postError(callback, "HTTP " + code);
+                    return;
+                }
+
+                JSONObject object = new JSONObject(readResponse(conn.getInputStream()));
+                String overview = object.optString("overview", "").trim();
+                JSONArray updateArray = object.optJSONArray("updateContent");
+                List<UpdateLogItem> updateItems = new ArrayList<>();
+                if (updateArray != null) {
+                    for (int i = 0; i < updateArray.length(); i++) {
+                        JSONObject item = updateArray.optJSONObject(i);
+                        if (item == null) {
+                            continue;
+                        }
+                        String version = item.optString("version", "").trim();
+                        JSONArray contentArray = item.optJSONArray("content");
+                        List<String> contentItems = new ArrayList<>();
+                        if (contentArray != null) {
+                            for (int j = 0; j < contentArray.length(); j++) {
+                                String content = contentArray.optString(j, "").trim();
+                                if (!content.isEmpty()) {
+                                    contentItems.add(content);
+                                }
+                            }
+                        }
+                        if (!version.isEmpty()) {
+                            updateItems.add(new UpdateLogItem(version, contentItems));
+                        }
+                    }
+                }
+
+                AboutContent aboutContent = new AboutContent(overview, updateItems);
+                MAIN_HANDLER.post(() -> callback.onResult(aboutContent));
+            } catch (Exception e) {
+                postError(callback, e.getMessage());
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
+    }
+
     private static String readResponse(InputStream inputStream) throws Exception {
         try {
             byte[] buffer = new byte[1024];
@@ -210,6 +307,10 @@ public final class ImoowApiHelper {
     }
 
     private static void postError(QaCallback callback, String error) {
+        MAIN_HANDLER.post(() -> callback.onError(normalizeError(error)));
+    }
+
+    private static void postError(AboutCallback callback, String error) {
         MAIN_HANDLER.post(() -> callback.onError(normalizeError(error)));
     }
 
