@@ -38,6 +38,8 @@
         <activity android:name=".activity.SettingsActivity" android:exported="false" />
         <activity android:name=".activity.LoginActivity" android:exported="false" />
         <activity android:name=".activity.ToggleSettingsActivity" android:exported="false" />
+        <activity android:name=".activity.HelpActivity" android:exported="false" />
+        <activity android:name=".activity.HelpDetailActivity" android:exported="false" />
         <activity android:name=".activity.AboutActivity" android:exported="false" />
         <activity android:name=".activity.OpenSourceActivity" android:exported="false" />
         <activity android:name=".activity.XtcModuleActivity" android:exported="false" />

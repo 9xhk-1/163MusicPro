@@ -34,6 +34,7 @@ public class SettingsActivity extends AppCompatActivity {
         View btnToggle = findViewById(R.id.btn_settings_toggle);
         View btnEditMore = findViewById(R.id.btn_settings_edit_more);
         View btnCheckUpdate = findViewById(R.id.btn_settings_check_update);
+        View btnHelp = findViewById(R.id.btn_settings_help);
         View btnAbout = findViewById(R.id.btn_settings_about);
         View btnOpenSource = findViewById(R.id.btn_settings_open_source);
         View btnXtcModule = findViewById(R.id.btn_settings_xtc_module);
@@ -45,6 +46,9 @@ public class SettingsActivity extends AppCompatActivity {
                 startActivity(new Intent(this, EditMoreActivity.class)));
 
         btnCheckUpdate.setOnClickListener(v -> checkUpdateManually());
+
+        btnHelp.setOnClickListener(v ->
+                startActivity(new Intent(this, HelpActivity.class)));
 
         btnAbout.setOnClickListener(v ->
                 startActivity(new Intent(this, AboutActivity.class)));
