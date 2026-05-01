@@ -275,7 +275,7 @@ public class MusicPlaybackService extends Service {
     private void scheduleAutoCancelAlarm() {
         cancelAutoCancelAlarm();
         // Delivered back to the service itself; no BroadcastReceiver needed
-        autoCancelPi = buildServicePi(ACTION_AUTO_CANCEL, 1024);
+        autoCancelPi = buildServicePi(ACTION_AUTO_CANCEL, 4);
         alarmManager.setExact(AlarmManager.RTC_WAKEUP,
                 System.currentTimeMillis() + AUTO_CANCEL_DELAY_MS, autoCancelPi);
     }
