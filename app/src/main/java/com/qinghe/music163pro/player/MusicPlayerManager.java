@@ -6,6 +6,7 @@ import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.media.PlaybackParams;
 import android.os.Build;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
@@ -34,6 +35,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -1253,8 +1255,9 @@ public class MusicPlayerManager {
 
     private boolean tryPlayLocalSong(Song song, boolean allowDownloadedLookup) {
         String localPath = song.getUrl();
-        if (!TextUtils.isEmpty(localPath) && localPath.startsWith("/") && new File(localPath).exists()) {
-            startLocalPlayback(song, localPath);
+        File localFile = resolveSafeLocalFile(localPath, song.isForceLocalPlayback());
+        if (localFile != null) {
+            startLocalPlayback(song, localFile.getAbsolutePath());
             return true;
         }
         if (!TextUtils.isEmpty(localPath) && localPath.startsWith("/")) {
@@ -1265,9 +1268,10 @@ public class MusicPlayerManager {
             return false;
         }
         String resolvedPath = DownloadManager.getDownloadedMp3Path(song);
-        if (!TextUtils.isEmpty(resolvedPath) && new File(resolvedPath).exists()) {
-            song.setUrl(resolvedPath);
-            startLocalPlayback(song, resolvedPath);
+        File downloadedFile = resolveSafeLocalFile(resolvedPath, true);
+        if (downloadedFile != null) {
+            song.setUrl(downloadedFile.getAbsolutePath());
+            startLocalPlayback(song, downloadedFile.getAbsolutePath());
             return true;
         }
         return false;
@@ -1284,7 +1288,31 @@ public class MusicPlayerManager {
             return;
         }
         String songName = song != null && !TextUtils.isEmpty(song.getName()) ? song.getName() : "当前歌曲";
-        mainHandler.post(() -> callback.onError(songName + " 只能从本地播放，请先在下载列表中确认文件存在"));
+        mainHandler.post(() -> callback.onError(
+                songName + " 仅支持本地播放，但本地文件未找到。请在下载列表中重新下载"));
+    }
+
+    private File resolveSafeLocalFile(String path, boolean requireDownloadDir) {
+        if (TextUtils.isEmpty(path) || !path.startsWith("/")) {
+            return null;
+        }
+        try {
+            File canonicalFile = new File(path).getCanonicalFile();
+            if (requireDownloadDir) {
+                File downloadRoot = new File(Environment.getExternalStorageDirectory(),
+                        "163Music/Download").getCanonicalFile();
+                String downloadRootPath = downloadRoot.getPath();
+                String filePath = canonicalFile.getPath();
+                if (!filePath.equals(downloadRootPath)
+                        && !filePath.startsWith(downloadRootPath + File.separator)) {
+                    return null;
+                }
+            }
+            return canonicalFile.isFile() ? canonicalFile : null;
+        } catch (IOException e) {
+            Log.w(TAG, "Failed to resolve local file path", e);
+            return null;
+        }
     }
 
     private void playNextSequential() {
