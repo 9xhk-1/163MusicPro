@@ -101,6 +101,7 @@ public class DownloadListActivity extends BaseWatchActivity {
         for (File dir : songDirs) {
             Song song = DownloadManager.loadSongInfo(dir);
             if (song != null) {
+                song.setForceLocalPlayback(true);
                 downloadedSongs.add(song);
             }
         }
@@ -165,6 +166,7 @@ public class DownloadListActivity extends BaseWatchActivity {
         }
         Song song = new Song(0, songName, artist, "");
         song.setUrl(file.getAbsolutePath());
+        song.setForceLocalPlayback(true);
         return song;
     }
     /**

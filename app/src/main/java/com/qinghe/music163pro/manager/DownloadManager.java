@@ -21,19 +21,22 @@ import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
  * Manages downloading songs to /sdcard/163Music/Download/
- * Each song is saved in its own subfolder with song.mp3 and info.json.
+ * Each song is saved in its own subfolder with info.json.
  */
 public class DownloadManager {
 
     private static final String TAG = "DownloadManager";
     private static final String DOWNLOAD_DIR = "163Music/Download";
     private static final String INFO_FILE = "info.json";
+    private static final String SONGS_DIR = "songs";
     private static final String SONG_FILE_MP3 = "song.mp3";
     private static final String SONG_FILE_FLAC = "song.flac";
     /** Supported audio file names, checked in priority order when looking up downloads. */
@@ -44,6 +47,17 @@ public class DownloadManager {
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
 
+    /** Structured local download entry for one audio quality and its resolved file. */
+    private static final class LocalTrackInfo {
+        final String quality;
+        final File audioFile;
+
+        LocalTrackInfo(String quality, File audioFile) {
+            this.quality = quality;
+            this.audioFile = audioFile;
+        }
+    }
+
     public interface DownloadCallback {
         void onSuccess(String filePath);
         void onError(String message);
@@ -51,7 +65,6 @@ public class DownloadManager {
 
     /**
      * Download a song to /sdcard/163Music/Download/<folder>/
-     * Saves both song.mp3 and info.json (with song id, name, artist, album).
      */
     public static void downloadSong(Song song, String cookie, DownloadCallback callback) {
         downloadSong(song, cookie, "exhigh", callback);
@@ -67,11 +80,15 @@ public class DownloadManager {
         executor.execute(() -> {
             try {
                 if (song.isBilibili()) {
+                    if (isDownloaded(song)) {
+                        mainHandler.post(() -> callback.onError("歌曲已下载"));
+                        return;
+                    }
                     BilibiliApiHelper.getAudioStreamUrl(song.getBvid(), song.getCid(), cookie,
                             new BilibiliApiHelper.AudioStreamCallback() {
                                 @Override
                                 public void onResult(String url) {
-                                    executor.execute(() -> doDownload(song, url, true, callback));
+                                    executor.execute(() -> doDownload(song, url, null, true, callback));
                                 }
 
                                 @Override
@@ -81,19 +98,22 @@ public class DownloadManager {
                             });
                     return;
                 }
-                // Get URL with requested quality
+                if (hasDownloadedQuality(song, quality)) {
+                    mainHandler.post(() -> callback.onError("该音质已下载"));
+                    return;
+                }
                 MusicApiHelper.getSongUrlWithQuality(song.getId(), cookie, quality,
                         new MusicApiHelper.UrlCallback() {
-                    @Override
-                    public void onResult(String url) {
-                        executor.execute(() -> doDownload(song, url, false, callback));
-                    }
+                            @Override
+                            public void onResult(String url) {
+                                executor.execute(() -> doDownload(song, url, quality, false, callback));
+                            }
 
-                    @Override
-                    public void onError(String message) {
-                        mainHandler.post(() -> callback.onError("获取下载链接失败: " + message));
-                    }
-                });
+                            @Override
+                            public void onError(String message) {
+                                mainHandler.post(() -> callback.onError("获取下载链接失败: " + message));
+                            }
+                        });
             } catch (Exception e) {
                 mainHandler.post(() -> callback.onError("下载失败: " + e.getMessage()));
             }
@@ -125,16 +145,16 @@ public class DownloadManager {
                 }
                 MusicApiHelper.getSongUrlWithQuality(song.getId(), cookie, quality,
                         new MusicApiHelper.UrlCallback() {
-                    @Override
-                    public void onResult(String url) {
-                        executor.execute(() -> doDownloadToFile(url, false, outputFile, callback));
-                    }
+                            @Override
+                            public void onResult(String url) {
+                                executor.execute(() -> doDownloadToFile(url, false, outputFile, callback));
+                            }
 
-                    @Override
-                    public void onError(String message) {
-                        mainHandler.post(() -> callback.onError("获取链接失败: " + message));
-                    }
-                });
+                            @Override
+                            public void onError(String message) {
+                                mainHandler.post(() -> callback.onError("获取链接失败: " + message));
+                            }
+                        });
             } catch (Exception e) {
                 mainHandler.post(() -> callback.onError("下载失败: " + e.getMessage()));
             }
@@ -181,7 +201,7 @@ public class DownloadManager {
         }
     }
 
-    private static void doDownload(Song song, String urlStr, boolean bilibili,
+    private static void doDownload(Song song, String urlStr, String quality, boolean bilibili,
                                    DownloadCallback callback) {
         try {
             File songDir = getSongDir(song);
@@ -192,9 +212,18 @@ public class DownloadManager {
                 }
             }
 
-            // Determine the correct audio file name from the URL (song.flac for FLAC, song.mp3 otherwise)
+            File outputParent = bilibili ? songDir : getQualityDir(songDir, quality);
+            if (!outputParent.exists() && !outputParent.mkdirs()) {
+                mainHandler.post(() -> callback.onError("无法创建音质目录"));
+                return;
+            }
+            if (!bilibili && findAudioFileInDir(outputParent) != null) {
+                mainHandler.post(() -> callback.onError("该音质已下载"));
+                return;
+            }
+
             String audioFileName = getAudioFileNameFromUrl(urlStr);
-            File outputFile = new File(songDir, audioFileName);
+            File outputFile = new File(outputParent, audioFileName);
 
             URL url = new URL(urlStr);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -217,13 +246,15 @@ public class DownloadManager {
                 fos.close();
                 is.close();
 
-                // Save song info JSON
                 saveSongInfo(songDir, song);
-
-                // Download lyrics
                 if (!bilibili) {
                     downloadLyrics(songDir, song);
                 }
+
+                long now = System.currentTimeMillis();
+                outputFile.setLastModified(now);
+                outputParent.setLastModified(now);
+                songDir.setLastModified(now);
 
                 String filePath = outputFile.getAbsolutePath();
                 mainHandler.post(() -> callback.onSuccess(filePath));
@@ -281,7 +312,6 @@ public class DownloadManager {
         } catch (Exception e) {
             Log.w(TAG, "Error downloading lyrics", e);
         }
-        // Also download translated lyrics
         try {
             String tlyricText = MusicApiHelper.fetchTranslatedLyricsSync(song.getId(), null);
             if (tlyricText != null && !tlyricText.isEmpty()) {
@@ -312,6 +342,61 @@ public class DownloadManager {
         return null;
     }
 
+    private static File getQualityDir(File songDir, String quality) {
+        String safeQuality = TextUtils.isEmpty(quality) ? "exhigh" : sanitizeFileName(quality);
+        return new File(new File(songDir, SONGS_DIR), safeQuality);
+    }
+
+    private static List<LocalTrackInfo> getStructuredTracks(File songDir) {
+        List<LocalTrackInfo> tracks = new ArrayList<>();
+        if (!isManagedDownloadDir(songDir)) {
+            return tracks;
+        }
+        File songsDir = new File(songDir, SONGS_DIR);
+        File[] qualityDirs = songsDir.listFiles();
+        if (qualityDirs == null) {
+            return tracks;
+        }
+        for (File qualityDir : qualityDirs) {
+            if (qualityDir == null || !qualityDir.isDirectory()) {
+                continue;
+            }
+            File audioFile = findAudioFileInDir(qualityDir);
+            if (audioFile != null) {
+                tracks.add(new LocalTrackInfo(qualityDir.getName(), audioFile));
+            }
+        }
+        // Prefer the highest quality first; if multiple files share a level,
+        // keep the newest one first so recent re-downloads win ties.
+        tracks.sort((left, right) -> {
+            int rankCompare = Integer.compare(
+                    MusicApiHelper.qualityLevelRank(right.quality),
+                    MusicApiHelper.qualityLevelRank(left.quality));
+            if (rankCompare != 0) {
+                return rankCompare;
+            }
+            return Long.compare(right.audioFile.lastModified(), left.audioFile.lastModified());
+        });
+        return tracks;
+    }
+
+    private static LocalTrackInfo getBestStructuredTrack(File songDir) {
+        List<LocalTrackInfo> tracks = getStructuredTracks(songDir);
+        return tracks.isEmpty() ? null : tracks.get(0);
+    }
+
+    private static LocalTrackInfo getTrackForQuality(File songDir, String quality) {
+        if (TextUtils.isEmpty(quality)) {
+            return null;
+        }
+        for (LocalTrackInfo track : getStructuredTracks(songDir)) {
+            if (quality.equals(track.quality)) {
+                return track;
+            }
+        }
+        return null;
+    }
+
     private static boolean isManagedDownloadDir(File songDir) {
         if (songDir == null || !songDir.isDirectory()) {
             return false;
@@ -327,13 +412,28 @@ public class DownloadManager {
         }
     }
 
+    private static long getDownloadEntryModifiedTime(File songDir) {
+        long latest = songDir.lastModified();
+        File infoFile = new File(songDir, INFO_FILE);
+        if (infoFile.exists()) {
+            latest = Math.max(latest, infoFile.lastModified());
+        }
+        File rootAudio = findAudioFileInDir(songDir);
+        if (rootAudio != null) {
+            latest = Math.max(latest, rootAudio.lastModified());
+        }
+        for (LocalTrackInfo track : getStructuredTracks(songDir)) {
+            latest = Math.max(latest, track.audioFile.lastModified());
+        }
+        return latest;
+    }
+
     /**
      * Determine the audio file name for a download URL.
      * Returns {@link #SONG_FILE_FLAC} for FLAC streams; falls back to {@link #SONG_FILE_MP3}.
      */
     private static String getAudioFileNameFromUrl(String url) {
         if (url == null) return SONG_FILE_MP3;
-        // Strip query string before checking extension
         String path = url;
         int qIdx = path.indexOf('?');
         if (qIdx >= 0) path = path.substring(0, qIdx);
@@ -370,10 +470,16 @@ public class DownloadManager {
             song.setSource(obj.optString("source", null));
             song.setBvid(obj.optString("bvid", ""));
             song.setCid(obj.optLong("cid", 0));
-            // Set URL to the local audio file path
-            File audioFile = findAudioFileInDir(songDir);
-            if (audioFile != null) {
-                song.setUrl(audioFile.getAbsolutePath());
+            LocalTrackInfo bestTrack = getBestStructuredTrack(songDir);
+            if (bestTrack != null) {
+                song.setUrl(bestTrack.audioFile.getAbsolutePath());
+                song.setLocalQuality(bestTrack.quality);
+            } else {
+                File audioFile = findAudioFileInDir(songDir);
+                if (audioFile != null) {
+                    song.setUrl(audioFile.getAbsolutePath());
+                    song.setLocalQuality(null);
+                }
             }
             return song;
         } catch (Exception e) {
@@ -414,10 +520,25 @@ public class DownloadManager {
         return value.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
     }
 
+    private static File getLegacyFlatFile(File dir, Song song) {
+        String safeName = song.getName().replaceAll("[\\\\/:*?\"<>|]", "_");
+        String safeArtist = song.getArtist().replaceAll("[\\\\/:*?\"<>|]", "_");
+        String fileName = safeName + " - " + safeArtist + ".mp3";
+        File legacy = new File(dir, fileName);
+        try {
+            String rootPath = dir.getCanonicalPath();
+            String filePath = legacy.getCanonicalPath();
+            if (filePath.startsWith(rootPath + File.separator)) {
+                return legacy;
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error validating legacy download path", e);
+        }
+        return null;
+    }
+
     /**
      * Get list of downloaded song directories from /sdcard/163Music/Download/
-     * Each directory should contain song.mp3 and info.json.
-     * Also supports legacy flat .mp3 files for backward compatibility.
      */
     public static List<File> getDownloadedSongDirs() {
         List<File> dirs = new ArrayList<>();
@@ -426,12 +547,19 @@ public class DownloadManager {
             File[] listing = dir.listFiles();
             if (listing != null) {
                 for (File f : listing) {
-                    if (f.isDirectory() && findAudioFileInDir(f) != null) {
+                    if (f.isDirectory() && (findAudioFileInDir(f) != null || getBestStructuredTrack(f) != null)) {
                         dirs.add(f);
                     }
                 }
             }
         }
+        Map<File, Long> modifiedTimes = new HashMap<>();
+        for (File songDir : dirs) {
+            modifiedTimes.put(songDir, getDownloadEntryModifiedTime(songDir));
+        }
+        dirs.sort((left, right) -> Long.compare(
+                modifiedTimes.get(right),
+                modifiedTimes.get(left)));
         return dirs;
     }
 
@@ -452,6 +580,7 @@ public class DownloadManager {
                 }
             }
         }
+        files.sort((left, right) -> Long.compare(right.lastModified(), left.lastModified()));
         return files;
     }
 
@@ -468,16 +597,63 @@ public class DownloadManager {
      */
     public static String getDownloadedMp3Path(Song song) {
         File songDir = getSongDir(song);
+        LocalTrackInfo bestTrack = getBestStructuredTrack(songDir);
+        if (bestTrack != null) {
+            song.setLocalQuality(bestTrack.quality);
+            return bestTrack.audioFile.getAbsolutePath();
+        }
         File audioFile = findAudioFileInDir(songDir);
-        if (audioFile != null) return audioFile.getAbsolutePath();
-        // Legacy flat file fallback (song.mp3 directly in the download root)
-        String safeName = song.getName().replaceAll("[\\\\/:*?\"<>|]", "_");
-        String safeArtist = song.getArtist().replaceAll("[\\\\/:*?\"<>|]", "_");
-        String fileName = safeName + " - " + safeArtist + ".mp3";
+        if (audioFile != null) {
+            song.setLocalQuality(null);
+            return audioFile.getAbsolutePath();
+        }
         File dir = new File(Environment.getExternalStorageDirectory(), DOWNLOAD_DIR);
-        File legacy = new File(dir, fileName);
-        if (legacy.exists()) return legacy.getAbsolutePath();
+        File legacy = getLegacyFlatFile(dir, song);
+        if (legacy != null && legacy.exists()) {
+            song.setLocalQuality(null);
+            return legacy.getAbsolutePath();
+        }
         return null;
+    }
+
+    public static String getDownloadedPathForQuality(Song song, String quality) {
+        LocalTrackInfo track = getTrackForQuality(getSongDir(song), quality);
+        return track != null ? track.audioFile.getAbsolutePath() : null;
+    }
+
+    public static boolean hasDownloadedQuality(Song song, String quality) {
+        return getDownloadedPathForQuality(song, quality) != null;
+    }
+
+    public static List<String> getAvailableLocalQualities(Song song) {
+        List<String> qualities = new ArrayList<>();
+        for (LocalTrackInfo track : getStructuredTracks(getSongDir(song))) {
+            qualities.add(track.quality);
+        }
+        return qualities;
+    }
+
+    public static String getBestDownloadedQuality(Song song) {
+        LocalTrackInfo bestTrack = getBestStructuredTrack(getSongDir(song));
+        return bestTrack != null ? bestTrack.quality : null;
+    }
+
+    public static String detectLocalQualityFromPath(String path) {
+        if (TextUtils.isEmpty(path)) {
+            return null;
+        }
+        String normalized = path.replace('\\', '/');
+        String marker = "/" + SONGS_DIR + "/";
+        int markerIndex = normalized.lastIndexOf(marker);
+        if (markerIndex < 0) {
+            return null;
+        }
+        String remainder = normalized.substring(markerIndex + marker.length());
+        int slashIndex = remainder.indexOf('/');
+        if (slashIndex <= 0) {
+            return null;
+        }
+        return remainder.substring(0, slashIndex);
     }
 
     /**
@@ -492,19 +668,13 @@ public class DownloadManager {
      * @return true if deletion was successful
      */
     public static boolean deleteDownload(Song song) {
-        // Try new subfolder format first
-        String safeName = song.getName().replaceAll("[\\\\/:*?\"<>|]", "_");
-        String safeArtist = song.getArtist().replaceAll("[\\\\/:*?\"<>|]", "_");
-        String folderName = safeName + " - " + safeArtist;
         File dir = new File(Environment.getExternalStorageDirectory(), DOWNLOAD_DIR);
-        File songDir = new File(dir, folderName);
+        File songDir = getSongDir(song);
         if (songDir.exists() && songDir.isDirectory()) {
             return deleteDir(songDir);
         }
-        // Try legacy flat file
-        String fileName = safeName + " - " + safeArtist + ".mp3";
-        File legacy = new File(dir, fileName);
-        if (legacy.exists()) {
+        File legacy = getLegacyFlatFile(dir, song);
+        if (legacy != null && legacy.exists()) {
             return legacy.delete();
         }
         return false;

@@ -65,7 +65,7 @@ public class LyricsActivity extends AppCompatActivity {
     private float touchDownRawY = 0f;
 
     // Blocking mode fields
-    private int lyricScrollMode = LYRIC_MODE_FOLLOW;
+    private int lyricScrollMode = LYRIC_MODE_BLOCK;
     private int lyricResumeIntervalMs = 3000;
     private boolean userScrolled = false;
     private long lastUserScrollTime = 0L;
@@ -92,7 +92,7 @@ public class LyricsActivity extends AppCompatActivity {
         }
 
         // Read lyric scroll settings
-        lyricScrollMode = prefs.getInt("lyric_scroll_mode", LYRIC_MODE_FOLLOW);
+        lyricScrollMode = prefs.getInt("lyric_scroll_mode", LYRIC_MODE_BLOCK);
         int intervalSec = prefs.getInt("lyric_resume_interval", 3);
         if (intervalSec < 1) intervalSec = 1;
         lyricResumeIntervalMs = intervalSec * 1000;

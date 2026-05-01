@@ -27,6 +27,29 @@ public class UpdateChecker {
         void onError(String error);
     }
 
+    public interface VersionCheckCallback {
+        void onResult(VersionInfo versionInfo);
+        void onError(String error);
+    }
+
+    public static class VersionInfo {
+        private final boolean latest;
+        private final String versionName;
+
+        public VersionInfo(boolean latest, String versionName) {
+            this.latest = latest;
+            this.versionName = versionName;
+        }
+
+        public boolean isLatest() {
+            return latest;
+        }
+
+        public String getVersionName() {
+            return versionName;
+        }
+    }
+
     public interface SourcesCallback {
         void onResult(List<String> urls);
         void onError(String error);
@@ -62,10 +85,24 @@ public class UpdateChecker {
      * Calls callback on main thread.
      */
     public static void checkVersion(Context context, CheckCallback callback) {
-        ImoowApiHelper.checkVersion(context, new ImoowApiHelper.CheckCallback() {
+        checkVersionInfo(context, new VersionCheckCallback() {
             @Override
-            public void onResult(boolean isLatest) {
-                callback.onResult(isLatest);
+            public void onResult(VersionInfo versionInfo) {
+                callback.onResult(versionInfo.isLatest());
+            }
+
+            @Override
+            public void onError(String error) {
+                callback.onError(error);
+            }
+        });
+    }
+
+    public static void checkVersionInfo(Context context, VersionCheckCallback callback) {
+        ImoowApiHelper.checkVersionInfo(context, new ImoowApiHelper.VersionCheckCallback() {
+            @Override
+            public void onResult(ImoowApiHelper.CheckResult result) {
+                callback.onResult(new VersionInfo(result.isLatest(), result.getVersionName()));
             }
 
             @Override

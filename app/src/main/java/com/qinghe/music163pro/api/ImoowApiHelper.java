@@ -32,6 +32,29 @@ public final class ImoowApiHelper {
         void onError(String error);
     }
 
+    public interface VersionCheckCallback {
+        void onResult(CheckResult result);
+        void onError(String error);
+    }
+
+    public static class CheckResult {
+        private final boolean latest;
+        private final String versionName;
+
+        public CheckResult(boolean latest, String versionName) {
+            this.latest = latest;
+            this.versionName = versionName;
+        }
+
+        public boolean isLatest() {
+            return latest;
+        }
+
+        public String getVersionName() {
+            return versionName;
+        }
+    }
+
     public interface SourcesCallback {
         void onResult(List<String> urls);
         void onError(String error);
@@ -139,6 +162,20 @@ public final class ImoowApiHelper {
     }
 
     public static void checkVersion(Context context, CheckCallback callback) {
+        checkVersionInfo(context, new VersionCheckCallback() {
+            @Override
+            public void onResult(CheckResult result) {
+                callback.onResult(result.isLatest());
+            }
+
+            @Override
+            public void onError(String error) {
+                callback.onError(error);
+            }
+        });
+    }
+
+    public static void checkVersionInfo(Context context, VersionCheckCallback callback) {
         final int versionCode;
         try {
             versionCode = context.getPackageManager()
@@ -175,8 +212,10 @@ public final class ImoowApiHelper {
                 }
 
                 JSONObject resp = new JSONObject(readResponse(conn.getInputStream()));
-                boolean isLatest = resp.getJSONObject("data").getBoolean("is_latest");
-                MAIN_HANDLER.post(() -> callback.onResult(isLatest));
+                JSONObject data = resp.getJSONObject("data");
+                boolean isLatest = data.getBoolean("is_latest");
+                String versionName = data.optString("versionName", "").trim();
+                MAIN_HANDLER.post(() -> callback.onResult(new CheckResult(isLatest, versionName)));
             } catch (Exception e) {
                 postError(callback, e.getMessage());
             } finally {
@@ -299,6 +338,10 @@ public final class ImoowApiHelper {
     }
 
     private static void postError(CheckCallback callback, String error) {
+        MAIN_HANDLER.post(() -> callback.onError(normalizeError(error)));
+    }
+
+    private static void postError(VersionCheckCallback callback, String error) {
         MAIN_HANDLER.post(() -> callback.onError(normalizeError(error)));
     }
 

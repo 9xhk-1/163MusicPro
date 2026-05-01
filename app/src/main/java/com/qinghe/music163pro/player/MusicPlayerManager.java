@@ -9,6 +9,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.text.TextUtils;
 import android.util.Log;
 
 import androidx.annotation.OptIn;
@@ -53,6 +54,7 @@ public class MusicPlayerManager {
     private static final String KEY_SOURCE_PLAYLIST_CREATOR = "source_playlist_creator";
     private static final String KEY_SOURCE_PLAYLIST_CREATOR_USER_ID = "source_playlist_creator_user_id";
     private static final String KEY_SOURCE_PLAYLIST_IS_LIKED = "source_playlist_is_liked";
+    private static final String KEY_FORCE_LOCAL_PLAYBACK = "force_local_playback";
     private static final String KEY_PERSONAL_FM_MODE = "personal_fm_mode";
 
     public enum PlayMode {
@@ -65,6 +67,7 @@ public class MusicPlayerManager {
         void onSongChanged(Song song);
         void onPlayStateChanged(boolean isPlaying);
         void onError(String message);
+        default void onSleepTimerTriggered(boolean exitApp) {}
     }
 
     private static MusicPlayerManager instance;
@@ -283,6 +286,10 @@ public class MusicPlayerManager {
     }
 
     public void play(String url) {
+        play(url, 0, true);
+    }
+
+    private void play(String url, int resumePositionMs, boolean shouldPlayWhenReady) {
         stop();
         cancelBilibiliRefreshTimer();
         mediaPlayer = new MediaPlayer();
@@ -297,10 +304,22 @@ public class MusicPlayerManager {
                             .build());
             mediaPlayer.setDataSource(url);
             mediaPlayer.setOnPreparedListener(mp -> {
-                mp.start();
+                if (resumePositionMs > 0) {
+                    try {
+                        mp.seekTo(resumePositionMs);
+                    } catch (Exception e) {
+                        Log.w(TAG, "Error restoring playback position", e);
+                    }
+                }
                 applyPlaybackSpeed();
-                isPlaying = true;
-                notifyPlayStateChanged(true);
+                if (shouldPlayWhenReady) {
+                    mp.start();
+                    isPlaying = true;
+                    notifyPlayStateChanged(true);
+                } else {
+                    isPlaying = false;
+                    notifyPlayStateChanged(false);
+                }
             });
             mediaPlayer.setOnCompletionListener(mp -> onSongCompleted());
             mediaPlayer.setOnErrorListener((mp, what, extra) -> {
@@ -323,7 +342,7 @@ public class MusicPlayerManager {
                                 public void onResult(String retryUrl) {
                                     if (retryUrl != null) {
                                         song.setUrl(retryUrl);
-                                        play(retryUrl);
+                                        play(retryUrl, resumePositionMs, shouldPlayWhenReady);
                                     } else if (callback != null) {
                                         mainHandler.post(() -> callback.onError(
                                                 "播放错误: " + what));
@@ -357,6 +376,11 @@ public class MusicPlayerManager {
      * for downloaded songs (including Bilibili downloads).
      */
     private void playLocalFile(String localPath, Song song) {
+        playLocalFile(localPath, song, 0, true);
+    }
+
+    private void playLocalFile(String localPath, Song song, int resumePositionMs,
+                               boolean shouldPlayWhenReady) {
         stop();
         cancelBilibiliRefreshTimer();
         mediaPlayer = new MediaPlayer();
@@ -371,10 +395,22 @@ public class MusicPlayerManager {
                             .build());
             mediaPlayer.setDataSource(localPath);
             mediaPlayer.setOnPreparedListener(mp -> {
-                mp.start();
+                if (resumePositionMs > 0) {
+                    try {
+                        mp.seekTo(resumePositionMs);
+                    } catch (Exception e) {
+                        Log.w(TAG, "Error restoring local playback position", e);
+                    }
+                }
                 applyPlaybackSpeed();
-                isPlaying = true;
-                notifyPlayStateChanged(true);
+                if (shouldPlayWhenReady) {
+                    mp.start();
+                    isPlaying = true;
+                    notifyPlayStateChanged(true);
+                } else {
+                    isPlaying = false;
+                    notifyPlayStateChanged(false);
+                }
             });
             mediaPlayer.setOnCompletionListener(mp -> onSongCompleted());
             mediaPlayer.setOnErrorListener((mp, what, extra) -> {
@@ -555,28 +591,14 @@ public class MusicPlayerManager {
         notifySongChanged(song);
         savePlaybackState();
 
-        // For local files (downloaded songs with a local file path),
-        // play directly without fetching URL from the API.
-        // This covers both legacy (id=0) and new format (real id with local path).
-        String url = song.getUrl();
-        if (url != null && !url.isEmpty() && url.startsWith("/")) {
-            // Verify local file still exists before playing
-            if (new File(url).exists()) {
-                currentlyPlayingSongId = song.getId();
-                playLocalFile(url, song);
+        if (song.isForceLocalPlayback()) {
+            String localPath = DownloadManager.getDownloadedMp3Path(song);
+            if (!TextUtils.isEmpty(localPath)) {
+                song.setUrl(localPath);
+                startLocalPlayback(song, localPath);
                 return;
-            } else {
-                song.setUrl(null);
             }
-        }
-
-        // Check if the song is downloaded locally (even if URL wasn't pre-set).
-        // This avoids API calls for downloaded songs after app restart.
-        String localPath = DownloadManager.getDownloadedMp3Path(song);
-        if (localPath != null) {
-            song.setUrl(localPath);
-            currentlyPlayingSongId = song.getId();
-            playLocalFile(localPath, song);
+            notifyLocalPlaybackMissing(song);
             return;
         }
 
@@ -887,6 +909,114 @@ public class MusicPlayerManager {
         return "";
     }
 
+    public boolean isUsingExoPlayer() {
+        return usingExoPlayer;
+    }
+
+    public void switchCurrentSongQuality(String quality) {
+        Song song = getCurrentSong();
+        if (song == null || song.isBilibili()) {
+            return;
+        }
+        int resumePositionMs = getCurrentPosition();
+        boolean wasPlaying = isPlaying;
+
+        if (song.isForceLocalPlayback()) {
+            String localPath = DownloadManager.getDownloadedPathForQuality(song, quality);
+            if (localPath != null) {
+                song.setUrl(localPath);
+                song.setLocalQuality(quality);
+                currentlyPlayingSongId = song.getId();
+                playLocalFile(localPath, song, resumePositionMs, wasPlaying);
+            } else if (callback != null) {
+                mainHandler.post(() -> callback.onError("下载列表歌曲仅支持本地音质，请先下载该音质"));
+            }
+            return;
+        }
+
+        String cookie = getCookie();
+        MusicApiHelper.getSongUrlWithQuality(song.getId(), cookie, quality,
+                new MusicApiHelper.UrlCallback() {
+                    @Override
+                    public void onResult(String freshUrl) {
+                        song.setUrl(freshUrl);
+                        song.setLocalQuality(null);
+                        currentlyPlayingSongId = song.getId();
+                        play(freshUrl, resumePositionMs, wasPlaying);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        if (callback != null) {
+                            mainHandler.post(() -> callback.onError("切换音质失败: " + message));
+                        }
+                    }
+                });
+    }
+
+    public List<String> getCurrentPlayerInfoLines() {
+        List<String> lines = new ArrayList<>();
+        Song song = getCurrentSong();
+        if (song == null) {
+            lines.add("暂无播放信息");
+            return lines;
+        }
+        String resolvedPath = song.getUrl();
+        boolean isLocal = resolvedPath != null && resolvedPath.startsWith("/");
+        lines.add("来源平台: " + (song.isBilibili() ? "Bilibili" : "网易云"));
+        lines.add("播放方式: " + (isLocal ? "本地音频" : "URL播放"));
+        lines.add("播放器内核: " + (usingExoPlayer ? "ExoPlayer" : "MediaPlayer"));
+
+        String localQuality = song.getLocalQuality();
+        if (localQuality == null && isLocal) {
+            localQuality = DownloadManager.detectLocalQualityFromPath(resolvedPath);
+        }
+        if (!TextUtils.isEmpty(localQuality)) {
+            lines.add("当前本地音质: " + formatQualityLabel(localQuality));
+        } else if (!song.isBilibili() && appContext != null) {
+            SharedPreferences prefs = appContext.getSharedPreferences("music163_settings",
+                    Context.MODE_PRIVATE);
+            lines.add("当前目标音质: "
+                    + formatQualityLabel(prefs.getString("preferred_quality", "exhigh")));
+        }
+
+        if (song.isBilibili()) {
+            if (!TextUtils.isEmpty(song.getBvid())) {
+                lines.add("BV号: " + song.getBvid());
+            }
+            if (song.getCid() > 0) {
+                lines.add("CID: " + song.getCid());
+            }
+        } else if (song.getId() > 0) {
+            lines.add("歌曲ID: " + song.getId());
+        }
+
+        if (sourcePlaylistId > 0 && !TextUtils.isEmpty(sourcePlaylistName)) {
+            lines.add("播放来源歌单: " + sourcePlaylistName);
+        }
+        if (!TextUtils.isEmpty(resolvedPath)) {
+            lines.add((isLocal ? "本地路径: " : "播放地址: ") + resolvedPath);
+        }
+        return lines;
+    }
+
+    private String formatQualityLabel(String quality) {
+        if (quality == null) {
+            return "";
+        }
+        switch (quality) {
+            case "standard": return "标准";
+            case "higher": return "较高";
+            case "exhigh": return "极高";
+            case "lossless": return "无损";
+            case "hires": return "Hi-Res";
+            case "jyeffect": return "臻品声场";
+            case "sky": return "全景声";
+            case "jymaster": return "臻品母带";
+            default: return quality;
+        }
+    }
+
     private String cookieValue = "";
 
     public void setCookie(String cookie) {
@@ -931,8 +1061,16 @@ public class MusicPlayerManager {
         long delayMs = (long) seconds * 1000;
         sleepTimerEndMs = System.currentTimeMillis() + delayMs;
         sleepTimerRunnable = () -> {
-            pause();
+            boolean exitApp = shouldExitAfterSleepTimer();
+            if (exitApp) {
+                stop();
+            } else {
+                pause();
+            }
             sleepTimerEndMs = 0;
+            if (callback != null) {
+                mainHandler.post(() -> callback.onSleepTimerTriggered(exitApp));
+            }
         };
         mainHandler.postDelayed(sleepTimerRunnable, delayMs);
     }
@@ -967,6 +1105,15 @@ public class MusicPlayerManager {
         return 0;
     }
 
+    private boolean shouldExitAfterSleepTimer() {
+        if (appContext == null) {
+            return false;
+        }
+        SharedPreferences prefs = appContext.getSharedPreferences("music163_settings",
+                Context.MODE_PRIVATE);
+        return prefs.getBoolean("sleep_timer_exit_app", false);
+    }
+
     // ==================== Save / Restore Playback State ====================
 
     /**
@@ -988,6 +1135,9 @@ public class MusicPlayerManager {
                 if (current.getSource() != null) songJson.put("source", current.getSource());
                 if (current.getBvid() != null) songJson.put("bvid", current.getBvid());
                 if (current.getCid() != 0) songJson.put("cid", current.getCid());
+                if (current.isForceLocalPlayback()) {
+                    songJson.put(KEY_FORCE_LOCAL_PLAYBACK, true);
+                }
                 editor.putString(KEY_CURRENT_SONG_JSON, songJson.toString());
             } else {
                 editor.remove(KEY_CURRENT_SONG_JSON);
@@ -1004,6 +1154,7 @@ public class MusicPlayerManager {
                 if (s.getSource() != null) obj.put("source", s.getSource());
                 if (s.getBvid() != null) obj.put("bvid", s.getBvid());
                 if (s.getCid() != 0) obj.put("cid", s.getCid());
+                if (s.isForceLocalPlayback()) obj.put(KEY_FORCE_LOCAL_PLAYBACK, true);
                 playlistArr.put(obj);
             }
             editor.putString(KEY_PLAYLIST_JSON, playlistArr.toString());
@@ -1062,6 +1213,7 @@ public class MusicPlayerManager {
                 if (cid != 0) {
                     song.setCid(cid);
                 }
+                song.setForceLocalPlayback(obj.optBoolean(KEY_FORCE_LOCAL_PLAYBACK, false));
                 restoredList.add(song);
             }
 
@@ -1097,6 +1249,21 @@ public class MusicPlayerManager {
         sourcePlaylistCreator = null;
         sourcePlaylistCreatorUserId = -1;
         sourcePlaylistIsLiked = false;
+    }
+
+    private void startLocalPlayback(Song song, String localPath) {
+        song.setLocalQuality(DownloadManager.detectLocalQualityFromPath(localPath));
+        currentlyPlayingSongId = song.getId();
+        playLocalFile(localPath, song);
+    }
+
+    private void notifyLocalPlaybackMissing(Song song) {
+        if (callback == null) {
+            return;
+        }
+        String songName = song != null && !TextUtils.isEmpty(song.getName()) ? song.getName() : "当前歌曲";
+        mainHandler.post(() -> callback.onError(
+                songName + " 仅支持本地播放，但本地文件未找到。请在下载列表中重新下载"));
     }
 
     private void playNextSequential() {

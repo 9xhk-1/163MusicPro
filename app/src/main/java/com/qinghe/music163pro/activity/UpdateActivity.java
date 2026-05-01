@@ -22,6 +22,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
+import com.qinghe.music163pro.api.ImoowApiHelper;
 import com.qinghe.music163pro.util.UpdateChecker;
 
 import java.io.File;
@@ -39,13 +40,17 @@ public class UpdateActivity extends AppCompatActivity {
     private static final String APK_SAVE_PATH =
             Environment.getExternalStorageDirectory() + "/163Music/update.apk";
     private static final int STORAGE_PERMISSION_REQUEST = 200;
+    private static final String UPDATE_BULLET = "•";
 
     private TextView tvProgress;
     private ProgressBar progressBar;
     private LinearLayout sourcesContainer;
     private TextView tvSourceHint;
+    private TextView tvVersionInfo;
+    private TextView tvUpdateLog;
     private boolean downloading = false;
     private String selectedUrl = null;
+    private String targetVersionName = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,7 +64,9 @@ public class UpdateActivity extends AppCompatActivity {
             }
         } catch (Exception ignored) {}
 
+        targetVersionName = getIntent().getStringExtra("target_version_name");
         buildUI();
+        loadTargetVersionInfo();
         loadSources();
     }
 
@@ -82,6 +89,21 @@ public class UpdateActivity extends AppCompatActivity {
         root.addView(tvMsg);
 
         root.addView(makeSpacer(px(6)));
+
+        tvVersionInfo = makeText("最新版本：获取中...", 0xFFAAAAAA, px(13), false, Gravity.CENTER);
+        root.addView(tvVersionInfo);
+
+        root.addView(makeSpacer(px(10)));
+
+        TextView tvUpdateTitle = makeText("更新日志", 0xFFFFFFFF, px(16), true, Gravity.START);
+        root.addView(tvUpdateTitle);
+
+        root.addView(makeSpacer(px(4)));
+
+        tvUpdateLog = makeText("正在获取更新日志...", 0xFFAAAAAA, px(13), false, Gravity.START);
+        root.addView(tvUpdateLog);
+
+        root.addView(makeSpacer(px(10)));
 
         // Hint
         tvSourceHint = makeText("建议优先选择上面的下载源", 0xFF888888, px(12), false, Gravity.CENTER);
@@ -141,6 +163,84 @@ public class UpdateActivity extends AppCompatActivity {
 
         scrollView.addView(root);
         setContentView(scrollView);
+    }
+
+    private void loadTargetVersionInfo() {
+        if (targetVersionName != null && !targetVersionName.trim().isEmpty()) {
+            targetVersionName = targetVersionName.trim();
+            tvVersionInfo.setText("最新版本：" + targetVersionName);
+            loadUpdateLog();
+            return;
+        }
+        UpdateChecker.checkVersionInfo(this, new UpdateChecker.VersionCheckCallback() {
+            @Override
+            public void onResult(UpdateChecker.VersionInfo versionInfo) {
+                targetVersionName = versionInfo.getVersionName();
+                if (targetVersionName == null) {
+                    targetVersionName = "";
+                }
+                targetVersionName = targetVersionName.trim();
+                if (targetVersionName.isEmpty()) {
+                    tvVersionInfo.setText("最新版本：获取失败");
+                    tvUpdateLog.setText("获取失败");
+                    return;
+                }
+                tvVersionInfo.setText("最新版本：" + targetVersionName);
+                loadUpdateLog();
+            }
+
+            @Override
+            public void onError(String error) {
+                tvVersionInfo.setText("最新版本：获取失败");
+                tvUpdateLog.setText("获取失败");
+            }
+        });
+    }
+
+    private void loadUpdateLog() {
+        ImoowApiHelper.fetchAboutContent(new ImoowApiHelper.AboutCallback() {
+            @Override
+            public void onResult(ImoowApiHelper.AboutContent aboutContent) {
+                ImoowApiHelper.UpdateLogItem matchedLog = null;
+                List<ImoowApiHelper.UpdateLogItem> items = aboutContent.getUpdateContent();
+                if (items != null) {
+                    for (ImoowApiHelper.UpdateLogItem item : items) {
+                        if (item != null && targetVersionName.equals(item.getVersion())) {
+                            matchedLog = item;
+                            break;
+                        }
+                    }
+                }
+                if (matchedLog == null) {
+                    tvUpdateLog.setText("获取失败");
+                    return;
+                }
+                tvUpdateLog.setText(formatUpdateLog(matchedLog.getContent()));
+            }
+
+            @Override
+            public void onError(String error) {
+                tvUpdateLog.setText("获取失败");
+            }
+        });
+    }
+
+    private String formatUpdateLog(List<String> items) {
+        if (items == null || items.isEmpty()) {
+            return "获取失败";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (String item : items) {
+            if (item == null || item.trim().isEmpty()) {
+                continue;
+            }
+            if (builder.length() > 0) {
+                builder.append('\n');
+            }
+            builder.append(item.startsWith(UPDATE_BULLET)
+                    ? item : UPDATE_BULLET + " " + item);
+        }
+        return builder.length() == 0 ? "获取失败" : builder.toString();
     }
 
     private void loadSources() {

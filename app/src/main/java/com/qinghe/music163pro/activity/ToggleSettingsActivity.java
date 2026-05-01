@@ -28,6 +28,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private static final String PREF_RECOGNITION_MODE = "song_recognition_mode";
     private static final String PREF_LYRIC_SCROLL_MODE = "lyric_scroll_mode";
     private static final String PREF_LYRIC_RESUME_INTERVAL = "lyric_resume_interval";
+    private static final String PREF_SLEEP_TIMER_EXIT_APP = "sleep_timer_exit_app";
     private static final int MODE_MANUAL = 0;
     private static final int MODE_AUTO = 1;
     // Lyric scroll modes: 0=每行 (follow current line), 1=阻塞 (blocked by user scroll)
@@ -35,6 +36,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private static final int LYRIC_MODE_BLOCK = 1;
 
     private SwitchMaterial switchKeepScreenOn;
+    private SwitchMaterial switchSleepTimerExitApp;
     private SwitchMaterial switchFavMode;
     private TextView tvSpeedModeValue;
     private TextView tvRecognitionModeValue;
@@ -59,6 +61,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         }
 
         switchKeepScreenOn = findViewById(R.id.switch_keep_screen_on);
+        switchSleepTimerExitApp = findViewById(R.id.switch_sleep_timer_exit_app);
         switchFavMode = findViewById(R.id.switch_fav_mode);
         tvSpeedModeValue = findViewById(R.id.tv_speed_mode_value);
         tvRecognitionModeValue = findViewById(R.id.tv_recognition_mode_value);
@@ -81,6 +84,14 @@ public class ToggleSettingsActivity extends AppCompatActivity {
             } else {
                 getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             }
+        });
+
+        switchSleepTimerExitApp.setOnCheckedChangeListener((btn, isChecked) -> {
+            if (updatingSwitch) return;
+            prefs.edit().putBoolean(PREF_SLEEP_TIMER_EXIT_APP, isChecked).apply();
+            Toast.makeText(this,
+                    isChecked ? "定时结束后将退出应用" : "定时结束后仅停止播放",
+                    Toast.LENGTH_SHORT).show();
         });
 
         // Favorites mode: use checked-change listener
@@ -107,6 +118,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private void syncSwitchStates() {
         updatingSwitch = true;
         switchKeepScreenOn.setChecked(prefs.getBoolean("keep_screen_on", false));
+        switchSleepTimerExitApp.setChecked(prefs.getBoolean(PREF_SLEEP_TIMER_EXIT_APP, false));
         switchFavMode.setChecked(prefs.getBoolean("fav_mode_cloud", false));
         updatingSwitch = false;
         updateSpeedModeValue();
@@ -150,7 +162,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     }
 
     private void cycleLyricScrollMode() {
-        int current = prefs.getInt(PREF_LYRIC_SCROLL_MODE, LYRIC_MODE_FOLLOW);
+        int current = prefs.getInt(PREF_LYRIC_SCROLL_MODE, LYRIC_MODE_BLOCK);
         int next = (current + 1) % 2;
         prefs.edit().putInt(PREF_LYRIC_SCROLL_MODE, next).apply();
         updateLyricScrollModeValue();
@@ -159,7 +171,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     }
 
     private void updateLyricScrollModeValue() {
-        int mode = prefs.getInt(PREF_LYRIC_SCROLL_MODE, LYRIC_MODE_FOLLOW);
+        int mode = prefs.getInt(PREF_LYRIC_SCROLL_MODE, LYRIC_MODE_BLOCK);
         String[] labels = {"每行", "阻塞"};
         tvLyricScrollModeValue.setText(labels[mode]);
         // Only show resume interval row in 阻塞 mode
