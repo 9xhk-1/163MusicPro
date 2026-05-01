@@ -90,9 +90,10 @@
             android:name=".service.MusicPlaybackService"
             android:exported="false" />
 
-        <receiver
-            android:name=".service.MusicPlaybackService$AutoCancelReceiver"
-            android:exported="false" />
+        <!-- Required by 小天才 (XTC) system to enable the lock-screen music card -->
+        <meta-data
+            android:name="com.xtc.music.notification_version"
+            android:value="1" />
 
     </application>
 </manifest>

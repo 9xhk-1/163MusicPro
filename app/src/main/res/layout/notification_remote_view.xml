@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- XTC watch music card notification layout (320×64dp, dark background) -->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="64dp"
+    android:background="#CC000000"
+    android:padding="0dp">
+
+    <!-- Song name + artist name (left section) -->
+    <LinearLayout
+        android:id="@+id/ll_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_centerVertical="true"
+        android:layout_toStartOf="@+id/ll_controls"
+        android:layout_marginStart="12dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tv_song_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="marquee"
+            android:maxLines="1"
+            android:text="163音乐"
+            android:textColor="#FFFFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_singer_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="音乐播放中"
+            android:textColor="#CCFFFFFF"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- Controls: previous / play-pause / next -->
+    <LinearLayout
+        android:id="@+id/ll_controls"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        android:layout_marginEnd="8dp"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/iv_previous"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:contentDescription="上一曲"
+            android:padding="6dp"
+            android:src="@drawable/ic_skip_previous" />
+
+        <ImageView
+            android:id="@+id/iv_play_pause"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:contentDescription="播放/暂停"
+            android:padding="6dp"
+            android:src="@drawable/ic_play_arrow" />
+
+        <ImageView
+            android:id="@+id/iv_next"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:contentDescription="下一曲"
+            android:padding="6dp"
+            android:src="@drawable/ic_skip_next" />
+    </LinearLayout>
+
+</RelativeLayout>
