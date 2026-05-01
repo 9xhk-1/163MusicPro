@@ -90,5 +90,9 @@
             android:name=".service.MusicPlaybackService"
             android:exported="false" />
 
+        <receiver
+            android:name=".service.MusicPlaybackService$AutoCancelReceiver"
+            android:exported="false" />
+
     </application>
 </manifest>

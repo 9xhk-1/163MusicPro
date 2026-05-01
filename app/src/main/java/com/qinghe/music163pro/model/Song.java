@@ -20,6 +20,8 @@ public class Song implements Serializable {
     private String localQuality;
     /** True when the song was opened from the download list and must stay on local audio only. */
     private boolean forceLocalPlayback;
+    /** Album cover image URL (al.picUrl from NetEase API). May be null or empty. */
+    private String coverUrl;
 
     public Song() {}
 
@@ -61,6 +63,9 @@ public class Song implements Serializable {
     public void setForceLocalPlayback(boolean forceLocalPlayback) {
         this.forceLocalPlayback = forceLocalPlayback;
     }
+
+    public String getCoverUrl() { return coverUrl; }
+    public void setCoverUrl(String coverUrl) { this.coverUrl = coverUrl; }
 
     /** Check if this song is from Bilibili */
     public boolean isBilibili() {

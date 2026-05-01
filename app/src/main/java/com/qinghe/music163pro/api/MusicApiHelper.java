@@ -405,12 +405,18 @@ public class MusicApiHelper {
                         artist = ar.getJSONObject(0).optString("name", "");
                     }
                     String album = "";
+                    String coverUrl = "";
                     // cloudsearch uses "al" for album
                     JSONObject al = s.optJSONObject("al");
                     if (al != null) {
                         album = al.optString("name", "");
+                        coverUrl = al.optString("picUrl", "");
                     }
-                    songs.add(new Song(id, name, artist, album));
+                    Song song = new Song(id, name, artist, album);
+                    if (!coverUrl.isEmpty()) {
+                        song.setCoverUrl(coverUrl);
+                    }
+                    songs.add(song);
                 }
             }
         }
@@ -3069,13 +3075,18 @@ public class MusicApiHelper {
             albumObj = songObj.optJSONObject("album");
         }
         String album = albumObj != null ? albumObj.optString("name", "") : "";
+        String coverUrl = albumObj != null ? albumObj.optString("picUrl", "") : "";
         if (songName.isEmpty()) {
             songName = pickFirstNonEmpty(songObj, "fileName");
         }
         if (songName.isEmpty()) {
             return null;
         }
-        return new Song(songId, songName, artist, album);
+        Song parsedSong = new Song(songId, songName, artist, album);
+        if (!coverUrl.isEmpty()) {
+            parsedSong.setCoverUrl(coverUrl);
+        }
+        return parsedSong;
     }
 
     private static PlaylistInfo parsePlaylistInfo(JSONObject playlistObj) {
