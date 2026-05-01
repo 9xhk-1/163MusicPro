@@ -68,6 +68,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private static final float VOLUME_INDICATOR_INITIAL_SCALE = 0.96f;
     private static final int LYRIC_MODE_FOLLOW = 0;
     private static final int LYRIC_MODE_BLOCK = 1;
+    private static final String QUALITY_TIER_UNAVAILABLE = "暂无";
+    private static final String QUALITY_TIER_DOWNLOADED = "已下载";
 
     private TextView tvSongName;
     private TextView tvArtist;
@@ -2449,16 +2451,17 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 switch (t) {
                     case "free":        tier = "免费"; break;
                     case "vip":         tier = "VIP";  break;
-                    case "unavailable": tier = "暂无"; break;
+                    case "unavailable": tier = QUALITY_TIER_UNAVAILABLE; break;
                     default:            tier = "VIP";  break;
                 }
             }
 
             if (alreadyDownloaded) {
-                tier = "已下载";
+                tier = QUALITY_TIER_DOWNLOADED;
             }
 
-            boolean unavailable = "暂无".equals(tier) || "已下载".equals(tier);
+            boolean unavailable = QUALITY_TIER_UNAVAILABLE.equals(tier)
+                    || QUALITY_TIER_DOWNLOADED.equals(tier);
 
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
@@ -2500,8 +2503,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             int tierColor;
             switch (tier) {
                 case "VIP":  tierColor = 0xFFFFAA00; break;
-                case "暂无": tierColor = 0x60FFFFFF; break;
-                case "已下载": tierColor = 0xFF4CAF50; break;
+                case QUALITY_TIER_UNAVAILABLE: tierColor = 0x60FFFFFF; break;
+                case QUALITY_TIER_DOWNLOADED: tierColor = 0xFF4CAF50; break;
                 default:     tierColor = 0xFF4CAF50; break; // 免费
             }
             TextView tvTier = new TextView(this);

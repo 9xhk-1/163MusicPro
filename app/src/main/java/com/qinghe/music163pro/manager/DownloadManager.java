@@ -45,6 +45,7 @@ public class DownloadManager {
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
 
+    /** Structured local download entry for one audio quality and its resolved file. */
     private static final class LocalTrackInfo {
         final String quality;
         final File audioFile;
@@ -361,6 +362,8 @@ public class DownloadManager {
                 tracks.add(new LocalTrackInfo(qualityDir.getName(), audioFile));
             }
         }
+        // Prefer the highest quality first; if multiple files share a level,
+        // keep the newest one first so recent re-downloads win ties.
         tracks.sort((left, right) -> {
             int rankCompare = Integer.compare(
                     MusicApiHelper.qualityLevelRank(right.quality),
@@ -513,6 +516,23 @@ public class DownloadManager {
         return value.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
     }
 
+    private static File getLegacyFlatFile(File dir, Song song) {
+        String safeName = song.getName().replaceAll("[\\\\/:*?\"<>|]", "_");
+        String safeArtist = song.getArtist().replaceAll("[\\\\/:*?\"<>|]", "_");
+        String fileName = safeName + " - " + safeArtist + ".mp3";
+        File legacy = new File(dir, fileName);
+        try {
+            String rootPath = dir.getCanonicalPath();
+            String filePath = legacy.getCanonicalPath();
+            if (filePath.startsWith(rootPath + File.separator)) {
+                return legacy;
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error validating legacy download path", e);
+        }
+        return null;
+    }
+
     /**
      * Get list of downloaded song directories from /sdcard/163Music/Download/
      */
@@ -579,12 +599,9 @@ public class DownloadManager {
             song.setLocalQuality(null);
             return audioFile.getAbsolutePath();
         }
-        String safeName = song.getName().replaceAll("[\\\\/:*?\"<>|]", "_");
-        String safeArtist = song.getArtist().replaceAll("[\\\\/:*?\"<>|]", "_");
-        String fileName = safeName + " - " + safeArtist + ".mp3";
         File dir = new File(Environment.getExternalStorageDirectory(), DOWNLOAD_DIR);
-        File legacy = new File(dir, fileName);
-        if (legacy.exists()) {
+        File legacy = getLegacyFlatFile(dir, song);
+        if (legacy != null && legacy.exists()) {
             song.setLocalQuality(null);
             return legacy.getAbsolutePath();
         }
@@ -648,11 +665,8 @@ public class DownloadManager {
         if (songDir.exists() && songDir.isDirectory()) {
             return deleteDir(songDir);
         }
-        String safeName = song.getName().replaceAll("[\\\\/:*?\"<>|]", "_");
-        String safeArtist = song.getArtist().replaceAll("[\\\\/:*?\"<>|]", "_");
-        String fileName = safeName + " - " + safeArtist + ".mp3";
-        File legacy = new File(dir, fileName);
-        if (legacy.exists()) {
+        File legacy = getLegacyFlatFile(dir, song);
+        if (legacy != null && legacy.exists()) {
             return legacy.delete();
         }
         return false;
