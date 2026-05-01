@@ -11,8 +11,8 @@ android {
         applicationId "com.qinghe.music163pro"
         minSdk 23
         targetSdk 27 
-        versionCode 34
-        versionName "20260501"
+        versionCode 35
+        versionName "20260501-2"
     }
 
     signingConfigs {
