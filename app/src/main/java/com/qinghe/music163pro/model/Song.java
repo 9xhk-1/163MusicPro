@@ -18,6 +18,8 @@ public class Song implements Serializable {
     private long cid;
     /** Local downloaded quality when playing from the structured songs/<quality>/ folder. */
     private String localQuality;
+    /** True when the song was opened from the download list and must stay on local audio only. */
+    private boolean forceLocalPlayback;
 
     public Song() {}
 
@@ -54,6 +56,11 @@ public class Song implements Serializable {
 
     public String getLocalQuality() { return localQuality; }
     public void setLocalQuality(String localQuality) { this.localQuality = localQuality; }
+
+    public boolean isForceLocalPlayback() { return forceLocalPlayback; }
+    public void setForceLocalPlayback(boolean forceLocalPlayback) {
+        this.forceLocalPlayback = forceLocalPlayback;
+    }
 
     /** Check if this song is from Bilibili */
     public boolean isBilibili() {

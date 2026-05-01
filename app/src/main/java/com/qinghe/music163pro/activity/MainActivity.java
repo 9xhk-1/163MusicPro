@@ -2302,7 +2302,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         String currentQuality = getSharedPreferences("music163_settings", MODE_PRIVATE)
                 .getString("preferred_quality", "exhigh");
-        if (saveAsPreferred && song != null && DownloadManager.isDownloaded(song)) {
+        if (saveAsPreferred && song != null && song.isForceLocalPlayback()) {
             qualityListLayout.removeAllViews();
             buildLocalQualityRows(qualityListLayout, song, currentQuality, callback);
             return;
@@ -2534,7 +2534,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
     /** Short display name for current quality (shown on the button label). */
     private String getCurrentQualityLabel(Song song, String fallbackQuality) {
-        if (song != null && DownloadManager.isDownloaded(song)) {
+        if (song != null && (song.isForceLocalPlayback()
+                || (song.getUrl() != null && song.getUrl().startsWith("/")))) {
             String localQuality = DownloadManager.detectLocalQualityFromPath(song.getUrl());
             if (localQuality == null) {
                 localQuality = DownloadManager.getBestDownloadedQuality(song);

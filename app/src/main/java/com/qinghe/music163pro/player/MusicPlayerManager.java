@@ -54,6 +54,7 @@ public class MusicPlayerManager {
     private static final String KEY_SOURCE_PLAYLIST_CREATOR = "source_playlist_creator";
     private static final String KEY_SOURCE_PLAYLIST_CREATOR_USER_ID = "source_playlist_creator_user_id";
     private static final String KEY_SOURCE_PLAYLIST_IS_LIKED = "source_playlist_is_liked";
+    private static final String KEY_FORCE_LOCAL_PLAYBACK = "force_local_playback";
     private static final String KEY_PERSONAL_FM_MODE = "personal_fm_mode";
 
     public enum PlayMode {
@@ -593,27 +594,11 @@ public class MusicPlayerManager {
         // For local files (downloaded songs with a local file path),
         // play directly without fetching URL from the API.
         // This covers both legacy (id=0) and new format (real id with local path).
-        String url = song.getUrl();
-        if (url != null && !url.isEmpty() && url.startsWith("/")) {
-            // Verify local file still exists before playing
-            if (new File(url).exists()) {
-                song.setLocalQuality(DownloadManager.detectLocalQualityFromPath(url));
-                currentlyPlayingSongId = song.getId();
-                playLocalFile(url, song);
-                return;
-            } else {
-                song.setUrl(null);
-            }
+        if (tryPlayLocalSong(song, song.isForceLocalPlayback())) {
+            return;
         }
-
-        // Check if the song is downloaded locally (even if URL wasn't pre-set).
-        // This avoids API calls for downloaded songs after app restart.
-        String localPath = DownloadManager.getDownloadedMp3Path(song);
-        if (localPath != null) {
-            song.setUrl(localPath);
-            song.setLocalQuality(DownloadManager.detectLocalQualityFromPath(localPath));
-            currentlyPlayingSongId = song.getId();
-            playLocalFile(localPath, song);
+        if (song.isForceLocalPlayback()) {
+            notifyLocalPlaybackMissing(song);
             return;
         }
 
@@ -936,12 +921,16 @@ public class MusicPlayerManager {
         int resumePositionMs = getCurrentPosition();
         boolean wasPlaying = isPlaying;
 
-        String localPath = DownloadManager.getDownloadedPathForQuality(song, quality);
-        if (localPath != null) {
-            song.setUrl(localPath);
-            song.setLocalQuality(quality);
-            currentlyPlayingSongId = song.getId();
-            playLocalFile(localPath, song, resumePositionMs, wasPlaying);
+        if (song.isForceLocalPlayback()) {
+            String localPath = DownloadManager.getDownloadedPathForQuality(song, quality);
+            if (localPath != null) {
+                song.setUrl(localPath);
+                song.setLocalQuality(quality);
+                currentlyPlayingSongId = song.getId();
+                playLocalFile(localPath, song, resumePositionMs, wasPlaying);
+            } else if (callback != null) {
+                mainHandler.post(() -> callback.onError("下载列表歌曲仅支持本地音质，请先下载该音质"));
+            }
             return;
         }
 
@@ -1146,6 +1135,9 @@ public class MusicPlayerManager {
                 if (current.getSource() != null) songJson.put("source", current.getSource());
                 if (current.getBvid() != null) songJson.put("bvid", current.getBvid());
                 if (current.getCid() != 0) songJson.put("cid", current.getCid());
+                if (current.isForceLocalPlayback()) {
+                    songJson.put(KEY_FORCE_LOCAL_PLAYBACK, true);
+                }
                 editor.putString(KEY_CURRENT_SONG_JSON, songJson.toString());
             } else {
                 editor.remove(KEY_CURRENT_SONG_JSON);
@@ -1162,6 +1154,7 @@ public class MusicPlayerManager {
                 if (s.getSource() != null) obj.put("source", s.getSource());
                 if (s.getBvid() != null) obj.put("bvid", s.getBvid());
                 if (s.getCid() != 0) obj.put("cid", s.getCid());
+                if (s.isForceLocalPlayback()) obj.put(KEY_FORCE_LOCAL_PLAYBACK, true);
                 playlistArr.put(obj);
             }
             editor.putString(KEY_PLAYLIST_JSON, playlistArr.toString());
@@ -1220,6 +1213,7 @@ public class MusicPlayerManager {
                 if (cid != 0) {
                     song.setCid(cid);
                 }
+                song.setForceLocalPlayback(obj.optBoolean(KEY_FORCE_LOCAL_PLAYBACK, false));
                 restoredList.add(song);
             }
 
@@ -1255,6 +1249,42 @@ public class MusicPlayerManager {
         sourcePlaylistCreator = null;
         sourcePlaylistCreatorUserId = -1;
         sourcePlaylistIsLiked = false;
+    }
+
+    private boolean tryPlayLocalSong(Song song, boolean allowDownloadedLookup) {
+        String localPath = song.getUrl();
+        if (!TextUtils.isEmpty(localPath) && localPath.startsWith("/") && new File(localPath).exists()) {
+            startLocalPlayback(song, localPath);
+            return true;
+        }
+        if (!TextUtils.isEmpty(localPath) && localPath.startsWith("/")) {
+            song.setUrl(null);
+            song.setLocalQuality(null);
+        }
+        if (!allowDownloadedLookup) {
+            return false;
+        }
+        String resolvedPath = DownloadManager.getDownloadedMp3Path(song);
+        if (!TextUtils.isEmpty(resolvedPath) && new File(resolvedPath).exists()) {
+            song.setUrl(resolvedPath);
+            startLocalPlayback(song, resolvedPath);
+            return true;
+        }
+        return false;
+    }
+
+    private void startLocalPlayback(Song song, String localPath) {
+        song.setLocalQuality(DownloadManager.detectLocalQualityFromPath(localPath));
+        currentlyPlayingSongId = song.getId();
+        playLocalFile(localPath, song);
+    }
+
+    private void notifyLocalPlaybackMissing(Song song) {
+        if (callback == null) {
+            return;
+        }
+        String songName = song != null && !TextUtils.isEmpty(song.getName()) ? song.getName() : "当前歌曲";
+        mainHandler.post(() -> callback.onError(songName + " 只能从本地播放，请先在下载列表中确认文件存在"));
     }
 
     private void playNextSequential() {
