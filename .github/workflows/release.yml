@@ -100,7 +100,8 @@ jobs:
           apk_path = os.environ["APK_PATH"]
           tag_name = os.environ["TAG_NAME"]
           token = os.environ["GITEE_TOKEN"]
-          url = f"https://gitee.com/api/v5/repos/xtcqinghe/163-music-pro/contents/{tag_name}.apk"
+          encoded_tag_name = urllib.parse.quote(f"{tag_name}.apk", safe="")
+          url = f"https://gitee.com/api/v5/repos/xtcqinghe/163-music-pro/contents/{encoded_tag_name}"
           apk_size = os.path.getsize(apk_path)
 
           print("Uploading APK metadata:")
