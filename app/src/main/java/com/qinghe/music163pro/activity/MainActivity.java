@@ -292,8 +292,6 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         updateUI();
 
-        // Start foreground service to keep alive
-        startPlaybackService("163音乐", "等待播放", "", false);
 
         // Request storage permission for saving favorites to /sdcard/163Music/
         requestStoragePermission();
