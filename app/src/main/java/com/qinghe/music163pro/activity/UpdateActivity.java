@@ -237,7 +237,8 @@ public class UpdateActivity extends AppCompatActivity {
             if (builder.length() > 0) {
                 builder.append('\n');
             }
-            builder.append(item.startsWith("•") ? item : UPDATE_BULLET + item);
+            builder.append(item.startsWith(UPDATE_BULLET) || item.startsWith("•")
+                    ? item : UPDATE_BULLET + item);
         }
         return builder.length() == 0 ? "获取失败" : builder.toString();
     }

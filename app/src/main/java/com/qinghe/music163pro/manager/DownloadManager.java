@@ -203,9 +203,11 @@ public class DownloadManager {
                                    DownloadCallback callback) {
         try {
             File songDir = getSongDir(song);
-            if (!songDir.exists() && !songDir.mkdirs()) {
-                mainHandler.post(() -> callback.onError("无法创建下载目录"));
-                return;
+            if (!songDir.exists()) {
+                if (!songDir.mkdirs()) {
+                    mainHandler.post(() -> callback.onError("无法创建下载目录"));
+                    return;
+                }
             }
 
             File outputParent = bilibili ? songDir : getQualityDir(songDir, quality);

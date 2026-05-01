@@ -2460,20 +2460,20 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 tier = QUALITY_TIER_DOWNLOADED;
             }
 
-            boolean unavailable = QUALITY_TIER_UNAVAILABLE.equals(tier)
+            boolean disabledForSelection = QUALITY_TIER_UNAVAILABLE.equals(tier)
                     || QUALITY_TIER_DOWNLOADED.equals(tier);
 
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(android.view.Gravity.CENTER_VERTICAL);
             row.setPadding(dp(10), dp(9), dp(10), dp(9));
-            int bgColor = unavailable ? 0xFF222222 : (isSelected ? 0x33BB86FC : 0xFF2D2D2D);
+            int bgColor = disabledForSelection ? 0xFF222222 : (isSelected ? 0x33BB86FC : 0xFF2D2D2D);
             row.setBackgroundColor(bgColor);
             LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             rowParams.bottomMargin = dp(4);
             row.setLayoutParams(rowParams);
-            if (!unavailable) {
+            if (!disabledForSelection) {
                 row.setClickable(true);
                 row.setFocusable(true);
             }
@@ -2486,14 +2486,14 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
             TextView tvName = new TextView(this);
             tvName.setText(name);
-            int nameColor = unavailable ? 0x60FFFFFF : (isSelected ? 0xFFBB86FC : 0xFFFFFFFF);
+            int nameColor = disabledForSelection ? 0x60FFFFFF : (isSelected ? 0xFFBB86FC : 0xFFFFFFFF);
             tvName.setTextColor(nameColor);
             tvName.setTextSize(14);
             leftCol.addView(tvName);
 
             TextView tvBitrate = new TextView(this);
             tvBitrate.setText(bitrate);
-            tvBitrate.setTextColor(unavailable ? 0x30FFFFFF : 0x80FFFFFF);
+            tvBitrate.setTextColor(disabledForSelection ? 0x30FFFFFF : 0x80FFFFFF);
             tvBitrate.setTextSize(11);
             leftCol.addView(tvBitrate);
 
@@ -2519,7 +2519,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             tvTier.setBackground(tierBg);
             row.addView(tvTier);
 
-            if (!unavailable) {
+            if (!disabledForSelection) {
                 row.setOnClickListener(v -> {
                     callback.onSelected(level);
                     dismissOverlay();
