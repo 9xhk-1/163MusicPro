@@ -103,6 +103,7 @@ jobs:
           url = f"https://gitee.com/api/v5/repos/xtcqinghe/163-music-pro/contents/{tag_name}.apk"
           apk_size = os.path.getsize(apk_path)
 
+          print("Uploading APK metadata:")
           print(json.dumps({"path": f"{tag_name}.apk", "size_bytes": apk_size}, ensure_ascii=False))
 
           with open(apk_path, "rb") as apk_file:
@@ -124,7 +125,7 @@ jobs:
                   print(json.dumps(result, ensure_ascii=False))
           except urllib.error.HTTPError as error:
               body = error.read().decode("utf-8", errors="replace")
-              print(body)
+              print(f"HTTP Error {error.code} for {url}: {body}")
               raise
           PY
 
