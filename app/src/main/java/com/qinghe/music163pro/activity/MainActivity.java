@@ -2413,10 +2413,13 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
      */
     private void buildQualityRows(LinearLayout container,
                                    Song song,
-                                   MusicApiHelper.SongQualityInfo info,
-                                   String currentQuality,
-                                   boolean saveAsPreferred,
-                                   QualitySelectCallback callback) {
+                                    MusicApiHelper.SongQualityInfo info,
+                                    String currentQuality,
+                                    boolean saveAsPreferred,
+                                    QualitySelectCallback callback) {
+        java.util.List<String> downloadedQualities = !saveAsPreferred && song != null
+                ? DownloadManager.getAvailableLocalQualities(song)
+                : java.util.Collections.emptyList();
         // level, shortName, bitrate description
         String[][] qualities = {
             {"standard", "标准",     "128K MP3"},
@@ -2436,8 +2439,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
             boolean isSelected = saveAsPreferred && level.equals(currentQuality);
             boolean alreadyDownloaded = !saveAsPreferred
-                    && song != null
-                    && DownloadManager.hasDownloadedQuality(song, level);
+                    && downloadedQualities.contains(level);
 
             // Determine tier badge from API info
             String tier;

@@ -40,7 +40,7 @@ public class UpdateActivity extends AppCompatActivity {
     private static final String APK_SAVE_PATH =
             Environment.getExternalStorageDirectory() + "/163Music/update.apk";
     private static final int STORAGE_PERMISSION_REQUEST = 200;
-    private static final String UPDATE_BULLET = "• ";
+    private static final String UPDATE_BULLET = "•";
 
     private TextView tvProgress;
     private ProgressBar progressBar;
@@ -237,8 +237,8 @@ public class UpdateActivity extends AppCompatActivity {
             if (builder.length() > 0) {
                 builder.append('\n');
             }
-            builder.append(item.startsWith(UPDATE_BULLET) || item.startsWith("•")
-                    ? item : UPDATE_BULLET + item);
+            builder.append(item.startsWith(UPDATE_BULLET)
+                    ? item : UPDATE_BULLET + " " + item);
         }
         return builder.length() == 0 ? "获取失败" : builder.toString();
     }

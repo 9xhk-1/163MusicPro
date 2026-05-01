@@ -21,7 +21,9 @@ import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -551,9 +553,13 @@ public class DownloadManager {
                 }
             }
         }
+        Map<File, Long> modifiedTimes = new HashMap<>();
+        for (File songDir : dirs) {
+            modifiedTimes.put(songDir, getDownloadEntryModifiedTime(songDir));
+        }
         dirs.sort((left, right) -> Long.compare(
-                getDownloadEntryModifiedTime(right),
-                getDownloadEntryModifiedTime(left)));
+                modifiedTimes.get(right),
+                modifiedTimes.get(left)));
         return dirs;
     }
 

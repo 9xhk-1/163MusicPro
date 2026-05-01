@@ -1079,8 +1079,7 @@ public class MusicPlayerManager {
             }
             sleepTimerEndMs = 0;
             if (callback != null) {
-                boolean finalExitApp = exitApp;
-                mainHandler.post(() -> callback.onSleepTimerTriggered(finalExitApp));
+                mainHandler.post(() -> callback.onSleepTimerTriggered(exitApp));
             }
         };
         mainHandler.postDelayed(sleepTimerRunnable, delayMs);
