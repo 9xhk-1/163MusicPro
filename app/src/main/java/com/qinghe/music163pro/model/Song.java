@@ -16,6 +16,8 @@ public class Song implements Serializable {
     private String bvid;
     /** For Bilibili: cid of the video page */
     private long cid;
+    /** Local downloaded quality when playing from the structured songs/<quality>/ folder. */
+    private String localQuality;
 
     public Song() {}
 
@@ -49,6 +51,9 @@ public class Song implements Serializable {
 
     public long getCid() { return cid; }
     public void setCid(long cid) { this.cid = cid; }
+
+    public String getLocalQuality() { return localQuality; }
+    public void setLocalQuality(String localQuality) { this.localQuality = localQuality; }
 
     /** Check if this song is from Bilibili */
     public boolean isBilibili() {

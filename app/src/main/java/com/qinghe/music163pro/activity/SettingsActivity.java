@@ -62,13 +62,18 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void checkUpdateManually() {
         Toast.makeText(this, "正在检测更新...", Toast.LENGTH_SHORT).show();
-        UpdateChecker.checkVersion(this, new UpdateChecker.CheckCallback() {
+        UpdateChecker.checkVersionInfo(this, new UpdateChecker.VersionCheckCallback() {
             @Override
-            public void onResult(boolean isLatest) {
-                if (isLatest) {
+            public void onResult(UpdateChecker.VersionInfo versionInfo) {
+                if (versionInfo.isLatest()) {
                     Toast.makeText(SettingsActivity.this, "当前已是最新版本", Toast.LENGTH_SHORT).show();
                 } else {
-                    startActivity(new Intent(SettingsActivity.this, UpdateActivity.class));
+                    Intent intent = new Intent(SettingsActivity.this, UpdateActivity.class);
+                    if (versionInfo.getVersionName() != null
+                            && !versionInfo.getVersionName().trim().isEmpty()) {
+                        intent.putExtra("target_version_name", versionInfo.getVersionName().trim());
+                    }
+                    startActivity(intent);
                 }
             }
 

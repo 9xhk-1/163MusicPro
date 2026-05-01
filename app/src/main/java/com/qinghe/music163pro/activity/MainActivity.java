@@ -472,11 +472,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         String lastCheck = prefs.getString("last_update_check_date", "");
         if (today.equals(lastCheck)) return;
         prefs.edit().putString("last_update_check_date", today).apply();
-        UpdateChecker.checkVersion(this, new UpdateChecker.CheckCallback() {
+        UpdateChecker.checkVersionInfo(this, new UpdateChecker.VersionCheckCallback() {
             @Override
-            public void onResult(boolean isLatest) {
-                if (!isLatest) {
-                    startActivity(new Intent(MainActivity.this, UpdateActivity.class));
+            public void onResult(UpdateChecker.VersionInfo versionInfo) {
+                if (!versionInfo.isLatest()) {
+                    openUpdateActivity(versionInfo.getVersionName());
                 }
             }
 
@@ -485,6 +485,14 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 // Silently ignore auto-check errors
             }
         });
+    }
+
+    private void openUpdateActivity(String targetVersionName) {
+        Intent intent = new Intent(this, UpdateActivity.class);
+        if (targetVersionName != null && !targetVersionName.trim().isEmpty()) {
+            intent.putExtra("target_version_name", targetVersionName.trim());
+        }
+        startActivity(intent);
     }
 
     @Override
@@ -697,14 +705,13 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         SharedPreferences qualityPrefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
-        String curQuality = qualityPrefs.getString("preferred_quality", "exhigh");
+        String curQuality = getCurrentQualityLabel(song,
+                qualityPrefs.getString("preferred_quality", "exhigh"));
         String qualityLabel = "音质: " + getQualityShortName(curQuality);
         row6.addView(createFuncItem(R.drawable.ic_audio_quality, qualityLabel,
                 v -> onFuncSelectQuality()));
-        // spacer for symmetric layout
-        View qualitySpacer = new View(this);
-        qualitySpacer.setLayoutParams(new LinearLayout.LayoutParams(0, 0, 1f));
-        row6.addView(qualitySpacer);
+        row6.addView(createFuncItem(R.drawable.ic_info, "播放器信息",
+                v -> onFuncPlayerInfo()));
         contentLayout.addView(row6);
 
         scrollView.addView(contentLayout);
@@ -808,9 +815,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         String speedLabel = currentSpeed == 1.0f ? "倍速播放" : String.format("%.1fx", currentSpeed);
         row3.addView(createFuncItem(R.drawable.ic_speed, speedLabel,
                 v -> onFuncPlaybackSpeed()));
-        View spacer = new View(this);
-        spacer.setLayoutParams(new LinearLayout.LayoutParams(0, 0, 1f));
-        row3.addView(spacer);
+        row3.addView(createFuncItem(R.drawable.ic_info, "播放器信息",
+                v -> onFuncPlayerInfo()));
         contentLayout.addView(row3);
 
         scrollView.addView(contentLayout);
@@ -1278,7 +1284,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
     private void onFuncDownload(Song song) {
         dismissOverlay();
-        if (DownloadManager.isDownloaded(song)) {
+        if (song.isBilibili() && DownloadManager.isDownloaded(song)) {
             Toast.makeText(this, "歌曲已下载", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -1382,6 +1388,47 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         startActivity(intent);
     }
 
+    private void onFuncPlayerInfo() {
+        dismissOverlay();
+        FrameLayout rootView = (FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content);
+
+        overlayContainer = new FrameLayout(this);
+        overlayContainer.setLayoutParams(new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        overlayContainer.setBackgroundColor(0xCC000000);
+        addSwipeToDismiss(overlayContainer);
+
+        ScrollView scrollView = new ScrollView(this);
+        FrameLayout.LayoutParams scrollParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        scrollParams.gravity = Gravity.CENTER;
+        scrollView.setLayoutParams(scrollParams);
+
+        LinearLayout contentLayout = new LinearLayout(this);
+        contentLayout.setOrientation(LinearLayout.VERTICAL);
+        contentLayout.setGravity(Gravity.CENTER);
+        contentLayout.setPadding(dp(16), dp(12), dp(16), dp(12));
+        contentLayout.addView(createOverlayTitleBar("播放器信息"));
+
+        for (String line : playerManager.getCurrentPlayerInfoLines()) {
+            TextView textView = new TextView(this);
+            textView.setText(line);
+            textView.setTextColor(0xFFFFFFFF);
+            textView.setTextSize(12);
+            textView.setPadding(dp(10), dp(8), dp(10), dp(8));
+            textView.setBackgroundColor(0xFF2D2D2D);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            params.bottomMargin = dp(4);
+            textView.setLayoutParams(params);
+            contentLayout.addView(textView);
+        }
+
+        scrollView.addView(contentLayout);
+        overlayContainer.addView(scrollView);
+        rootView.addView(overlayContainer);
+    }
+
     /**
      * Add current song to a user-created playlist (not "我喜欢的音乐").
      * Fetches user playlists, filters to only user-created (non-liked), shows picker.
@@ -1475,7 +1522,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         }
 
         SharedPreferences lyricPrefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
-        lyricScrollMode = lyricPrefs.getInt("lyric_scroll_mode", LYRIC_MODE_FOLLOW);
+        lyricScrollMode = lyricPrefs.getInt("lyric_scroll_mode", LYRIC_MODE_BLOCK);
         int intervalSec = lyricPrefs.getInt("lyric_resume_interval", 3);
         if (intervalSec < 1) intervalSec = 1;
         lyricResumeIntervalMs = intervalSec * 1000;
@@ -2192,6 +2239,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         showQualityOptionsInternal(true, song, quality -> {
             getSharedPreferences("music163_settings", MODE_PRIVATE)
                     .edit().putString("preferred_quality", quality).apply();
+            if (song != null && !song.isBilibili()) {
+                playerManager.switchCurrentSongQuality(quality);
+            }
             Toast.makeText(this, "音质已设置: " + getQualityDisplayName(quality),
                     Toast.LENGTH_SHORT).show();
         });
@@ -2248,11 +2298,17 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         overlayContainer.addView(scrollView);
         rootView.addView(overlayContainer);
 
+        String currentQuality = getSharedPreferences("music163_settings", MODE_PRIVATE)
+                .getString("preferred_quality", "exhigh");
+        if (saveAsPreferred && song != null && DownloadManager.isDownloaded(song)) {
+            qualityListLayout.removeAllViews();
+            buildLocalQualityRows(qualityListLayout, song, currentQuality, callback);
+            return;
+        }
+
         // Fetch quality info from API (only for NetEase songs with a valid ID)
         long songId = (song != null && !song.isBilibili() && song.getId() > 0) ? song.getId() : 0;
         String cookie = playerManager.getCookie();
-        String currentQuality = getSharedPreferences("music163_settings", MODE_PRIVATE)
-                .getString("preferred_quality", "exhigh");
 
         if (songId > 0) {
             MusicApiHelper.getSongQualityInfo(songId, cookie, new MusicApiHelper.SongQualityCallback() {
@@ -2260,7 +2316,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 public void onResult(MusicApiHelper.SongQualityInfo info) {
                     runOnUiThread(() -> {
                         qualityListLayout.removeAllViews();
-                        buildQualityRows(qualityListLayout, info, currentQuality,
+                        buildQualityRows(qualityListLayout, song, info, currentQuality,
                                 saveAsPreferred, callback);
                     });
                 }
@@ -2269,14 +2325,83 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                     runOnUiThread(() -> {
                         qualityListLayout.removeAllViews();
                         // Fallback: show all levels without availability info
-                        buildQualityRows(qualityListLayout, null, currentQuality,
+                        buildQualityRows(qualityListLayout, song, null, currentQuality,
                                 saveAsPreferred, callback);
                     });
                 }
             });
         } else {
             qualityListLayout.removeAllViews();
-            buildQualityRows(qualityListLayout, null, currentQuality, saveAsPreferred, callback);
+            buildQualityRows(qualityListLayout, song, null, currentQuality, saveAsPreferred, callback);
+        }
+    }
+
+    private void buildLocalQualityRows(LinearLayout container, Song song, String currentQuality,
+                                       QualitySelectCallback callback) {
+        java.util.List<String> localQualities = DownloadManager.getAvailableLocalQualities(song);
+        String selectedLocalQuality = DownloadManager.detectLocalQualityFromPath(song.getUrl());
+        if (selectedLocalQuality == null) {
+            selectedLocalQuality = DownloadManager.getBestDownloadedQuality(song);
+        }
+        if (localQualities.isEmpty()) {
+            TextView empty = new TextView(this);
+            empty.setText("暂无本地音质列表");
+            empty.setTextColor(0x80FFFFFF);
+            empty.setTextSize(13);
+            empty.setGravity(Gravity.CENTER);
+            empty.setPadding(0, dp(8), 0, dp(8));
+            container.addView(empty);
+            return;
+        }
+        for (String quality : localQualities) {
+            boolean isSelected = quality.equals(selectedLocalQuality);
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(dp(10), dp(9), dp(10), dp(9));
+            row.setBackgroundColor(isSelected ? 0x33BB86FC : 0xFF2D2D2D);
+            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            rowParams.bottomMargin = dp(4);
+            row.setLayoutParams(rowParams);
+            row.setClickable(true);
+            row.setFocusable(true);
+
+            LinearLayout leftCol = new LinearLayout(this);
+            leftCol.setOrientation(LinearLayout.VERTICAL);
+            leftCol.setLayoutParams(new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+
+            TextView tvName = new TextView(this);
+            tvName.setText(getQualityShortName(quality));
+            tvName.setTextColor(isSelected ? 0xFFBB86FC : 0xFFFFFFFF);
+            tvName.setTextSize(14);
+            leftCol.addView(tvName);
+
+            TextView tvDesc = new TextView(this);
+            tvDesc.setText("本地已下载");
+            tvDesc.setTextColor(0x80FFFFFF);
+            tvDesc.setTextSize(11);
+            leftCol.addView(tvDesc);
+            row.addView(leftCol);
+
+            TextView badge = new TextView(this);
+            badge.setText("本地");
+            badge.setTextColor(0xFF4CAF50);
+            badge.setTextSize(11);
+            badge.setPadding(dp(6), dp(2), dp(6), dp(2));
+            GradientDrawable bg = new GradientDrawable();
+            bg.setCornerRadius(dp(4));
+            bg.setColor(0x22FFFFFF);
+            badge.setBackground(bg);
+            row.addView(badge);
+
+            final String selectedQuality = quality;
+            row.setOnClickListener(v -> {
+                callback.onSelected(selectedQuality);
+                dismissOverlay();
+            });
+            container.addView(row);
         }
     }
 
@@ -2285,6 +2410,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
      * @param info          song-specific quality info from API; null = show all without availability
      */
     private void buildQualityRows(LinearLayout container,
+                                   Song song,
                                    MusicApiHelper.SongQualityInfo info,
                                    String currentQuality,
                                    boolean saveAsPreferred,
@@ -2307,6 +2433,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             String bitrate = q[2];
 
             boolean isSelected = saveAsPreferred && level.equals(currentQuality);
+            boolean alreadyDownloaded = !saveAsPreferred
+                    && song != null
+                    && DownloadManager.hasDownloadedQuality(song, level);
 
             // Determine tier badge from API info
             String tier;
@@ -2325,7 +2454,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 }
             }
 
-            boolean unavailable = "暂无".equals(tier);
+            if (alreadyDownloaded) {
+                tier = "已下载";
+            }
+
+            boolean unavailable = "暂无".equals(tier) || "已下载".equals(tier);
 
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
@@ -2368,6 +2501,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             switch (tier) {
                 case "VIP":  tierColor = 0xFFFFAA00; break;
                 case "暂无": tierColor = 0x60FFFFFF; break;
+                case "已下载": tierColor = 0xFF4CAF50; break;
                 default:     tierColor = 0xFF4CAF50; break; // 免费
             }
             TextView tvTier = new TextView(this);
@@ -2391,6 +2525,20 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
             container.addView(row);
         }
+    }
+
+    /** Short display name for current quality (shown on the button label). */
+    private String getCurrentQualityLabel(Song song, String fallbackQuality) {
+        if (song != null && DownloadManager.isDownloaded(song)) {
+            String localQuality = DownloadManager.detectLocalQualityFromPath(song.getUrl());
+            if (localQuality == null) {
+                localQuality = DownloadManager.getBestDownloadedQuality(song);
+            }
+            if (localQuality != null) {
+                return localQuality;
+            }
+        }
+        return fallbackQuality;
     }
 
     /** Short display name for current quality (shown on the button label). */
@@ -3215,6 +3363,18 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     @Override
     public void onError(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onSleepTimerTriggered(boolean exitApp) {
+        Toast.makeText(this,
+                exitApp ? "定时结束，已退出应用" : "定时结束，已停止播放",
+                Toast.LENGTH_SHORT).show();
+        if (exitApp) {
+            dismissOverlay();
+            moveTaskToBack(true);
+            finishAffinity();
+        }
     }
 
     private final Runnable seekBarUpdateRunnable = new Runnable() {
