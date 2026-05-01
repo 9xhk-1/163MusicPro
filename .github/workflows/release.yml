@@ -81,41 +81,56 @@ jobs:
           files: ${{ steps.apk.outputs.path }}
           draft: false
           prerelease: false
-      - name: Sync APK to Gitee and Update source.json
+      - name: Upload APK to Gitee via REST API and Update source.json
         env:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
           TAG_NAME: ${{ steps.version.outputs.tag }}
           APK_PATH: ${{ steps.apk.outputs.path }}
           APK_NAME: ${{ steps.apk.outputs.name }}
         run: |
-          echo "=== Step 1: Push APK to Gitee ==="
-          
+          echo "=== Step 1: Upload APK to Gitee via REST API ==="
+
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          apk_path = os.environ["APK_PATH"]
+          tag_name = os.environ["TAG_NAME"]
+          token = os.environ["GITEE_TOKEN"]
+          url = f"https://gitee.com/api/v5/repos/xtcqinghe/163-music-pro/contents/{tag_name}.apk"
+
+          with open(apk_path, "rb") as apk_file:
+              content = base64.b64encode(apk_file.read()).decode("ascii")
+
+          payload = urllib.parse.urlencode(
+              {
+                  "access_token": token,
+                  "content": content,
+                  "message": f"Auto sync APK: {tag_name} from GitHub Actions",
+              }
+          ).encode("utf-8")
+
+          request = urllib.request.Request(url, data=payload, method="POST")
+          try:
+              with urllib.request.urlopen(request) as response:
+                  result = json.loads(response.read().decode("utf-8"))
+                  print(json.dumps({"commit": result.get("commit"), "content": result.get("content")}, ensure_ascii=False))
+          except urllib.error.HTTPError as error:
+              body = error.read().decode("utf-8", errors="replace")
+              print(body)
+              raise
+          PY
+
           # 配置 Git 用户信息
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-          # 克隆 Gitee 仓库 (使用 shallow clone 加快速度)
-          # 注意：xtcqinghe/163-music-pro 需要替换为你实际的 Gitee 用户名/仓库名，如果就是这个名字则无需修改
-          GITEE_REPO_URL="https://oauth2:${GITEE_TOKEN}@gitee.com/xtcqinghe/163-music-pro.git"
-          git clone --depth 1 --branch master $GITEE_REPO_URL gitee_repo
-          
-          # 进入 Gitee 仓库目录
-          cd gitee_repo
-          
-          # 复制 APK 并重命名为 {tag}.apk
-          # 注意：APK_PATH 是相对路径，需要从项目根目录引用
-          cp ../$APK_PATH "./${TAG_NAME}.apk"
-          
-          # 提交到 Gitee
-          git add "${TAG_NAME}.apk"
-          git commit -m "Auto sync APK: ${TAG_NAME} from GitHub Actions"
-          git push origin master
-          
           echo "=== Step 2: Update source.json in current GitHub Repo ==="
-          
-          # 回到 GitHub 工作目录
-          cd ..
-          
+
           # 创建/更新 source.json
           # 注意：URL 中不能有空格，已修正你描述中的空格问题
           echo "[\"https://gitee.com/xtcqinghe/163-music-pro/raw/master/${TAG_NAME}.apk\"]" > source.json
