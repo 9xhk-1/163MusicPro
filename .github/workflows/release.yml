@@ -86,7 +86,6 @@ jobs:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
           TAG_NAME: ${{ steps.version.outputs.tag }}
           APK_PATH: ${{ steps.apk.outputs.path }}
-          APK_NAME: ${{ steps.apk.outputs.name }}
         run: |
           echo "=== Step 1: Upload APK to Gitee via REST API ==="
 
@@ -102,6 +101,9 @@ jobs:
           tag_name = os.environ["TAG_NAME"]
           token = os.environ["GITEE_TOKEN"]
           url = f"https://gitee.com/api/v5/repos/xtcqinghe/163-music-pro/contents/{tag_name}.apk"
+          apk_size = os.path.getsize(apk_path)
+
+          print(json.dumps({"path": f"{tag_name}.apk", "size_bytes": apk_size}, ensure_ascii=False))
 
           with open(apk_path, "rb") as apk_file:
               content = base64.b64encode(apk_file.read()).decode("ascii")
@@ -115,10 +117,11 @@ jobs:
           ).encode("utf-8")
 
           request = urllib.request.Request(url, data=payload, method="POST")
+          request.add_header("Content-Type", "application/x-www-form-urlencoded")
           try:
               with urllib.request.urlopen(request) as response:
                   result = json.loads(response.read().decode("utf-8"))
-                  print(json.dumps({"commit": result.get("commit"), "content": result.get("content")}, ensure_ascii=False))
+                  print(json.dumps(result, ensure_ascii=False))
           except urllib.error.HTTPError as error:
               body = error.read().decode("utf-8", errors="replace")
               print(body)
