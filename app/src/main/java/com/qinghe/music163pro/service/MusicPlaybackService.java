@@ -19,6 +19,7 @@ import android.text.TextUtils;
 import com.qinghe.music163pro.activity.MainActivity;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 
+import java.lang.ref.WeakReference;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -56,8 +57,9 @@ public class MusicPlaybackService extends Service {
     private AlarmManager alarmManager;
     private PendingIntent autoCancelPendingIntent;
 
-    // Held instance so AutoCancelReceiver can call cancel()
-    static MusicPlaybackService instance;
+    // Held instance so AutoCancelReceiver can call cancel() without a context lookup.
+    // WeakReference prevents leaking the service if it is destroyed before the alarm fires.
+    static WeakReference<MusicPlaybackService> instanceRef;
 
     private String currentSongName = "";
     private String currentArtist   = "";
@@ -71,7 +73,7 @@ public class MusicPlaybackService extends Service {
         alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
         createNotificationChannel();
         acquireWakeLock();
-        instance = this;
+        instanceRef = new WeakReference<>(this);
     }
 
     @Override
@@ -128,7 +130,7 @@ public class MusicPlaybackService extends Service {
         super.onDestroy();
         cancelAutoCancelAlarm();
         releaseWakeLock();
-        instance = null;
+        instanceRef = null;
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -210,12 +212,8 @@ public class MusicPlaybackService extends Service {
 
         notification.tickerText = title;
         notification.flags |= Notification.FLAG_ONGOING_EVENT;
-
-        if (notification.extras == null) {
-            notification.extras = extras;
-        } else {
-            notification.extras.putAll(extras);
-        }
+        // notification.extras is always non-null when built via Notification.Builder
+        notification.extras.putAll(extras);
 
         // Apply XTC special flag: needed for the watch face to capture this notification.
         // The flag is always set on API 24+ (Android 7+), which covers all XTC watches.
@@ -300,9 +298,11 @@ public class MusicPlaybackService extends Service {
     public static class AutoCancelReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (instance != null) {
-                instance.stopForeground(true);
-                instance.stopSelf();
+            WeakReference<MusicPlaybackService> ref = instanceRef;
+            MusicPlaybackService svc = ref != null ? ref.get() : null;
+            if (svc != null) {
+                svc.stopForeground(true);
+                svc.stopSelf();
             }
         }
     }
