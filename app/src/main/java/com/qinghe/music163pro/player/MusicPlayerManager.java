@@ -6,7 +6,6 @@ import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.media.PlaybackParams;
 import android.os.Build;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
@@ -35,7 +34,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -593,13 +591,13 @@ public class MusicPlayerManager {
         notifySongChanged(song);
         savePlaybackState();
 
-        // For local files (downloaded songs with a local file path),
-        // play directly without fetching URL from the API.
-        // This covers both legacy (id=0) and new format (real id with local path).
-        if (tryPlayLocalSong(song, song.isForceLocalPlayback())) {
-            return;
-        }
         if (song.isForceLocalPlayback()) {
+            String localPath = DownloadManager.getDownloadedMp3Path(song);
+            if (!TextUtils.isEmpty(localPath)) {
+                song.setUrl(localPath);
+                startLocalPlayback(song, localPath);
+                return;
+            }
             notifyLocalPlaybackMissing(song);
             return;
         }
@@ -1253,30 +1251,6 @@ public class MusicPlayerManager {
         sourcePlaylistIsLiked = false;
     }
 
-    private boolean tryPlayLocalSong(Song song, boolean allowDownloadedLookup) {
-        String localPath = song.getUrl();
-        File localFile = resolveSafeLocalFile(localPath, song.isForceLocalPlayback());
-        if (localFile != null) {
-            startLocalPlayback(song, localFile.getAbsolutePath());
-            return true;
-        }
-        if (!TextUtils.isEmpty(localPath) && localPath.startsWith("/")) {
-            song.setUrl(null);
-            song.setLocalQuality(null);
-        }
-        if (!allowDownloadedLookup) {
-            return false;
-        }
-        String resolvedPath = DownloadManager.getDownloadedMp3Path(song);
-        File downloadedFile = resolveSafeLocalFile(resolvedPath, true);
-        if (downloadedFile != null) {
-            song.setUrl(downloadedFile.getAbsolutePath());
-            startLocalPlayback(song, downloadedFile.getAbsolutePath());
-            return true;
-        }
-        return false;
-    }
-
     private void startLocalPlayback(Song song, String localPath) {
         song.setLocalQuality(DownloadManager.detectLocalQualityFromPath(localPath));
         currentlyPlayingSongId = song.getId();
@@ -1290,29 +1264,6 @@ public class MusicPlayerManager {
         String songName = song != null && !TextUtils.isEmpty(song.getName()) ? song.getName() : "当前歌曲";
         mainHandler.post(() -> callback.onError(
                 songName + " 仅支持本地播放，但本地文件未找到。请在下载列表中重新下载"));
-    }
-
-    private File resolveSafeLocalFile(String path, boolean requireDownloadDir) {
-        if (TextUtils.isEmpty(path) || !path.startsWith("/")) {
-            return null;
-        }
-        try {
-            File canonicalFile = new File(path).getCanonicalFile();
-            if (requireDownloadDir) {
-                File downloadRoot = new File(Environment.getExternalStorageDirectory(),
-                        "163Music/Download").getCanonicalFile();
-                String downloadRootPath = downloadRoot.getPath();
-                String filePath = canonicalFile.getPath();
-                if (!filePath.equals(downloadRootPath)
-                        && !filePath.startsWith(downloadRootPath + File.separator)) {
-                    return null;
-                }
-            }
-            return canonicalFile.isFile() ? canonicalFile : null;
-        } catch (IOException e) {
-            Log.w(TAG, "Failed to resolve local file path", e);
-            return null;
-        }
     }
 
     private void playNextSequential() {
