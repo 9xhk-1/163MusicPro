@@ -22,7 +22,7 @@ import androidx.media.session.MediaButtonReceiver;
 import com.qinghe.music163pro.activity.MainActivity;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.model.Song;
-
+import android.widget.RemoteViews;
 import java.util.List;
 
 /**
@@ -157,48 +157,51 @@ public class MusicPlaybackService extends MediaBrowserServiceCompat {
         }
     }
 
-    private Notification buildNotification(String songName, String artist, boolean isPlaying) {
-        Intent contentIntent = new Intent(this, MainActivity.class);
-        contentIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent contentPendingIntent = PendingIntent.getActivity(
-                this, 0, contentIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    
 
-        // 系统级的 MediaStyle 渲染器
-        androidx.media.app.NotificationCompat.MediaStyle mediaStyle = new androidx.media.app.NotificationCompat.MediaStyle()
-                .setMediaSession(mMediaSession.getSessionToken())
-                .setShowActionsInCompactView(0, 1, 2);
+// ...
 
-        String title = (songName != null && !songName.isEmpty()) ? songName : "163音乐";
-        String text = (artist != null && !artist.isEmpty()) ? artist : "音乐播放中";
+private Notification buildNotification(String songName, String artist, boolean isPlaying) {
+    Intent contentIntent = new Intent(this, MainActivity.class);
+    contentIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+    PendingIntent contentPendingIntent = PendingIntent.getActivity(
+            this, 0, contentIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setStyle(mediaStyle)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setSmallIcon(isPlaying ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play)
-                .setContentIntent(contentPendingIntent)
-                .setOngoing(isPlaying) // 播放时不允许划掉，暂停时允许滑动关闭
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setOnlyAlertOnce(true);
+    String title = (songName != null && !songName.isEmpty()) ? songName : "163音乐";
+    String text = (artist != null && !artist.isEmpty()) ? artist : "音乐播放中";
 
-        // 使用 MediaButtonReceiver 为 Notification 绑定标准的 MediaAction Intent（而不是写死 action）
-        builder.addAction(android.R.drawable.ic_media_previous, "上一曲",
-                MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS));
+    // 核心更改：放弃系统的 MediaStyle，强制使用 RemoteViews 进行装配渲染
+    RemoteViews customView = new RemoteViews(getPackageName(), R.layout.notification_music_card);
+    customView.setTextViewText(R.id.tv_song_name, title);
+    customView.setTextViewText(R.id.tv_artist, text);
+    
+    customView.setImageViewResource(R.id.btn_play_pause,
+            isPlaying ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play);
 
-        if (isPlaying) {
-            builder.addAction(android.R.drawable.ic_media_pause, "暂停",
-                    MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PAUSE));
-        } else {
-            builder.addAction(android.R.drawable.ic_media_play, "播放",
-                    MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_PLAY));
-        }
+    // 为按钮绑定对应的底层服务动作 (必须使用明确的 Action 给手表系统触发)
+    customView.setOnClickPendingIntent(R.id.btn_prev, 
+        MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS));
+        
+    customView.setOnClickPendingIntent(R.id.btn_play_pause, 
+        MediaButtonReceiver.buildMediaButtonPendingIntent(this, isPlaying ? PlaybackStateCompat.ACTION_PAUSE : PlaybackStateCompat.ACTION_PLAY));
+        
+    customView.setOnClickPendingIntent(R.id.btn_next, 
+        MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT));
 
-        builder.addAction(android.R.drawable.ic_media_next, "下一曲",
-                MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT));
+    // 使用较低级的兼容通知结构防止小天才系统去拦截、阉割视图
+    NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setCustomContentView(customView)      // 注入折叠卡片UI
+            .setCustomBigContentView(customView)   // 注入展开卡片UI
+            .setContentIntent(contentPendingIntent)
+            .setOngoing(isPlaying)                 // 防止没暂停的时候被划掉
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setPriority(NotificationCompat.PRIORITY_MAX) // 小天才需要强行置顶保证卡片高度
+            .setOnlyAlertOnce(true);
 
-        return builder.build();
-    }
+    return builder.build();
+}
 
     private void acquireWakeLock() {
         PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
