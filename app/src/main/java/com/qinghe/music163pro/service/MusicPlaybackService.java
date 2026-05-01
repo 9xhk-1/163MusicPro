@@ -177,7 +177,7 @@ public class MusicPlaybackService extends Service {
         Notification.Builder b = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                 ? new Notification.Builder(this, KEEPALIVE_CHANNEL_ID)
                 : new Notification.Builder(this);
-        b.setSmallIcon(R.drawable.ic_music_note)
+        b.setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle("163音乐")
                 .setOngoing(true)
                 .setShowWhen(false);
@@ -218,7 +218,7 @@ public class MusicPlaybackService extends Service {
 
         b.setContent(rv)
                 .setContentIntent(contentPi)
-                .setSmallIcon(R.drawable.ic_music_note)
+                .setSmallIcon(R.mipmap.ic_launcher)
                 .setAutoCancel(false);
 
         Notification n = b.build();
