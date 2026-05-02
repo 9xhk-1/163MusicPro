@@ -50,6 +50,7 @@ public class UpdateActivity extends AppCompatActivity {
     private TextView tvUpdateLog;
     private boolean downloading = false;
     private String selectedUrl = null;
+    private String currentVersionName = "";
     private String targetVersionName = "";
 
     @Override
@@ -65,6 +66,7 @@ public class UpdateActivity extends AppCompatActivity {
         } catch (Exception ignored) {}
 
         targetVersionName = getIntent().getStringExtra("target_version_name");
+        currentVersionName = getCurrentVersionName();
         buildUI();
         loadTargetVersionInfo();
         loadSources();
@@ -201,21 +203,14 @@ public class UpdateActivity extends AppCompatActivity {
         ImoowApiHelper.fetchAboutContent(new ImoowApiHelper.AboutCallback() {
             @Override
             public void onResult(ImoowApiHelper.AboutContent aboutContent) {
-                ImoowApiHelper.UpdateLogItem matchedLog = null;
                 List<ImoowApiHelper.UpdateLogItem> items = aboutContent.getUpdateContent();
-                if (items != null) {
-                    for (ImoowApiHelper.UpdateLogItem item : items) {
-                        if (item != null && targetVersionName.equals(item.getVersion())) {
-                            matchedLog = item;
-                            break;
-                        }
-                    }
-                }
-                if (matchedLog == null) {
-                    tvUpdateLog.setText("获取失败");
+                List<ImoowApiHelper.UpdateLogItem> updateLogs =
+                        ImoowApiHelper.getUpgradeUpdateLogs(items, targetVersionName, currentVersionName);
+                if (updateLogs.isEmpty()) {
+                    tvUpdateLog.setText("暂无当前版本之后的更新日志");
                     return;
                 }
-                tvUpdateLog.setText(formatUpdateLog(matchedLog.getContent()));
+                tvUpdateLog.setText(formatUpdateLogs(updateLogs));
             }
 
             @Override
@@ -225,9 +220,28 @@ public class UpdateActivity extends AppCompatActivity {
         });
     }
 
-    private String formatUpdateLog(List<String> items) {
+    private String formatUpdateLogs(List<ImoowApiHelper.UpdateLogItem> updateLogs) {
+        if (updateLogs == null || updateLogs.isEmpty()) {
+            return "暂无当前版本之后的更新日志";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (ImoowApiHelper.UpdateLogItem updateLog : updateLogs) {
+            if (updateLog == null || updateLog.getVersion() == null
+                    || updateLog.getVersion().trim().isEmpty()) {
+                continue;
+            }
+            if (builder.length() > 0) {
+                builder.append('\n').append('\n');
+            }
+            builder.append(updateLog.getVersion()).append(" 更新内容").append('\n');
+            builder.append(formatUpdateLogContent(updateLog.getContent()));
+        }
+        return builder.length() == 0 ? "暂无当前版本之后的更新日志" : builder.toString();
+    }
+
+    private String formatUpdateLogContent(List<String> items) {
         if (items == null || items.isEmpty()) {
-            return "获取失败";
+            return "暂无详细内容";
         }
         StringBuilder builder = new StringBuilder();
         for (String item : items) {
@@ -240,7 +254,18 @@ public class UpdateActivity extends AppCompatActivity {
             builder.append(item.startsWith(UPDATE_BULLET)
                     ? item : UPDATE_BULLET + " " + item);
         }
-        return builder.length() == 0 ? "获取失败" : builder.toString();
+        return builder.length() == 0 ? "暂无详细内容" : builder.toString();
+    }
+
+    private String getCurrentVersionName() {
+        try {
+            String versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            if (versionName != null) {
+                return versionName.trim();
+            }
+        } catch (Exception ignored) {
+        }
+        return "";
     }
 
     private void loadSources() {

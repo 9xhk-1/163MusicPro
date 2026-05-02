@@ -30,6 +30,7 @@ public class AboutActivity extends AppCompatActivity {
     private static final String DEFAULT_OVERVIEW =
             "加载中...";
 
+    private String currentVersionName = "unknown";
     private TextView overviewTextView;
     private LinearLayout updateContainer;
 
@@ -61,11 +62,8 @@ public class AboutActivity extends AppCompatActivity {
 
         // Version
         content.addView(makeSpacer(px(4)));
-        String versionName = "unknown";
-        try {
-            versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
-        } catch (Exception ignored) {}
-        content.addView(makeText("版本: " + versionName, 0xFFCCCCCC, px(16), false, Gravity.CENTER));
+        currentVersionName = getCurrentVersionName();
+        content.addView(makeText("版本: " + currentVersionName, 0xFFCCCCCC, px(16), false, Gravity.CENTER));
 
         // Developer
         content.addView(makeSpacer(px(4)));
@@ -132,7 +130,8 @@ public class AboutActivity extends AppCompatActivity {
                 if (updateItems == null || updateItems.isEmpty()) {
                     updateItems = getDefaultUpdateLogs();
                 }
-                renderAboutContent(overview, updateItems);
+                renderAboutContent(overview,
+                        ImoowApiHelper.getAboutUpdateLogs(updateItems, currentVersionName));
             }
 
             @Override
@@ -194,6 +193,16 @@ public class AboutActivity extends AppCompatActivity {
         items.add(new ImoowApiHelper.UpdateLogItem("加载中...", Arrays.asList(
                 "加载中...")));
         return items;
+    }
+
+    private String getCurrentVersionName() {
+        try {
+            String versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            if (versionName != null && !versionName.trim().isEmpty()) {
+                return versionName.trim();
+            }
+        } catch (Exception ignored) {}
+        return "unknown";
     }
 
     private TextView makeText(String text, int color, int sizePx, boolean bold, int gravity) {

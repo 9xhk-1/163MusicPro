@@ -14,6 +14,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -122,6 +123,45 @@ public final class ImoowApiHelper {
         public List<String> getContent() {
             return content;
         }
+    }
+
+    public static List<UpdateLogItem> getUpgradeUpdateLogs(List<UpdateLogItem> updateItems,
+                                                           String latestVersion,
+                                                           String currentVersion) {
+        List<UpdateLogItem> normalizedItems = normalizeUpdateLogItems(updateItems);
+        if (normalizedItems.isEmpty()) {
+            return normalizedItems;
+        }
+
+        int startIndex = findVersionIndex(normalizedItems, latestVersion);
+        if (startIndex < 0) {
+            startIndex = 0;
+        }
+
+        int currentIndex = findVersionIndex(normalizedItems, currentVersion);
+        if (currentIndex >= 0) {
+            if (currentIndex <= startIndex) {
+                return new ArrayList<>();
+            }
+            return new ArrayList<>(normalizedItems.subList(startIndex, currentIndex));
+        }
+
+        return new ArrayList<>(normalizedItems.subList(startIndex, normalizedItems.size()));
+    }
+
+    public static List<UpdateLogItem> getAboutUpdateLogs(List<UpdateLogItem> updateItems,
+                                                         String currentVersion) {
+        List<UpdateLogItem> normalizedItems = normalizeUpdateLogItems(updateItems);
+        if (normalizedItems.isEmpty()) {
+            return normalizedItems;
+        }
+
+        int currentIndex = findVersionIndex(normalizedItems, currentVersion);
+        List<UpdateLogItem> result = currentIndex >= 0
+                ? new ArrayList<>(normalizedItems.subList(currentIndex, normalizedItems.size()))
+                : new ArrayList<>(normalizedItems);
+        Collections.reverse(result);
+        return result;
     }
 
     public static void fetchSources(SourcesCallback callback) {
@@ -355,6 +395,37 @@ public final class ImoowApiHelper {
 
     private static void postError(AboutCallback callback, String error) {
         MAIN_HANDLER.post(() -> callback.onError(normalizeError(error)));
+    }
+
+    private static List<UpdateLogItem> normalizeUpdateLogItems(List<UpdateLogItem> updateItems) {
+        List<UpdateLogItem> normalizedItems = new ArrayList<>();
+        if (updateItems == null) {
+            return normalizedItems;
+        }
+        for (UpdateLogItem item : updateItems) {
+            if (item == null || item.getVersion() == null || item.getVersion().trim().isEmpty()) {
+                continue;
+            }
+            normalizedItems.add(item);
+        }
+        return normalizedItems;
+    }
+
+    private static int findVersionIndex(List<UpdateLogItem> updateItems, String version) {
+        if (version == null) {
+            return -1;
+        }
+        String targetVersion = version.trim();
+        if (targetVersion.isEmpty()) {
+            return -1;
+        }
+        for (int i = 0; i < updateItems.size(); i++) {
+            UpdateLogItem item = updateItems.get(i);
+            if (item != null && targetVersion.equals(item.getVersion())) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static String normalizeError(String error) {
