@@ -215,6 +215,21 @@ public final class ImoowApiHelper {
         });
     }
 
+    public static String getAppVersionName(Context context, String fallback) {
+        if (context == null) {
+            return fallback;
+        }
+        try {
+            String versionName = context.getPackageManager()
+                    .getPackageInfo(context.getPackageName(), 0).versionName;
+            if (versionName != null && !versionName.trim().isEmpty()) {
+                return versionName.trim();
+            }
+        } catch (Exception ignored) {
+        }
+        return fallback;
+    }
+
     public static void checkVersionInfo(Context context, VersionCheckCallback callback) {
         final int versionCode;
         try {

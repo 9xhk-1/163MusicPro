@@ -69,7 +69,7 @@ public class UpdateActivity extends AppCompatActivity {
         } catch (Exception ignored) {}
 
         targetVersionName = getIntent().getStringExtra("target_version_name");
-        currentVersionName = getCurrentVersionName();
+        currentVersionName = ImoowApiHelper.getAppVersionName(this, "");
         buildUI();
         loadTargetVersionInfo();
         loadSources();
@@ -258,17 +258,6 @@ public class UpdateActivity extends AppCompatActivity {
                     ? item : UPDATE_BULLET + " " + item);
         }
         return builder.length() == 0 ? NO_UPDATE_DETAILS : builder.toString();
-    }
-
-    private String getCurrentVersionName() {
-        try {
-            String versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
-            if (versionName != null) {
-                return versionName.trim();
-            }
-        } catch (Exception ignored) {
-        }
-        return "";
     }
 
     private void loadSources() {
