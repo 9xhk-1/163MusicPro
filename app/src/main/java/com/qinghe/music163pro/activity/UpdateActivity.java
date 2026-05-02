@@ -41,6 +41,9 @@ public class UpdateActivity extends AppCompatActivity {
             Environment.getExternalStorageDirectory() + "/163Music/update.apk";
     private static final int STORAGE_PERMISSION_REQUEST = 200;
     private static final String UPDATE_BULLET = "•";
+    private static final String UPDATE_CONTENT_SUFFIX = " 更新内容";
+    private static final String NO_NEWER_UPDATE_LOGS = "暂无当前版本之后的更新日志";
+    private static final String NO_UPDATE_DETAILS = "暂无详细内容";
 
     private TextView tvProgress;
     private ProgressBar progressBar;
@@ -207,7 +210,7 @@ public class UpdateActivity extends AppCompatActivity {
                 List<ImoowApiHelper.UpdateLogItem> updateLogs =
                         ImoowApiHelper.getUpgradeUpdateLogs(items, targetVersionName, currentVersionName);
                 if (updateLogs.isEmpty()) {
-                    tvUpdateLog.setText("暂无当前版本之后的更新日志");
+                    tvUpdateLog.setText(NO_NEWER_UPDATE_LOGS);
                     return;
                 }
                 tvUpdateLog.setText(formatUpdateLogs(updateLogs));
@@ -222,7 +225,7 @@ public class UpdateActivity extends AppCompatActivity {
 
     private String formatUpdateLogs(List<ImoowApiHelper.UpdateLogItem> updateLogs) {
         if (updateLogs == null || updateLogs.isEmpty()) {
-            return "暂无当前版本之后的更新日志";
+            return NO_NEWER_UPDATE_LOGS;
         }
         StringBuilder builder = new StringBuilder();
         for (ImoowApiHelper.UpdateLogItem updateLog : updateLogs) {
@@ -233,15 +236,15 @@ public class UpdateActivity extends AppCompatActivity {
             if (builder.length() > 0) {
                 builder.append('\n').append('\n');
             }
-            builder.append(updateLog.getVersion()).append(" 更新内容").append('\n');
+            builder.append(updateLog.getVersion()).append(UPDATE_CONTENT_SUFFIX).append('\n');
             builder.append(formatUpdateLogContent(updateLog.getContent()));
         }
-        return builder.length() == 0 ? "暂无当前版本之后的更新日志" : builder.toString();
+        return builder.length() == 0 ? NO_NEWER_UPDATE_LOGS : builder.toString();
     }
 
     private String formatUpdateLogContent(List<String> items) {
         if (items == null || items.isEmpty()) {
-            return "暂无详细内容";
+            return NO_UPDATE_DETAILS;
         }
         StringBuilder builder = new StringBuilder();
         for (String item : items) {
@@ -254,7 +257,7 @@ public class UpdateActivity extends AppCompatActivity {
             builder.append(item.startsWith(UPDATE_BULLET)
                     ? item : UPDATE_BULLET + " " + item);
         }
-        return builder.length() == 0 ? "暂无详细内容" : builder.toString();
+        return builder.length() == 0 ? NO_UPDATE_DETAILS : builder.toString();
     }
 
     private String getCurrentVersionName() {
