@@ -3419,6 +3419,32 @@ public class MusicApiHelper {
         });
     }
 
+    // ==================== Playlist Rename ====================
+
+    /**
+     * Update (rename) a playlist's name.
+     */
+    public static void updatePlaylistName(long playlistId, String newName, String cookie,
+                                           PlaylistActionCallback callback) {
+        executor.execute(() -> {
+            try {
+                MusicLog.op(TAG, "重命名歌单", "id=" + playlistId + " name=" + newName);
+                JSONObject data = new JSONObject();
+                data.put("id", playlistId);
+                data.put("name", newName);
+                String csrfToken = extractCsrfToken(cookie);
+                data.put("csrf_token", csrfToken);
+                String response = weapiPost("/api/playlist/update", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                int code = json.optInt("code", -1);
+                mainHandler.post(() -> callback.onResult(code == 200));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "重命名歌单失败: " + playlistId, e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
     // ==================== Add/Remove Tracks to Playlist ====================
 
     /**

@@ -111,7 +111,8 @@ public class MoreActivity extends AppCompatActivity {
         btnProfile.setOnClickListener(v ->
                 startActivity(new Intent(this, ProfileActivity.class)));
 
-        btnPersonalFM.setOnClickListener(v -> startPersonalFM());
+        btnPersonalFM.setOnClickListener(v ->
+                startActivity(new Intent(this, PersonalFMActivity.class)));
 
         btnLogin.setOnClickListener(v ->
                 startActivity(new Intent(this, LoginActivity.class)));
@@ -190,29 +191,8 @@ public class MoreActivity extends AppCompatActivity {
     }
 
     private void startPersonalFM() {
-        String cookie = MusicPlayerManager.getInstance().getCookie();
-        Toast.makeText(this, "正在获取私人漫游...", Toast.LENGTH_SHORT).show();
-        MusicApiHelper.getPersonalFM(cookie, new MusicApiHelper.PersonalFMCallback() {
-            @Override
-            public void onResult(List<Song> songs) {
-                if (songs.isEmpty()) {
-                    Toast.makeText(MoreActivity.this, "暂无推荐歌曲", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                MusicPlayerManager playerManager = MusicPlayerManager.getInstance();
-                playerManager.setPersonalFmPlaylist(new ArrayList<>(songs), 0);
-                playerManager.playCurrent();
-                Intent intent = new Intent(MoreActivity.this, MainActivity.class);
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                startActivity(intent);
-                finish();
-            }
-
-            @Override
-            public void onError(String message) {
-                Toast.makeText(MoreActivity.this, "获取失败: " + message, Toast.LENGTH_SHORT).show();
-            }
-        });
+        // Kept for compatibility but no longer called; PersonalFMActivity handles this
+        startActivity(new Intent(this, PersonalFMActivity.class));
     }
 
     private void openRadarPlaylist() {

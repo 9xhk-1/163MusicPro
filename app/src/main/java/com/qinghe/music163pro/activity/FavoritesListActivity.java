@@ -117,6 +117,12 @@ public class FavoritesListActivity extends BaseWatchActivity {
             finish();
         });
 
+        lvFavorites.setOnItemLongClickListener((parent, view, position, id) -> {
+            Song song = favoritesList.get(position);
+            showUnfavoriteDialog(song, position);
+            return true;
+        });
+
         lvFavPlaylists.setOnItemClickListener((parent, view, position, id) -> {
             PlaylistInfo pl = playlistsList.get(position);
             Intent intent = new Intent(this, PlaylistDetailActivity.class);
@@ -336,6 +342,44 @@ public class FavoritesListActivity extends BaseWatchActivity {
             lvFavorites.setVisibility(View.GONE);
         }
     }
+    private void showUnfavoriteDialog(Song song, int position) {
+        showConfirmDialog("取消收藏", "确定取消收藏「" + song.getName() + "」？", () -> {
+            SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
+            boolean isCloud = prefs.getBoolean("fav_mode_cloud", false);
+            if (isCloud) {
+                String cookie = playerManager.getCookie();
+                if (cookie == null || cookie.isEmpty()) {
+                    Toast.makeText(this, "请先登录", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                MusicApiHelper.likeTrack(song.getId(), false, cookie,
+                        new MusicApiHelper.LikeCallback() {
+                    @Override
+                    public void onResult(boolean success) {
+                        if (success) {
+                            favoritesList.remove(position);
+                            songAdapter.notifyDataSetChanged();
+                            updateEmptyState();
+                            Toast.makeText(FavoritesListActivity.this, "已取消云端收藏", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(FavoritesListActivity.this, "操作失败", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                    @Override
+                    public void onError(String message) {
+                        Toast.makeText(FavoritesListActivity.this, "操作失败: " + message, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } else {
+                favoritesManager.removeFavorite(song);
+                favoritesList.remove(position);
+                songAdapter.notifyDataSetChanged();
+                updateEmptyState();
+                Toast.makeText(this, "已取消收藏", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
     /**
      * Show a confirmation dialog adapted for watch (360x320 px screen).
      */

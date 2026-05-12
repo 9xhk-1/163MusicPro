@@ -103,6 +103,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     // Activity-level gesture detector for swipe handling
     private GestureDetector activityGestureDetector;
 
+    // Page indicator (player/lyrics tabs at bottom)
+    private android.widget.LinearLayout pageIndicatorLayout;
+    private android.widget.ImageView ivDotPlayer;
+    private android.widget.ImageView ivDotLyrics;
+
     // Lyrics overlay state
     private boolean lyricsOverlayShowing = false;
     private final java.util.List<LyricLine> lyricLines = new java.util.ArrayList<>();
@@ -319,7 +324,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 if (Math.abs(diffX) > 80 && diffY < 200 && Math.abs(velocityX) > 200) {
                     if (diffX > 0) {
                         // Right swipe: dismiss overlay if open; exit app on main screen
-                        if (overlayContainer != null) {
+                        if (overlayContainer != null || lyricsOverlayShowing) {
                             dismissOverlay();
                         } else {
                             finish();
@@ -327,7 +332,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                         return true;
                     } else {
                         // Left swipe: show lyrics (only when no overlay is showing)
-                        if (overlayContainer == null) {
+                        if (overlayContainer == null && !lyricsOverlayShowing) {
                             showLyricsOverlay();
                             return true;
                         }
@@ -336,6 +341,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 return false;
             }
         });
+
+        // Create persistent page indicator (player/lyrics) at the bottom
+        ensurePageIndicator();
     }
 
     @Override
@@ -936,13 +944,29 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             overlayTimerHandler = null;
             overlayTimerRunnable = null;
         }
-        if (lyricsOverlayShowing) {
+        if (lyricsOverlayShowing && overlayContainer != null) {
+            // Animate lyrics overlay sliding out to the right
             stopLyricsScrollSync();
-        }
-        if (overlayContainer != null) {
-            FrameLayout rootView = (FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content);
-            rootView.removeView(overlayContainer);
+            updatePageIndicator(false);
+            final FrameLayout container = overlayContainer;
             overlayContainer = null;
+            int screenWidth = getResources().getDisplayMetrics().widthPixels;
+            container.animate().translationX(screenWidth).setDuration(250)
+                    .withEndAction(() -> {
+                        FrameLayout rootView = (FrameLayout) getWindow().getDecorView()
+                                .findViewById(android.R.id.content);
+                        rootView.removeView(container);
+                    }).start();
+        } else {
+            if (lyricsOverlayShowing) {
+                stopLyricsScrollSync();
+                updatePageIndicator(false);
+            }
+            if (overlayContainer != null) {
+                FrameLayout rootView = (FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content);
+                rootView.removeView(overlayContainer);
+                overlayContainer = null;
+            }
         }
     }
 
@@ -1615,6 +1639,15 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         mainLayout.addView(topBar);
 
+        // Time display - shown below title
+        tvLyricsTimeRef = new TextView(this);
+        tvLyricsTimeRef.setTextColor(0x80FFFFFF);
+        tvLyricsTimeRef.setTextSize(10);
+        tvLyricsTimeRef.setGravity(Gravity.CENTER);
+        tvLyricsTimeRef.setPadding(0, dp(2), 0, dp(4));
+        tvLyricsTimeRef.setText("");
+        mainLayout.addView(tvLyricsTimeRef);
+
         // Lyrics scroll view
         lyricsScrollView = new ScrollView(this);
         lyricsScrollView.setLayoutParams(new LinearLayout.LayoutParams(
@@ -1626,22 +1659,22 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         lyricsContainer = new LinearLayout(this);
         lyricsContainer.setOrientation(LinearLayout.VERTICAL);
         lyricsContainer.setGravity(Gravity.CENTER_HORIZONTAL);
-        lyricsContainer.setPadding(dp(12), dp(40), dp(12), dp(40));
+        lyricsContainer.setPadding(dp(12), dp(40), dp(12), dp(56));
         lyricsScrollView.addView(lyricsContainer);
         mainLayout.addView(lyricsScrollView);
 
-        // Time display at bottom
-        tvLyricsTimeRef = new TextView(this);
-        tvLyricsTimeRef.setTextColor(0x80FFFFFF);
-        tvLyricsTimeRef.setTextSize(10);
-        tvLyricsTimeRef.setGravity(Gravity.CENTER);
-        tvLyricsTimeRef.setPadding(0, dp(2), 0, dp(4));
-        tvLyricsTimeRef.setText("← 右滑返回");
-        mainLayout.addView(tvLyricsTimeRef);
-
         overlayContainer.addView(mainLayout);
+        // Slide in from right
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        overlayContainer.setTranslationX(screenWidth);
         rootView.addView(overlayContainer);
+        overlayContainer.animate().translationX(0).setDuration(250).start();
         lyricsOverlayShowing = true;
+        // Bring indicator on top and switch to lyrics page
+        if (pageIndicatorLayout != null) {
+            pageIndicatorLayout.bringToFront();
+            updatePageIndicator(true);
+        }
 
         // Load lyrics
         loadLyricsForOverlay(song, tvLyricsTimeRef);
@@ -1927,7 +1960,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                     int currentPos = playerManager.getCurrentPosition();
                     int duration = playerManager.getDuration();
 
-                    tvLyricsTime.setText(formatTime(currentPos) + " / " + formatTime(duration) + "  ← 右滑返回");
+                    tvLyricsTime.setText(formatTime(currentPos) + " / " + formatTime(duration));
 
                     if (lyricScrollMode == LYRIC_MODE_BLOCK && lyricsUserScrolled) {
                         if (System.currentTimeMillis() - lyricsLastUserScrollTime >= lyricResumeIntervalMs) {
@@ -3434,6 +3467,57 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         return (int) (dp * getResources().getDisplayMetrics().density + 0.5f);
     }
 
+    // ==================== Page Indicator ====================
+
+    private void ensurePageIndicator() {
+        if (pageIndicatorLayout != null) return;
+        FrameLayout rootView = (FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content);
+
+        pageIndicatorLayout = new android.widget.LinearLayout(this);
+        pageIndicatorLayout.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        pageIndicatorLayout.setGravity(Gravity.CENTER);
+        pageIndicatorLayout.setClickable(false);
+        pageIndicatorLayout.setFocusable(false);
+
+        int iconSize = dp(18);
+        int margin = dp(6);
+
+        ivDotPlayer = new android.widget.ImageView(this);
+        ivDotPlayer.setImageResource(R.drawable.ic_indicator_player);
+        android.widget.LinearLayout.LayoutParams pParams =
+                new android.widget.LinearLayout.LayoutParams(iconSize, iconSize);
+        pParams.setMarginEnd(margin);
+        ivDotPlayer.setLayoutParams(pParams);
+        ivDotPlayer.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        pageIndicatorLayout.addView(ivDotPlayer);
+
+        ivDotLyrics = new android.widget.ImageView(this);
+        ivDotLyrics.setImageResource(R.drawable.ic_indicator_lyrics);
+        ivDotLyrics.setLayoutParams(new android.widget.LinearLayout.LayoutParams(iconSize, iconSize));
+        ivDotLyrics.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        pageIndicatorLayout.addView(ivDotLyrics);
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        params.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        params.bottomMargin = dp(4);
+        pageIndicatorLayout.setLayoutParams(params);
+
+        rootView.addView(pageIndicatorLayout);
+        updatePageIndicator(false);
+    }
+
+    private void updatePageIndicator(boolean lyricsPage) {
+        if (ivDotPlayer == null || ivDotLyrics == null) return;
+        if (lyricsPage) {
+            ivDotPlayer.setColorFilter(0x66FFFFFF);  // gray = inactive
+            ivDotLyrics.setColorFilter(0xFFFFFFFF);  // white = active
+        } else {
+            ivDotPlayer.setColorFilter(0xFFFFFFFF);  // white = active
+            ivDotLyrics.setColorFilter(0x66FFFFFF);  // gray = inactive
+        }
+    }
+
     /**
      * Override onBackPressed to intercept the system back gesture on watches.
      * On 小天才 watches, right-swipe triggers onBackPressed. We only allow exit
@@ -3442,7 +3526,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
      */
     @Override
     public void onBackPressed() {
-        if (overlayContainer != null) {
+        if (overlayContainer != null || lyricsOverlayShowing) {
             dismissOverlay();
             return;
         }
