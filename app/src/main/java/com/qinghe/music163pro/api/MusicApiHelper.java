@@ -3422,22 +3422,35 @@ public class MusicApiHelper {
     // ==================== Playlist Rename ====================
 
     /**
-     * Update (rename) a playlist's name.
+     * Update (rename) a playlist's name via the batch API.
+     * Per NeteaseCloudMusicApiBackup/module/playlist_update.js:
+     *   POST /api/batch with body {"/api/playlist/update/name": '{"id":ID,"name":"NAME"}'}
      */
     public static void updatePlaylistName(long playlistId, String newName, String cookie,
                                            PlaylistActionCallback callback) {
         executor.execute(() -> {
             try {
                 MusicLog.op(TAG, "重命名歌单", "id=" + playlistId + " name=" + newName);
-                JSONObject data = new JSONObject();
-                data.put("id", playlistId);
-                data.put("name", newName);
+                // Inner data for the name update endpoint
+                JSONObject nameData = new JSONObject();
+                nameData.put("id", playlistId);
+                nameData.put("name", newName);
+                // Batch request body: key = inner endpoint, value = inner JSON string
+                JSONObject batchData = new JSONObject();
+                batchData.put("/api/playlist/update/name", nameData.toString());
                 String csrfToken = extractCsrfToken(cookie);
-                data.put("csrf_token", csrfToken);
-                String response = weapiPost("/api/playlist/update", data.toString(), cookie);
+                batchData.put("csrf_token", csrfToken);
+                String response = weapiPost("/api/batch", batchData.toString(), cookie);
                 JSONObject json = new JSONObject(response);
-                int code = json.optInt("code", -1);
-                mainHandler.post(() -> callback.onResult(code == 200));
+                // Batch response: {"/api/playlist/update/name": {"code": 200, ...}}
+                int code = -1;
+                if (json.has("/api/playlist/update/name")) {
+                    code = json.getJSONObject("/api/playlist/update/name").optInt("code", -1);
+                } else {
+                    code = json.optInt("code", -1);
+                }
+                final boolean success = code == 200;
+                mainHandler.post(() -> callback.onResult(success));
             } catch (Exception e) {
                 MusicLog.w(TAG, "重命名歌单失败: " + playlistId, e);
                 mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));

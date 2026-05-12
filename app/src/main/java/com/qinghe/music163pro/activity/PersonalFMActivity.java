@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -32,12 +33,17 @@ public class PersonalFMActivity extends AppCompatActivity {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
 
+        // Wrap content in a ScrollView so small watch screens can scroll
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setBackgroundColor(0xFF121212);
+        scrollView.setFillViewport(true);
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF121212);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         root.setPadding(dp(16), dp(16), dp(16), dp(16));
-        setContentView(root);
+        scrollView.addView(root);
+        setContentView(scrollView);
 
         // Title
         TextView tvTitle = new TextView(this);
@@ -73,7 +79,7 @@ public class PersonalFMActivity extends AppCompatActivity {
         btnBack.setTextColor(0x80FFFFFF);
         btnBack.setTextSize(13);
         btnBack.setGravity(Gravity.CENTER);
-        btnBack.setPadding(0, dp(16), 0, 0);
+        btnBack.setPadding(0, dp(16), 0, dp(8));
         btnBack.setClickable(true);
         btnBack.setFocusable(true);
         btnBack.setOnClickListener(v -> finish());

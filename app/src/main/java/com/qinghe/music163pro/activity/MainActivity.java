@@ -108,6 +108,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private android.widget.ImageView ivDotPlayer;
     private android.widget.ImageView ivDotLyrics;
 
+    // Main player content view - used to slide left/right when paging lyrics
+    private View mainPlayerContentView;
+
     // Lyrics overlay state
     private boolean lyricsOverlayShowing = false;
     private final java.util.List<LyricLine> lyricLines = new java.util.ArrayList<>();
@@ -153,6 +156,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        mainPlayerContentView = findViewById(R.id.main_player_layout);
 
         // Initialize file logging
         MusicLog.init(new File("/sdcard/163Music"));
@@ -945,12 +949,15 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             overlayTimerRunnable = null;
         }
         if (lyricsOverlayShowing && overlayContainer != null) {
-            // Animate lyrics overlay sliding out to the right
+            // Animate lyrics overlay sliding out to the right, player sliding back from left
             stopLyricsScrollSync();
             updatePageIndicator(false);
             final FrameLayout container = overlayContainer;
             overlayContainer = null;
             int screenWidth = getResources().getDisplayMetrics().widthPixels;
+            if (mainPlayerContentView != null) {
+                mainPlayerContentView.animate().translationX(0).setDuration(250).start();
+            }
             container.animate().translationX(screenWidth).setDuration(250)
                     .withEndAction(() -> {
                         FrameLayout rootView = (FrameLayout) getWindow().getDecorView()
@@ -961,6 +968,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             if (lyricsOverlayShowing) {
                 stopLyricsScrollSync();
                 updatePageIndicator(false);
+                if (mainPlayerContentView != null) {
+                    mainPlayerContentView.animate().translationX(0).setDuration(250).start();
+                }
             }
             if (overlayContainer != null) {
                 FrameLayout rootView = (FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content);
@@ -1664,11 +1674,14 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         mainLayout.addView(lyricsScrollView);
 
         overlayContainer.addView(mainLayout);
-        // Slide in from right
+        // Slide in from right (lyrics), slide player out to left
         int screenWidth = getResources().getDisplayMetrics().widthPixels;
         overlayContainer.setTranslationX(screenWidth);
         rootView.addView(overlayContainer);
         overlayContainer.animate().translationX(0).setDuration(250).start();
+        if (mainPlayerContentView != null) {
+            mainPlayerContentView.animate().translationX(-screenWidth).setDuration(250).start();
+        }
         lyricsOverlayShowing = true;
         // Bring indicator on top and switch to lyrics page
         if (pageIndicatorLayout != null) {
@@ -3510,11 +3523,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private void updatePageIndicator(boolean lyricsPage) {
         if (ivDotPlayer == null || ivDotLyrics == null) return;
         if (lyricsPage) {
-            ivDotPlayer.setColorFilter(0x66FFFFFF);  // gray = inactive
-            ivDotLyrics.setColorFilter(0xFFFFFFFF);  // white = active
+            ivDotPlayer.setColorFilter(0x55FFFFFF, android.graphics.PorterDuff.Mode.SRC_IN);  // gray = inactive
+            ivDotLyrics.setColorFilter(0xFFFFFFFF, android.graphics.PorterDuff.Mode.SRC_IN);  // white = active
         } else {
-            ivDotPlayer.setColorFilter(0xFFFFFFFF);  // white = active
-            ivDotLyrics.setColorFilter(0x66FFFFFF);  // gray = inactive
+            ivDotPlayer.setColorFilter(0xFFFFFFFF, android.graphics.PorterDuff.Mode.SRC_IN);  // white = active
+            ivDotLyrics.setColorFilter(0x55FFFFFF, android.graphics.PorterDuff.Mode.SRC_IN);  // gray = inactive
         }
     }
 
