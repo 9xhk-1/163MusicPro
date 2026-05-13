@@ -19,7 +19,8 @@ import com.qinghe.music163pro.player.MusicPlayerManager;
 /**
  * Toggle settings activity - contains boolean/toggle options:
  * - Keep screen on (SwitchMaterial)
- * - Favorites mode local/cloud (SwitchMaterial)
+ * - Favorites mode local/cloud (cyclic selection)
+ * - Sleep timer mode total/net playback (cyclic selection)
  * - Speed mode 3-value cyclic row (tap to cycle)
  */
 public class ToggleSettingsActivity extends AppCompatActivity {
@@ -29,15 +30,24 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private static final String PREF_LYRIC_SCROLL_MODE = "lyric_scroll_mode";
     private static final String PREF_LYRIC_RESUME_INTERVAL = "lyric_resume_interval";
     private static final String PREF_SLEEP_TIMER_EXIT_APP = "sleep_timer_exit_app";
+    private static final String PREF_SLEEP_TIMER_MODE = "sleep_timer_mode";
+    private static final String PREF_FAV_MODE_CLOUD = "fav_mode_cloud";
     private static final int MODE_MANUAL = 0;
     private static final int MODE_AUTO = 1;
     // Lyric scroll modes: 0=每行 (follow current line), 1=阻塞 (blocked by user scroll)
     private static final int LYRIC_MODE_FOLLOW = 0;
     private static final int LYRIC_MODE_BLOCK = 1;
+    // Sleep timer modes: 0=总时长, 1=播放净时长
+    private static final int SLEEP_TIMER_TOTAL = 0;
+    private static final int SLEEP_TIMER_NET = 1;
+    // Fav modes: 0=本地, 1=云端
+    private static final int FAV_MODE_LOCAL = 0;
+    private static final int FAV_MODE_CLOUD = 1;
 
     private SwitchMaterial switchKeepScreenOn;
     private SwitchMaterial switchSleepTimerExitApp;
-    private SwitchMaterial switchFavMode;
+    private TextView tvFavModeValue;
+    private TextView tvSleepTimerModeValue;
     private TextView tvSpeedModeValue;
     private TextView tvRecognitionModeValue;
     private TextView tvLyricScrollModeValue;
@@ -62,7 +72,8 @@ public class ToggleSettingsActivity extends AppCompatActivity {
 
         switchKeepScreenOn = findViewById(R.id.switch_keep_screen_on);
         switchSleepTimerExitApp = findViewById(R.id.switch_sleep_timer_exit_app);
-        switchFavMode = findViewById(R.id.switch_fav_mode);
+        tvFavModeValue = findViewById(R.id.tv_fav_mode_value);
+        tvSleepTimerModeValue = findViewById(R.id.tv_sleep_timer_mode_value);
         tvSpeedModeValue = findViewById(R.id.tv_speed_mode_value);
         tvRecognitionModeValue = findViewById(R.id.tv_recognition_mode_value);
         tvLyricScrollModeValue = findViewById(R.id.tv_lyric_scroll_mode_value);
@@ -70,6 +81,8 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         LinearLayout rowSpeedMode = findViewById(R.id.row_speed_mode);
         LinearLayout rowRecognitionMode = findViewById(R.id.row_recognition_mode);
         LinearLayout rowLyricScrollMode = findViewById(R.id.row_lyric_scroll_mode);
+        LinearLayout rowFavMode = findViewById(R.id.row_fav_mode);
+        LinearLayout rowSleepTimerMode = findViewById(R.id.row_sleep_timer_mode);
         rowLyricResumeInterval = findViewById(R.id.row_lyric_resume_interval);
 
         // Initialise switch states from prefs
@@ -94,13 +107,11 @@ public class ToggleSettingsActivity extends AppCompatActivity {
                     Toast.LENGTH_SHORT).show();
         });
 
-        // Favorites mode: use checked-change listener
-        switchFavMode.setOnCheckedChangeListener((btn, isChecked) -> {
-            if (updatingSwitch) return;
-            prefs.edit().putBoolean("fav_mode_cloud", isChecked).apply();
-            String mode = isChecked ? "云端" : "本地";
-            Toast.makeText(this, "收藏模式已切换为: " + mode, Toast.LENGTH_SHORT).show();
-        });
+        // Favorites mode: tap to cycle (本地 / 云端)
+        if (rowFavMode != null) rowFavMode.setOnClickListener(v -> cycleFavMode());
+
+        // Sleep timer mode: tap to cycle (总时长 / 播放净时长)
+        if (rowSleepTimerMode != null) rowSleepTimerMode.setOnClickListener(v -> cycleSleepTimerMode());
 
         // Speed mode: tap row to cycle through 3 values
         rowSpeedMode.setOnClickListener(v -> cycleSpeedMode());
@@ -119,12 +130,43 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         updatingSwitch = true;
         switchKeepScreenOn.setChecked(prefs.getBoolean("keep_screen_on", false));
         switchSleepTimerExitApp.setChecked(prefs.getBoolean(PREF_SLEEP_TIMER_EXIT_APP, false));
-        switchFavMode.setChecked(prefs.getBoolean("fav_mode_cloud", false));
         updatingSwitch = false;
+        updateFavModeValue();
+        updateSleepTimerModeValue();
         updateSpeedModeValue();
         updateRecognitionModeValue();
         updateLyricScrollModeValue();
         updateLyricResumeIntervalValue();
+    }
+
+    private void cycleFavMode() {
+        boolean isCloud = prefs.getBoolean(PREF_FAV_MODE_CLOUD, false);
+        boolean newCloud = !isCloud;
+        prefs.edit().putBoolean(PREF_FAV_MODE_CLOUD, newCloud).apply();
+        updateFavModeValue();
+        Toast.makeText(this, "收藏模式已切换为: " + (newCloud ? "云端" : "本地"), Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateFavModeValue() {
+        if (tvFavModeValue == null) return;
+        boolean isCloud = prefs.getBoolean(PREF_FAV_MODE_CLOUD, false);
+        tvFavModeValue.setText(isCloud ? "云端" : "本地");
+    }
+
+    private void cycleSleepTimerMode() {
+        int current = prefs.getInt(PREF_SLEEP_TIMER_MODE, SLEEP_TIMER_TOTAL);
+        int next = (current + 1) % 2;
+        prefs.edit().putInt(PREF_SLEEP_TIMER_MODE, next).apply();
+        updateSleepTimerModeValue();
+        String[] labels = {"总时长", "播放净时长"};
+        Toast.makeText(this, "定时关闭模式: " + labels[next], Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateSleepTimerModeValue() {
+        if (tvSleepTimerModeValue == null) return;
+        int mode = prefs.getInt(PREF_SLEEP_TIMER_MODE, SLEEP_TIMER_TOTAL);
+        String[] labels = {"总时长", "播放净时长"};
+        tvSleepTimerModeValue.setText(labels[mode]);
     }
 
     private void cycleSpeedMode() {

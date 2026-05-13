@@ -164,6 +164,27 @@ public class MyPlaylistsActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+        lvPlaylists.setOnItemLongClickListener((parent, view, position, id) -> {
+            PlaylistInfo pl = displayList.get(position);
+            if (pl.isLikedPlaylist()) {
+                // "我喜欢的音乐" – no actions
+                return true;
+            }
+            String cookie = MusicPlayerManager.getInstance().getCookie();
+            if (cookie == null || cookie.isEmpty() || !cookie.contains("MUSIC_U")) {
+                android.widget.Toast.makeText(this, "请先登录", android.widget.Toast.LENGTH_SHORT).show();
+                return true;
+            }
+            if (pl.getUserId() == currentUserId) {
+                // Own playlist: rename or delete
+                showOwnPlaylistOptions(pl, cookie);
+            } else {
+                // Subscribed playlist: unsubscribe
+                showUnsubscribeDialog(pl, cookie);
+            }
+            return true;
+        });
+
         loadPlaylists();
     }
 
@@ -204,6 +225,127 @@ public class MyPlaylistsActivity extends AppCompatActivity {
                 tvStatus.setText("加载失败: " + message);
             }
         });
+    }
+
+    private void showOwnPlaylistOptions(PlaylistInfo pl, String cookie) {
+        new AlertDialog.Builder(this)
+                .setTitle(pl.getName())
+                .setItems(new String[]{"改名", "删除"}, (dialog, which) -> {
+                    if (which == 0) {
+                        showRenamePlaylistDialog(pl, cookie);
+                    } else {
+                        showDeletePlaylistDialog(pl, cookie);
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void showRenamePlaylistDialog(PlaylistInfo pl, String cookie) {
+        EditText input = new EditText(this);
+        input.setText(pl.getName());
+        input.setTextColor(0xFFFFFFFF);
+        input.setHintTextColor(0xFF888888);
+        input.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
+        input.setPadding(px(8), px(4), px(8), px(4));
+        input.setBackgroundColor(0xFF333333);
+        input.setSelectAllOnFocus(true);
+
+        android.widget.LinearLayout container = new android.widget.LinearLayout(this);
+        container.setPadding(px(12), px(8), px(12), px(4));
+        container.addView(input, new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        new AlertDialog.Builder(this)
+                .setTitle("改名")
+                .setView(container)
+                .setPositiveButton("确认", (d, w) -> {
+                    String newName = input.getText().toString().trim();
+                    if (newName.isEmpty()) {
+                        android.widget.Toast.makeText(this, "名称不能为空", android.widget.Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    MusicApiHelper.updatePlaylistName(pl.getId(), newName, cookie,
+                            new MusicApiHelper.PlaylistActionCallback() {
+                                @Override
+                                public void onResult(boolean success) {
+                                    if (success) {
+                                        android.widget.Toast.makeText(MyPlaylistsActivity.this,
+                                                "已重命名", android.widget.Toast.LENGTH_SHORT).show();
+                                        loadPlaylists();
+                                    } else {
+                                        android.widget.Toast.makeText(MyPlaylistsActivity.this,
+                                                "改名失败", android.widget.Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+                                @Override
+                                public void onError(String message) {
+                                    android.widget.Toast.makeText(MyPlaylistsActivity.this,
+                                            "改名失败: " + message, android.widget.Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void showDeletePlaylistDialog(PlaylistInfo pl, String cookie) {
+        new AlertDialog.Builder(this)
+                .setTitle("删除歌单")
+                .setMessage("确定删除「" + pl.getName() + "」？此操作不可撤销。")
+                .setPositiveButton("删除", (d, w) -> {
+                    MusicApiHelper.deletePlaylist(pl.getId(), cookie,
+                            new MusicApiHelper.PlaylistActionCallback() {
+                                @Override
+                                public void onResult(boolean success) {
+                                    if (success) {
+                                        android.widget.Toast.makeText(MyPlaylistsActivity.this,
+                                                "已删除", android.widget.Toast.LENGTH_SHORT).show();
+                                        loadPlaylists();
+                                    } else {
+                                        android.widget.Toast.makeText(MyPlaylistsActivity.this,
+                                                "删除失败", android.widget.Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+                                @Override
+                                public void onError(String message) {
+                                    android.widget.Toast.makeText(MyPlaylistsActivity.this,
+                                            "删除失败: " + message, android.widget.Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void showUnsubscribeDialog(PlaylistInfo pl, String cookie) {
+        new AlertDialog.Builder(this)
+                .setTitle("取消收藏")
+                .setMessage("确定取消收藏歌单「" + pl.getName() + "」？")
+                .setPositiveButton("确认", (d, w) -> {
+                    MusicApiHelper.subscribePlaylist(pl.getId(), false, cookie,
+                            new MusicApiHelper.PlaylistActionCallback() {
+                                @Override
+                                public void onResult(boolean success) {
+                                    if (success) {
+                                        android.widget.Toast.makeText(MyPlaylistsActivity.this,
+                                                "已取消收藏", android.widget.Toast.LENGTH_SHORT).show();
+                                        loadPlaylists();
+                                    } else {
+                                        android.widget.Toast.makeText(MyPlaylistsActivity.this,
+                                                "操作失败", android.widget.Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+                                @Override
+                                public void onError(String message) {
+                                    android.widget.Toast.makeText(MyPlaylistsActivity.this,
+                                            "操作失败: " + message, android.widget.Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     private void showCreatePlaylistDialog() {

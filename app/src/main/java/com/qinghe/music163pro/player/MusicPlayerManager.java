@@ -56,6 +56,8 @@ public class MusicPlayerManager {
     private static final String KEY_SOURCE_PLAYLIST_IS_LIKED = "source_playlist_is_liked";
     private static final String KEY_FORCE_LOCAL_PLAYBACK = "force_local_playback";
     private static final String KEY_PERSONAL_FM_MODE = "personal_fm_mode";
+    private static final String KEY_PERSONAL_FM_MODE_STR = "personal_fm_mode_str";
+    private static final String KEY_PERSONAL_FM_SUBMODE_STR = "personal_fm_submode_str";
 
     public enum PlayMode {
         LIST_LOOP,      // 列表循环
@@ -110,6 +112,8 @@ public class MusicPlayerManager {
     private boolean sourcePlaylistIsLiked;
     private boolean personalFmMode = false;
     private boolean personalFmLoading = false;
+    private String personalFmModeStr = "DEFAULT";
+    private String personalFmSubModeStr = "";
 
     private MusicPlayerManager() {}
 
@@ -160,12 +164,18 @@ public class MusicPlayerManager {
     }
 
     public void setPersonalFmPlaylist(List<Song> songs, int startIndex) {
+        setPersonalFmPlaylist(songs, startIndex, "DEFAULT", "");
+    }
+
+    public void setPersonalFmPlaylist(List<Song> songs, int startIndex, String mode, String subMode) {
         playlist.clear();
         playlist.addAll(songs);
         currentIndex = startIndex;
         clearSourcePlaylistInfo();
         personalFmMode = true;
         personalFmLoading = false;
+        personalFmModeStr = (mode != null && !mode.isEmpty()) ? mode : "DEFAULT";
+        personalFmSubModeStr = (subMode != null) ? subMode : "";
         savePlaybackState();
     }
 
@@ -1044,6 +1054,11 @@ public class MusicPlayerManager {
     private long sleepTimerEndMs = 0;
     private Runnable sleepTimerRunnable;
 
+    // Net playback timer (counts only while playing)
+    private long sleepTimerNetRemainingMs = 0;
+    private boolean sleepTimerNetMode = false;
+    private Runnable sleepTimerNetRunnable;
+
     /**
      * Start sleep timer. Stops playback after the specified number of minutes.
      * @param minutes number of minutes until auto-stop
@@ -1053,13 +1068,32 @@ public class MusicPlayerManager {
     }
 
     /**
-     * Start sleep timer. Stops playback after the specified number of seconds.
-     * @param seconds number of seconds until auto-stop
+     * Start sleep timer using the current mode from settings (total or net playback).
+     * @param seconds total seconds for the timer
      */
     public void startSleepTimerSeconds(int seconds) {
+        // Check current timer mode preference
+        boolean netMode = false;
+        if (appContext != null) {
+            SharedPreferences prefs = appContext.getSharedPreferences("music163_settings",
+                    Context.MODE_PRIVATE);
+            netMode = prefs.getInt("sleep_timer_mode", 0) == 1;
+        }
+        if (netMode) {
+            startSleepTimerNetSeconds(seconds);
+        } else {
+            startSleepTimerTotalSeconds(seconds);
+        }
+    }
+
+    /**
+     * Start total-duration sleep timer (normal countdown regardless of playback state).
+     */
+    private void startSleepTimerTotalSeconds(int seconds) {
         cancelSleepTimer();
         long delayMs = (long) seconds * 1000;
         sleepTimerEndMs = System.currentTimeMillis() + delayMs;
+        sleepTimerNetMode = false;
         sleepTimerRunnable = () -> {
             boolean exitApp = shouldExitAfterSleepTimer();
             if (exitApp) {
@@ -1076,6 +1110,46 @@ public class MusicPlayerManager {
     }
 
     /**
+     * Start net playback sleep timer (counts down only while music is playing).
+     */
+    private void startSleepTimerNetSeconds(int seconds) {
+        cancelSleepTimer();
+        sleepTimerNetRemainingMs = (long) seconds * 1000;
+        sleepTimerNetMode = true;
+        sleepTimerEndMs = 1; // mark as active (non-zero)
+        scheduleNetTimerTick();
+    }
+
+    private void scheduleNetTimerTick() {
+        if (sleepTimerNetRunnable != null) {
+            mainHandler.removeCallbacks(sleepTimerNetRunnable);
+        }
+        sleepTimerNetRunnable = () -> {
+            if (!sleepTimerNetMode || sleepTimerNetRemainingMs <= 0) return;
+            if (isPlaying) {
+                sleepTimerNetRemainingMs -= 500;
+            }
+            if (sleepTimerNetRemainingMs <= 0) {
+                sleepTimerNetRemainingMs = 0;
+                sleepTimerEndMs = 0;
+                sleepTimerNetMode = false;
+                boolean exitApp = shouldExitAfterSleepTimer();
+                if (exitApp) {
+                    stop();
+                } else {
+                    pause();
+                }
+                if (callback != null) {
+                    mainHandler.post(() -> callback.onSleepTimerTriggered(exitApp));
+                }
+                return;
+            }
+            scheduleNetTimerTick();
+        };
+        mainHandler.postDelayed(sleepTimerNetRunnable, 500);
+    }
+
+    /**
      * Cancel an active sleep timer.
      */
     public void cancelSleepTimer() {
@@ -1083,13 +1157,22 @@ public class MusicPlayerManager {
             mainHandler.removeCallbacks(sleepTimerRunnable);
             sleepTimerRunnable = null;
         }
+        if (sleepTimerNetRunnable != null) {
+            mainHandler.removeCallbacks(sleepTimerNetRunnable);
+            sleepTimerNetRunnable = null;
+        }
         sleepTimerEndMs = 0;
+        sleepTimerNetRemainingMs = 0;
+        sleepTimerNetMode = false;
     }
 
     /**
      * Check if a sleep timer is active.
      */
     public boolean isSleepTimerActive() {
+        if (sleepTimerNetMode) {
+            return sleepTimerNetRemainingMs > 0;
+        }
         return sleepTimerEndMs > 0 && System.currentTimeMillis() < sleepTimerEndMs;
     }
 
@@ -1098,6 +1181,9 @@ public class MusicPlayerManager {
      * @return remaining ms, or 0 if no timer is active
      */
     public long getSleepTimerRemainingMs() {
+        if (sleepTimerNetMode) {
+            return sleepTimerNetRemainingMs > 0 ? sleepTimerNetRemainingMs : 0;
+        }
         if (sleepTimerEndMs > 0) {
             long remaining = sleepTimerEndMs - System.currentTimeMillis();
             return remaining > 0 ? remaining : 0;
@@ -1168,6 +1254,8 @@ public class MusicPlayerManager {
             editor.putLong(KEY_SOURCE_PLAYLIST_CREATOR_USER_ID, sourcePlaylistCreatorUserId);
             editor.putBoolean(KEY_SOURCE_PLAYLIST_IS_LIKED, sourcePlaylistIsLiked);
             editor.putBoolean(KEY_PERSONAL_FM_MODE, personalFmMode);
+            editor.putString(KEY_PERSONAL_FM_MODE_STR, personalFmModeStr);
+            editor.putString(KEY_PERSONAL_FM_SUBMODE_STR, personalFmSubModeStr);
 
             editor.apply();
         } catch (Exception e) {
@@ -1233,6 +1321,8 @@ public class MusicPlayerManager {
             sourcePlaylistCreatorUserId = prefs.getLong(KEY_SOURCE_PLAYLIST_CREATOR_USER_ID, 0);
             sourcePlaylistIsLiked = prefs.getBoolean(KEY_SOURCE_PLAYLIST_IS_LIKED, false);
             personalFmMode = prefs.getBoolean(KEY_PERSONAL_FM_MODE, false);
+            personalFmModeStr = prefs.getString(KEY_PERSONAL_FM_MODE_STR, "DEFAULT");
+            personalFmSubModeStr = prefs.getString(KEY_PERSONAL_FM_SUBMODE_STR, "");
             personalFmLoading = false;
 
             return true;
@@ -1280,7 +1370,7 @@ public class MusicPlayerManager {
         if (personalFmLoading) return;
         String cookie = getCookie();
         personalFmLoading = true;
-        MusicApiHelper.getPersonalFM(cookie, new MusicApiHelper.PersonalFMCallback() {
+        MusicApiHelper.getPersonalFMWithMode(personalFmModeStr, personalFmSubModeStr, cookie, new MusicApiHelper.PersonalFMCallback() {
             @Override
             public void onResult(List<Song> songs) {
                 personalFmLoading = false;

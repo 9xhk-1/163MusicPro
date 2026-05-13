@@ -109,14 +109,15 @@
             android:layout_marginStart="16dp"
             android:background="@color/divider" />
 
-        <!-- Favorites mode: SwitchMaterial row -->
+        <!-- Favorites mode: cyclic selection row (本地/云端) -->
         <LinearLayout
+            android:id="@+id/row_fav_mode"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:paddingStart="16dp"
-            android:paddingEnd="12dp"
+            android:paddingEnd="16dp"
             android:clickable="true"
             android:focusable="true"
             android:background="?attr/selectableItemBackground">
@@ -129,21 +130,67 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="云端收藏模式"
+                    android:text="收藏模式"
                     android:textColor="@color/text_primary"
                     android:textSize="14sp" />
                 <TextView
+                    android:id="@+id/tv_fav_mode_value"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="关闭则使用本地收藏"
-                    android:textColor="@color/text_secondary"
+                    android:textColor="@color/colorPrimary"
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/switch_fav_mode"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_more_horiz"
+                android:alpha="0.5" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0.5dp"
+            android:layout_marginStart="16dp"
+            android:background="@color/divider" />
+
+        <!-- Sleep timer mode: cyclic selection (总时长/播放净时长) -->
+        <LinearLayout
+            android:id="@+id/row_sleep_timer_mode"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="定时关闭模式"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp" />
+                <TextView
+                    android:id="@+id/tv_sleep_timer_mode_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/colorPrimary"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_more_horiz"
+                android:alpha="0.5" />
         </LinearLayout>
 
         <View
