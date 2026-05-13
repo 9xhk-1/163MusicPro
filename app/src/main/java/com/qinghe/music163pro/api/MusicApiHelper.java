@@ -1978,7 +1978,65 @@ public class MusicApiHelper {
     // ==================== Personal FM ====================
 
     /**
-     * Get one personal FM batch.
+     * Get one personal FM batch using a specific mode/subMode.
+     * (matches NeteaseCloudMusicApiBackup module/personal_fm_mode.js)
+     * Valid modes: DEFAULT, FAMILIAR, EXPLORE, SCENE_RCMD, aidj
+     * Valid subModes for SCENE_RCMD: EXERCISE, FOCUS, NIGHT_EMO
+     * Each request returns about 3 songs.
+     */
+    public static void getPersonalFMWithMode(String mode, String subMode, String cookie, PersonalFMCallback callback) {
+        executor.execute(() -> {
+            try {
+                String csrfToken = extractCsrfToken(cookie);
+                List<Song> songs = new ArrayList<>();
+                java.util.Set<Long> seenIds = new java.util.HashSet<>();
+
+                JSONObject data = new JSONObject();
+                data.put("csrf_token", csrfToken);
+                if (mode != null && !mode.isEmpty()) {
+                    data.put("mode", mode);
+                }
+                if (subMode != null && !subMode.isEmpty()) {
+                    data.put("subMode", subMode);
+                }
+                data.put("limit", 3);
+
+                String response = weapiPost("/api/v1/radio/get", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                JSONArray dataArr = json.optJSONArray("data");
+                if (dataArr != null) {
+                    for (int i = 0; i < dataArr.length(); i++) {
+                        JSONObject s = dataArr.getJSONObject(i);
+                        long id = s.getLong("id");
+                        if (seenIds.contains(id)) continue;
+                        seenIds.add(id);
+                        String name = s.getString("name");
+                        String artist = "";
+                        JSONArray artists = s.optJSONArray("artists");
+                        if (artists != null && artists.length() > 0) {
+                            artist = artists.getJSONObject(0).optString("name", "");
+                        }
+                        String album = "";
+                        JSONObject albumObj = s.optJSONObject("album");
+                        if (albumObj != null) {
+                            album = albumObj.optString("name", "");
+                        }
+                        songs.add(new Song(id, name, artist, album));
+                    }
+                }
+
+                final List<Song> result = songs;
+                MusicLog.d(TAG, "私人漫游(" + mode + ")获取完成: " + result.size() + " 首");
+                mainHandler.post(() -> callback.onResult(result));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "获取私人漫游失败", e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    /**
+     * Get one personal FM batch (default mode).
      * (same as NeteaseCloudMusicApiBackup module/personal_fm.js)
      * Each request returns about 3 songs.
      * Callers should request another batch when they need to extend the FM queue.

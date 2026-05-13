@@ -64,14 +64,38 @@ public class PersonalFMActivity extends AppCompatActivity {
         tvDesc.setPadding(0, 0, 0, dp(20));
         root.addView(tvDesc);
 
-        // Mode: 普通漫游
-        addModeButton(root, "普通漫游", "根据喜好随机推荐", () -> startPersonalFM("normal"));
+        // Mode: 默认
+        addModeButton(root, "默认模式", "个性化推荐", () -> startPersonalFM("DEFAULT", ""));
 
-        // Divider
         addDivider(root);
 
-        // Mode: 心动漫游
-        addModeButton(root, "心动漫游", "基于当前播放推荐", () -> startPersonalFM("heartbeat"));
+        // Mode: 熟悉
+        addModeButton(root, "熟悉模式", "多播放你熟悉的歌曲", () -> startPersonalFM("FAMILIAR", ""));
+
+        addDivider(root);
+
+        // Mode: 探索
+        addModeButton(root, "探索模式", "发现你不熟悉的新音乐", () -> startPersonalFM("EXPLORE", ""));
+
+        addDivider(root);
+
+        // Mode: 运动场景 (SCENE_RCMD / EXERCISE)
+        addModeButton(root, "运动场景", "节奏感强的运动陪伴", () -> startPersonalFM("SCENE_RCMD", "EXERCISE"));
+
+        addDivider(root);
+
+        // Mode: 专注场景 (SCENE_RCMD / FOCUS)
+        addModeButton(root, "专注场景", "适合安静专注的氛围", () -> startPersonalFM("SCENE_RCMD", "FOCUS"));
+
+        addDivider(root);
+
+        // Mode: 夜晚情绪 (SCENE_RCMD / NIGHT_EMO)
+        addModeButton(root, "夜晚情绪", "夜晚安静放松的心情", () -> startPersonalFM("SCENE_RCMD", "NIGHT_EMO"));
+
+        addDivider(root);
+
+        // Mode: AI DJ
+        addModeButton(root, "AI DJ", "AI主播智能推荐", () -> startPersonalFM("aidj", ""));
 
         // Back button
         TextView btnBack = new TextView(this);
@@ -136,7 +160,7 @@ public class PersonalFMActivity extends AppCompatActivity {
         return bg;
     }
 
-    private void startPersonalFM(String mode) {
+    private void startPersonalFM(String mode, String subMode) {
         String cookie = MusicPlayerManager.getInstance().getCookie();
         if (cookie == null || cookie.isEmpty() || !cookie.contains("MUSIC_U")) {
             Toast.makeText(this, "请先登录", Toast.LENGTH_SHORT).show();
@@ -152,7 +176,7 @@ public class PersonalFMActivity extends AppCompatActivity {
                     return;
                 }
                 MusicPlayerManager playerManager = MusicPlayerManager.getInstance();
-                playerManager.setPersonalFmPlaylist(new ArrayList<>(songs), 0);
+                playerManager.setPersonalFmPlaylist(new ArrayList<>(songs), 0, mode, subMode);
                 playerManager.playCurrent();
                 Intent intent = new Intent(PersonalFMActivity.this, MainActivity.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -166,8 +190,7 @@ public class PersonalFMActivity extends AppCompatActivity {
             }
         };
 
-        // Both modes use the same API endpoint for now; mode flag is logged for future differentiation
-        MusicApiHelper.getPersonalFM(cookie, callback);
+        MusicApiHelper.getPersonalFMWithMode(mode, subMode, cookie, callback);
     }
 
     private int dp(int dp) {

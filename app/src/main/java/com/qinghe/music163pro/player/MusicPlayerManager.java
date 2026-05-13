@@ -56,6 +56,8 @@ public class MusicPlayerManager {
     private static final String KEY_SOURCE_PLAYLIST_IS_LIKED = "source_playlist_is_liked";
     private static final String KEY_FORCE_LOCAL_PLAYBACK = "force_local_playback";
     private static final String KEY_PERSONAL_FM_MODE = "personal_fm_mode";
+    private static final String KEY_PERSONAL_FM_MODE_STR = "personal_fm_mode_str";
+    private static final String KEY_PERSONAL_FM_SUBMODE_STR = "personal_fm_submode_str";
 
     public enum PlayMode {
         LIST_LOOP,      // 列表循环
@@ -110,6 +112,8 @@ public class MusicPlayerManager {
     private boolean sourcePlaylistIsLiked;
     private boolean personalFmMode = false;
     private boolean personalFmLoading = false;
+    private String personalFmModeStr = "DEFAULT";
+    private String personalFmSubModeStr = "";
 
     private MusicPlayerManager() {}
 
@@ -160,12 +164,18 @@ public class MusicPlayerManager {
     }
 
     public void setPersonalFmPlaylist(List<Song> songs, int startIndex) {
+        setPersonalFmPlaylist(songs, startIndex, "DEFAULT", "");
+    }
+
+    public void setPersonalFmPlaylist(List<Song> songs, int startIndex, String mode, String subMode) {
         playlist.clear();
         playlist.addAll(songs);
         currentIndex = startIndex;
         clearSourcePlaylistInfo();
         personalFmMode = true;
         personalFmLoading = false;
+        personalFmModeStr = (mode != null && !mode.isEmpty()) ? mode : "DEFAULT";
+        personalFmSubModeStr = (subMode != null) ? subMode : "";
         savePlaybackState();
     }
 
@@ -1244,6 +1254,8 @@ public class MusicPlayerManager {
             editor.putLong(KEY_SOURCE_PLAYLIST_CREATOR_USER_ID, sourcePlaylistCreatorUserId);
             editor.putBoolean(KEY_SOURCE_PLAYLIST_IS_LIKED, sourcePlaylistIsLiked);
             editor.putBoolean(KEY_PERSONAL_FM_MODE, personalFmMode);
+            editor.putString(KEY_PERSONAL_FM_MODE_STR, personalFmModeStr);
+            editor.putString(KEY_PERSONAL_FM_SUBMODE_STR, personalFmSubModeStr);
 
             editor.apply();
         } catch (Exception e) {
@@ -1309,6 +1321,8 @@ public class MusicPlayerManager {
             sourcePlaylistCreatorUserId = prefs.getLong(KEY_SOURCE_PLAYLIST_CREATOR_USER_ID, 0);
             sourcePlaylistIsLiked = prefs.getBoolean(KEY_SOURCE_PLAYLIST_IS_LIKED, false);
             personalFmMode = prefs.getBoolean(KEY_PERSONAL_FM_MODE, false);
+            personalFmModeStr = prefs.getString(KEY_PERSONAL_FM_MODE_STR, "DEFAULT");
+            personalFmSubModeStr = prefs.getString(KEY_PERSONAL_FM_SUBMODE_STR, "");
             personalFmLoading = false;
 
             return true;
@@ -1356,7 +1370,7 @@ public class MusicPlayerManager {
         if (personalFmLoading) return;
         String cookie = getCookie();
         personalFmLoading = true;
-        MusicApiHelper.getPersonalFM(cookie, new MusicApiHelper.PersonalFMCallback() {
+        MusicApiHelper.getPersonalFMWithMode(personalFmModeStr, personalFmSubModeStr, cookie, new MusicApiHelper.PersonalFMCallback() {
             @Override
             public void onResult(List<Song> songs) {
                 personalFmLoading = false;
