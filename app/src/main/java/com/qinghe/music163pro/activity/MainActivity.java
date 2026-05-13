@@ -3492,8 +3492,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         pageIndicatorLayout.setClickable(false);
         pageIndicatorLayout.setFocusable(false);
 
-        int iconSize = dp(18);
-        int margin = dp(6);
+        int iconSize = dp(9);
+        int margin = dp(4);
 
         ivDotPlayer = new android.widget.ImageView(this);
         ivDotPlayer.setImageResource(R.drawable.ic_indicator_player);
