@@ -589,9 +589,27 @@ public class SongInfoActivity extends AppCompatActivity {
         // If neither exists, nothing to show
         if (resInfo == null && resUiElement == null) return;
 
-        // Create a card for each resource
+        // Extract cover URL for card thumbnail
+        String coverUrlRes = "";
+        if (resUiElement != null) {
+            JSONObject img = resUiElement.optJSONObject("image");
+            if (img != null) {
+                coverUrlRes = img.optString("imageUrl", img.optString("url", ""));
+            }
+        }
+        if (coverUrlRes.isEmpty() && resInfo != null) {
+            JSONObject al = resInfo.optJSONObject("al");
+            if (al != null) {
+                coverUrlRes = al.optString("picUrl", "");
+            }
+            if (coverUrlRes.isEmpty()) {
+                coverUrlRes = resInfo.optString("picUrl", resInfo.optString("coverImgUrl", ""));
+            }
+        }
+
+        // Create a horizontal card: [cover thumbnail] + [content column]
         LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
+        card.setOrientation(LinearLayout.HORIZONTAL);
         card.setPadding(px(8), px(6), px(8), px(6));
         GradientDrawable cardBg = new GradientDrawable();
         cardBg.setColor(COLOR_CARD_BG);
@@ -602,32 +620,57 @@ public class SongInfoActivity extends AppCompatActivity {
         cardParams.setMargins(0, px(3), 0, px(3));
         card.setLayoutParams(cardParams);
 
+        // Cover thumbnail (40x40dp)
+        ImageView ivCover = new ImageView(this);
+        int coverSize = px(40);
+        LinearLayout.LayoutParams coverLp = new LinearLayout.LayoutParams(coverSize, coverSize);
+        coverLp.gravity = android.view.Gravity.CENTER_VERTICAL;
+        ivCover.setLayoutParams(coverLp);
+        ivCover.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        GradientDrawable coverBg = new GradientDrawable();
+        coverBg.setColor(0xFF333333);
+        coverBg.setCornerRadius(px(3));
+        ivCover.setBackground(coverBg);
+        if (!coverUrlRes.isEmpty()) {
+            NetworkImageLoader.load(ivCover, coverUrlRes);
+        }
+        card.addView(ivCover);
+
+        // Content column (right side)
+        LinearLayout rightLayout = new LinearLayout(this);
+        rightLayout.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams rightLp = new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        rightLp.setMarginStart(px(8));
+        rightLayout.setLayoutParams(rightLp);
+        card.addView(rightLayout);
+
         // Display from uiElement if present (common in many block types)
         if (resUiElement != null) {
             JSONObject mainTitle = resUiElement.optJSONObject("mainTitle");
             if (mainTitle != null) {
                 String title = mainTitle.optString("title", "");
                 if (!title.isEmpty()) {
-                    card.addView(makeText(title, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
+                    rightLayout.addView(makeText(title, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
                 }
             }
             JSONObject subTitle = resUiElement.optJSONObject("subTitle");
             if (subTitle != null) {
                 String title = subTitle.optString("title", "");
                 if (!title.isEmpty()) {
-                    card.addView(makeSmallLabel(title));
+                    rightLayout.addView(makeSmallLabel(title));
                 }
             }
             String ueDesc = resUiElement.optString("description", "");
             if (!ueDesc.isEmpty()) {
-                card.addView(makeText(ueDesc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                rightLayout.addView(makeText(ueDesc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
             }
             // Image text (used by some blocks)
             JSONObject image = resUiElement.optJSONObject("image");
             if (image != null) {
                 String imageText = image.optString("title", "");
                 if (!imageText.isEmpty()) {
-                    card.addView(makeSmallLabel(imageText));
+                    rightLayout.addView(makeSmallLabel(imageText));
                 }
             }
         }
@@ -639,12 +682,13 @@ public class SongInfoActivity extends AppCompatActivity {
             if (!name.isEmpty()) {
                 // Avoid duplicate if uiElement already showed a title
                 if (resUiElement == null || resUiElement.optJSONObject("mainTitle") == null) {
-                    card.addView(makeText(name, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
+                    rightLayout.addView(makeText(name, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
                 }
             }
 
-            // Artists
-            JSONArray artists = resInfo.optJSONArray("artist");
+            // Artists - check `ar` first, then `artist`
+            JSONArray artists = resInfo.optJSONArray("ar");
+            if (artists == null) artists = resInfo.optJSONArray("artist");
             if (artists != null && artists.length() > 0) {
                 StringBuilder artistStr = new StringBuilder();
                 for (int a = 0; a < artists.length(); a++) {
@@ -656,23 +700,24 @@ public class SongInfoActivity extends AppCompatActivity {
                         artistId = art.optLong("id", 0);
                     }
                 }
-                card.addView(makeSmallLabel("歌手: " + artistStr.toString()));
+                rightLayout.addView(makeSmallLabel("歌手: " + artistStr.toString()));
             }
 
             // Album
             JSONObject album = resInfo.optJSONObject("album");
+            if (album == null) album = resInfo.optJSONObject("al");
             if (album != null) {
                 String albumName = album.optString("name", "");
                 if (!albumName.isEmpty()) {
-                    card.addView(makeSmallLabel("专辑: " + albumName));
+                    rightLayout.addView(makeSmallLabel("专辑: " + albumName));
                 }
             }
 
             // Description
             String desc = resInfo.optString("desc", "");
             if (!desc.isEmpty()) {
-                card.addView(makeSpacer(px(3)));
-                card.addView(makeText(desc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                rightLayout.addView(makeSpacer(px(3)));
+                rightLayout.addView(makeText(desc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
             }
         }
 
@@ -687,27 +732,27 @@ public class SongInfoActivity extends AppCompatActivity {
                     if (song == null) continue;
                     String sName = song.optString("name", "");
                     if (!sName.isEmpty()) {
-                        card.addView(makeSmallLabel("• " + sName));
+                        rightLayout.addView(makeSmallLabel("• " + sName));
                     }
                 }
             }
             // Playlist info
             String playlistName = extInfo.optString("name", "");
             if (!playlistName.isEmpty() && resInfo == null) {
-                card.addView(makeSmallLabel(playlistName));
+                rightLayout.addView(makeSmallLabel(playlistName));
             }
             int playCount = extInfo.optInt("playCount", 0);
             if (playCount > 0) {
-                card.addView(makeSmallLabel("播放: " + formatCount(playCount)));
+                rightLayout.addView(makeSmallLabel("播放: " + formatCount(playCount)));
             }
             int trackCount = extInfo.optInt("trackCount", 0);
             if (trackCount > 0) {
-                card.addView(makeSmallLabel("歌曲数: " + trackCount));
+                rightLayout.addView(makeSmallLabel("歌曲数: " + trackCount));
             }
         }
 
-        // Only add card if it has children
-        if (card.getChildCount() > 0) {
+        // Only add card if the content column has children
+        if (rightLayout.getChildCount() > 0) {
             // Add click handler for song blocks
             boolean isSongBlock = currentBlockCode.contains("SIMILAR_SONG")
                     || currentBlockCode.contains("REC_SONG");
@@ -742,7 +787,7 @@ public class SongInfoActivity extends AppCompatActivity {
                 if (resId > 0) {
                     currentBlockSongs.add(new Song(resId, resName, resArtist, ""));
                 }
-                card.addView(makeSmallLabel("▶ 点击播放"));
+                rightLayout.addView(makeSmallLabel("▶ 点击播放"));
                 final int songIdx = currentBlockSongs.size() - 1;
                 if (resId > 0) {
                     card.setClickable(true);
@@ -761,7 +806,7 @@ public class SongInfoActivity extends AppCompatActivity {
                 int plTrackCount = 0;
                 if (extInfo != null) plTrackCount = extInfo.optInt("trackCount", 0);
                 if (plTrackCount <= 0 && resInfo != null) plTrackCount = resInfo.optInt("trackCount", 0);
-                card.addView(makeSmallLabel("点击查看歌单"));
+                rightLayout.addView(makeSmallLabel("点击查看歌单"));
                 final long finalPlId = plId;
                 final String finalPlName = plName;
                 final int finalPlTrackCount = plTrackCount;

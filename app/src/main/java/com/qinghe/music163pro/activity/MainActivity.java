@@ -48,6 +48,7 @@ import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.service.MusicPlaybackService;
 import com.qinghe.music163pro.util.MusicLog;
+import com.qinghe.music163pro.util.NetworkImageLoader;
 import com.qinghe.music163pro.util.UpdateChecker;
 import com.google.android.material.button.MaterialButton;
 
@@ -732,7 +733,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         if (song.getId() > 0) {
             LinearLayout row7 = new LinearLayout(this);
             row7.setOrientation(LinearLayout.HORIZONTAL);
-            row7.setGravity(Gravity.CENTER);
+            row7.setGravity(Gravity.START);
             row7.setPadding(0, dp(4), 0, 0);
             row7.setLayoutParams(new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -2164,15 +2165,38 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             Song song = playlist.get(i);
 
             LinearLayout itemLayout = new LinearLayout(this);
-            itemLayout.setOrientation(LinearLayout.VERTICAL);
+            itemLayout.setOrientation(LinearLayout.HORIZONTAL);
             itemLayout.setPadding(dp(8), dp(6), dp(8), dp(6));
             itemLayout.setClickable(true);
             itemLayout.setFocusable(true);
 
             // Highlight current playing song
             if (i == currentIndex) {
-                itemLayout.setBackgroundColor(0xFF1E1E1E);
+                itemLayout.setBackgroundColor(0xFF2D2D2D);
             }
+
+            // Cover thumbnail
+            ImageView ivCover = new ImageView(this);
+            int coverSize = dp(36);
+            LinearLayout.LayoutParams coverLp = new LinearLayout.LayoutParams(coverSize, coverSize);
+            coverLp.gravity = Gravity.CENTER_VERTICAL;
+            ivCover.setLayoutParams(coverLp);
+            ivCover.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            android.graphics.drawable.GradientDrawable coverBg = new android.graphics.drawable.GradientDrawable();
+            coverBg.setColor(0xFF333333);
+            coverBg.setCornerRadius(dp(2));
+            ivCover.setBackground(coverBg);
+            NetworkImageLoader.load(ivCover, song.getCoverUrl());
+            itemLayout.addView(ivCover);
+
+            // Text column
+            LinearLayout textLayout = new LinearLayout(this);
+            textLayout.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout.LayoutParams textLp = new LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+            textLp.gravity = Gravity.CENTER_VERTICAL;
+            textLp.setMarginStart(dp(8));
+            textLayout.setLayoutParams(textLp);
 
             TextView tvName = new TextView(this);
             String prefix = (i == currentIndex) ? "▶ " : (i + 1) + ". ";
@@ -2181,7 +2205,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             tvName.setTextSize(13);
             tvName.setSingleLine(true);
             tvName.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            itemLayout.addView(tvName);
+            textLayout.addView(tvName);
 
             TextView tvArtist = new TextView(this);
             tvArtist.setText(song.getArtist());
@@ -2189,7 +2213,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             tvArtist.setTextSize(11);
             tvArtist.setSingleLine(true);
             tvArtist.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            itemLayout.addView(tvArtist);
+            textLayout.addView(tvArtist);
+
+            itemLayout.addView(textLayout);
 
             itemLayout.setOnClickListener(v -> {
                 playerManager.playFromCurrentPlaylist(index);

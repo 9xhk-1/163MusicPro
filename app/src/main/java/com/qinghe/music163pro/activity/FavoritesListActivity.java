@@ -211,10 +211,49 @@ public class FavoritesListActivity extends BaseWatchActivity {
     }
 
     private void loadLocalFavorites() {
+        // First, load from local storage immediately for fast display
         favoritesList.clear();
         favoritesList.addAll(favoritesManager.getFavorites());
         songAdapter.notifyDataSetChanged();
         updateEmptyState();
+
+        // Then, fetch fresh details (including coverUrls) from API in background
+        List<Long> ids = favoritesManager.getFavoriteIds();
+        if (ids.isEmpty()) return;
+        String cookie = playerManager.getCookie();
+        if (cookie == null || cookie.isEmpty()) return;
+
+        MusicApiHelper.fetchSongsDetails(ids, cookie, new MusicApiHelper.BatchSongDetailsCallback() {
+            @Override
+            public void onResult(java.util.Map<Long, Song> songMap) {
+                if (songMap.isEmpty()) return;
+                // Rebuild the list preserving original order
+                List<Song> updated = new ArrayList<>();
+                for (Long id : ids) {
+                    Song s = songMap.get(id);
+                    if (s != null) {
+                        updated.add(s);
+                    } else {
+                        // Keep local song if API didn't return it
+                        for (Song ls : favoritesList) {
+                            if (ls.getId() == id) {
+                                updated.add(ls);
+                                break;
+                            }
+                        }
+                    }
+                }
+                favoritesList.clear();
+                favoritesList.addAll(updated);
+                songAdapter.notifyDataSetChanged();
+                updateEmptyState();
+            }
+
+            @Override
+            public void onError(String message) {
+                // Keep local data displayed, silently ignore error
+            }
+        });
     }
 
     private void loadCloudFavorites() {
@@ -266,22 +305,24 @@ public class FavoritesListActivity extends BaseWatchActivity {
         playlistAdapter.notifyDataSetChanged();
         updateEmptyState();
 
-        // Refresh track counts and creator info from API for each locally saved playlist
+        // Refresh track counts, creator info, and coverUrl from API for each locally saved playlist
         String cookie = playerManager.getCookie();
         if (cookie != null && !cookie.isEmpty()) {
             for (int i = 0; i < playlistsList.size(); i++) {
                 final long plId = playlistsList.get(i).getId();
-                MusicApiHelper.getPlaylistMeta(plId, cookie, new MusicApiHelper.PlaylistMetaCallback() {
+                MusicApiHelper.getPlaylistMetaWithCover(plId, cookie, new MusicApiHelper.PlaylistMetaWithCoverCallback() {
                     @Override
                     public void onResult(int trackCount, String creator, long creatorUserId,
-                                         int specialType, boolean subscribed) {
-                        // Find playlist by ID (safe even if list was reordered)
+                                         int specialType, boolean subscribed, String coverUrl) {
                         for (int j = 0; j < playlistsList.size(); j++) {
                             if (playlistsList.get(j).getId() == plId) {
                                 PlaylistInfo updated = playlistsList.get(j);
                                 updated.setTrackCount(trackCount);
                                 if (creator != null && !creator.isEmpty()) {
                                     updated.setCreator(creator);
+                                }
+                                if (coverUrl != null && !coverUrl.isEmpty()) {
+                                    updated.setCoverUrl(coverUrl);
                                 }
                                 playlistAdapter.notifyDataSetChanged();
                                 playlistManager.updatePlaylistMeta(plId, trackCount, creator);

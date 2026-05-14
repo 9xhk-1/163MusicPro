@@ -322,6 +322,12 @@ public class MusicApiHelper {
         void onError(String message);
     }
 
+    /** Callback for lightweight playlist metadata fetch, also returns coverUrl */
+    public interface PlaylistMetaWithCoverCallback {
+        void onResult(int trackCount, String creator, long creatorUserId, int specialType, boolean subscribed, String coverUrl);
+        void onError(String message);
+    }
+
     /** Callback for playlist detail that also returns metadata */
     public interface PlaylistDetailWithMetaCallback {
         void onResult(List<Song> songs, int trackCount, String creator, long creatorUserId, int specialType, boolean subscribed);
@@ -660,8 +666,11 @@ public class MusicApiHelper {
                         }
                         boolean subscribed = p.optBoolean("subscribed", false);
                         int specialType = p.optInt("specialType", 0);
-                        allPlaylists.add(new PlaylistInfo(id, name, trackCount, creator,
-                                creatorId, subscribed, String.valueOf(specialType)));
+                        String coverUrl = p.optString("coverImgUrl", p.optString("picUrl", ""));
+                        PlaylistInfo pl = new PlaylistInfo(id, name, trackCount, creator,
+                                creatorId, subscribed, String.valueOf(specialType));
+                        pl.setCoverUrl(coverUrl);
+                        allPlaylists.add(pl);
                     }
 
                     hasMore = plJson.optBoolean("more", false);
@@ -1717,10 +1726,51 @@ public class MusicApiHelper {
                 }
                 int specialType = playlist.optInt("specialType", 0);
                 boolean subscribed = playlist.optBoolean("subscribed", false);
+                String coverUrl = playlist.optString("coverImgUrl", playlist.optString("picUrl", ""));
 
                 final String cn = creatorName;
                 final long cuid = creatorUserId;
+                final String cu = coverUrl;
                 mainHandler.post(() -> callback.onResult(trackCount, cn, cuid, specialType, subscribed));
+            } catch (Exception e) {
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    public static void getPlaylistMetaWithCover(long playlistId, String cookie, PlaylistMetaWithCoverCallback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject data = new JSONObject();
+                data.put("id", playlistId);
+                data.put("n", 0);
+                String csrfToken = extractCsrfToken(cookie);
+                data.put("csrf_token", csrfToken);
+
+                String response = weapiPost("/api/v6/playlist/detail", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                JSONObject playlist = json.optJSONObject("playlist");
+                if (playlist == null) {
+                    mainHandler.post(() -> callback.onError("获取歌单信息失败"));
+                    return;
+                }
+
+                int trackCount = playlist.optInt("trackCount", 0);
+                String creatorName = "";
+                long creatorUserId = 0;
+                JSONObject creatorObj = playlist.optJSONObject("creator");
+                if (creatorObj != null) {
+                    creatorName = creatorObj.optString("nickname", "");
+                    creatorUserId = creatorObj.optLong("userId", 0);
+                }
+                int specialType = playlist.optInt("specialType", 0);
+                boolean subscribed = playlist.optBoolean("subscribed", false);
+                String coverUrl = playlist.optString("coverImgUrl", playlist.optString("picUrl", ""));
+
+                final String cn = creatorName;
+                final long cuid = creatorUserId;
+                final String cu = coverUrl;
+                mainHandler.post(() -> callback.onResult(trackCount, cn, cuid, specialType, subscribed, cu));
             } catch (Exception e) {
                 mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
             }

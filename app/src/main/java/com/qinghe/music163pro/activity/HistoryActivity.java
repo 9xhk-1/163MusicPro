@@ -165,6 +165,37 @@ public class HistoryActivity extends BaseWatchActivity {
             tvEmpty.setVisibility(View.GONE);
             lvHistory.setVisibility(View.VISIBLE);
         }
+
+        // Fetch coverUrls from API in background
+        if (!displayList.isEmpty()) {
+            String cookie = playerManager.getCookie();
+            if (cookie != null && !cookie.isEmpty()) {
+                List<Long> ids = new ArrayList<>();
+                for (Song s : displayList) {
+                    ids.add(s.getId());
+                }
+                com.qinghe.music163pro.api.MusicApiHelper.fetchSongsDetails(ids, cookie,
+                        new com.qinghe.music163pro.api.MusicApiHelper.BatchSongDetailsCallback() {
+                    @Override
+                    public void onResult(java.util.Map<Long, Song> songMap) {
+                        if (songMap.isEmpty()) return;
+                        for (int i = 0; i < displayList.size(); i++) {
+                            Song local = displayList.get(i);
+                            Song fresh = songMap.get(local.getId());
+                            if (fresh != null && fresh.getCoverUrl() != null && !fresh.getCoverUrl().isEmpty()) {
+                                local.setCoverUrl(fresh.getCoverUrl());
+                            }
+                        }
+                        adapter.notifyDataSetChanged();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        // Keep local data, silently ignore
+                    }
+                });
+            }
+        }
     }
 
     private void showClearConfirmDialog() {
