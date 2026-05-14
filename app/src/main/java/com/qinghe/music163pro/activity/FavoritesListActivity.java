@@ -227,6 +227,9 @@ public class FavoritesListActivity extends BaseWatchActivity {
             @Override
             public void onResult(java.util.Map<Long, Song> songMap) {
                 if (songMap.isEmpty()) return;
+                // Build local lookup map for O(1) fallback access
+                java.util.Map<Long, Song> localMap = new java.util.HashMap<>();
+                for (Song ls : favoritesList) localMap.put(ls.getId(), ls);
                 // Rebuild the list preserving original order
                 List<Song> updated = new ArrayList<>();
                 for (Long id : ids) {
@@ -235,12 +238,8 @@ public class FavoritesListActivity extends BaseWatchActivity {
                         updated.add(s);
                     } else {
                         // Keep local song if API didn't return it
-                        for (Song ls : favoritesList) {
-                            if (ls.getId() == id) {
-                                updated.add(ls);
-                                break;
-                            }
-                        }
+                        Song local = localMap.get(id);
+                        if (local != null) updated.add(local);
                     }
                 }
                 favoritesList.clear();
