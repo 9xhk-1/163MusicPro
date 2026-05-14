@@ -9,6 +9,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -24,6 +25,7 @@ import com.qinghe.music163pro.manager.PlaylistManager;
 import com.qinghe.music163pro.model.PlaylistInfo;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
+import com.qinghe.music163pro.util.NetworkImageLoader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -73,8 +75,12 @@ public class FavoritesListActivity extends BaseWatchActivity {
                 if (song != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
+                    ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setText(song.getName());
                     tvArtist.setText(song.getArtist());
+                    if (ivCover != null) {
+                        NetworkImageLoader.load(ivCover, song.getCoverUrl());
+                    }
                 }
                 return view;
             }
@@ -90,12 +96,16 @@ public class FavoritesListActivity extends BaseWatchActivity {
                 if (pl != null) {
                     TextView tvName = view.findViewById(R.id.tv_playlist_name);
                     TextView tvInfo = view.findViewById(R.id.tv_playlist_info);
+                    ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setText(pl.getName());
                     String info = pl.getTrackCount() + "\u9996";
                     if (pl.getCreator() != null && !pl.getCreator().isEmpty()) {
                         info += " \u00b7 " + pl.getCreator();
                     }
                     tvInfo.setText(info);
+                    if (ivCover != null) {
+                        NetworkImageLoader.load(ivCover, pl.getCoverUrl());
+                    }
                 }
                 return view;
             }
@@ -201,10 +211,48 @@ public class FavoritesListActivity extends BaseWatchActivity {
     }
 
     private void loadLocalFavorites() {
+        // First, load from local storage immediately for fast display
         favoritesList.clear();
         favoritesList.addAll(favoritesManager.getFavorites());
         songAdapter.notifyDataSetChanged();
         updateEmptyState();
+
+        // Then, fetch fresh details (including coverUrls) from API in background
+        List<Long> ids = favoritesManager.getFavoriteIds();
+        if (ids.isEmpty()) return;
+        String cookie = playerManager.getCookie();
+        if (cookie == null || cookie.isEmpty()) return;
+
+        MusicApiHelper.fetchSongsDetails(ids, cookie, new MusicApiHelper.BatchSongDetailsCallback() {
+            @Override
+            public void onResult(java.util.Map<Long, Song> songMap) {
+                if (songMap.isEmpty()) return;
+                // Build local lookup map for O(1) fallback access
+                java.util.Map<Long, Song> localMap = new java.util.HashMap<>();
+                for (Song ls : favoritesList) localMap.put(ls.getId(), ls);
+                // Rebuild the list preserving original order
+                List<Song> updated = new ArrayList<>();
+                for (Long id : ids) {
+                    Song s = songMap.get(id);
+                    if (s != null) {
+                        updated.add(s);
+                    } else {
+                        // Keep local song if API didn't return it
+                        Song local = localMap.get(id);
+                        if (local != null) updated.add(local);
+                    }
+                }
+                favoritesList.clear();
+                favoritesList.addAll(updated);
+                songAdapter.notifyDataSetChanged();
+                updateEmptyState();
+            }
+
+            @Override
+            public void onError(String message) {
+                // Keep local data displayed, silently ignore error
+            }
+        });
     }
 
     private void loadCloudFavorites() {
@@ -256,22 +304,24 @@ public class FavoritesListActivity extends BaseWatchActivity {
         playlistAdapter.notifyDataSetChanged();
         updateEmptyState();
 
-        // Refresh track counts and creator info from API for each locally saved playlist
+        // Refresh track counts, creator info, and coverUrl from API for each locally saved playlist
         String cookie = playerManager.getCookie();
         if (cookie != null && !cookie.isEmpty()) {
             for (int i = 0; i < playlistsList.size(); i++) {
                 final long plId = playlistsList.get(i).getId();
-                MusicApiHelper.getPlaylistMeta(plId, cookie, new MusicApiHelper.PlaylistMetaCallback() {
+                MusicApiHelper.getPlaylistMetaWithCover(plId, cookie, new MusicApiHelper.PlaylistMetaWithCoverCallback() {
                     @Override
                     public void onResult(int trackCount, String creator, long creatorUserId,
-                                         int specialType, boolean subscribed) {
-                        // Find playlist by ID (safe even if list was reordered)
+                                         int specialType, boolean subscribed, String coverUrl) {
                         for (int j = 0; j < playlistsList.size(); j++) {
                             if (playlistsList.get(j).getId() == plId) {
                                 PlaylistInfo updated = playlistsList.get(j);
                                 updated.setTrackCount(trackCount);
                                 if (creator != null && !creator.isEmpty()) {
                                     updated.setCreator(creator);
+                                }
+                                if (coverUrl != null && !coverUrl.isEmpty()) {
+                                    updated.setCoverUrl(coverUrl);
                                 }
                                 playlistAdapter.notifyDataSetChanged();
                                 playlistManager.updatePlaylistMeta(plId, trackCount, creator);

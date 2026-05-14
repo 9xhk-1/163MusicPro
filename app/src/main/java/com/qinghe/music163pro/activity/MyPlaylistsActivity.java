@@ -22,6 +22,7 @@ import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.model.PlaylistInfo;
 import com.qinghe.music163pro.player.MusicPlayerManager;
+import com.qinghe.music163pro.util.NetworkImageLoader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -123,8 +124,11 @@ public class MyPlaylistsActivity extends AppCompatActivity {
                     TextView tvName = view.findViewById(R.id.tv_name);
                     TextView tvDetail = view.findViewById(R.id.tv_detail);
 
-                    // Icon: liked playlist = favorite, created = music note, subscribed = queue_music
-                    if (pl.isLikedPlaylist()) {
+                    // Load playlist cover image; fall back to static drawable if no cover URL
+                    if (pl.getCoverUrl() != null && !pl.getCoverUrl().isEmpty()) {
+                        icon.clearColorFilter();
+                        NetworkImageLoader.load(icon, pl.getCoverUrl());
+                    } else if (pl.isLikedPlaylist()) {
                         icon.setImageResource(R.drawable.ic_favorite);
                         icon.setColorFilter(0xFFFF4081);
                     } else if (pl.getUserId() == currentUserId) {

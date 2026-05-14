@@ -76,6 +76,8 @@
         <activity android:name=".activity.BilibiliCloudFavoritesActivity" android:exported="false" />
         <activity android:name=".activity.BilibiliCloudFavoriteVideosActivity" android:exported="false" />
         <activity android:name=".activity.PersonalFMActivity" android:exported="false" />
+        <activity android:name=".activity.AlbumDetailActivity" android:exported="false" />
+        <activity android:name=".activity.CacheManageActivity" android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

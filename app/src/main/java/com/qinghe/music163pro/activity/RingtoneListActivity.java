@@ -9,6 +9,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -54,6 +55,8 @@ public class RingtoneListActivity extends BaseWatchActivity {
                 if (info != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
+                    ImageView ivCover = view.findViewById(R.id.iv_cover);
+                    if (ivCover != null) ivCover.setImageDrawable(null);
                     tvName.setText(info.title);
                     // Enable marquee scrolling for long names
                     tvName.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);

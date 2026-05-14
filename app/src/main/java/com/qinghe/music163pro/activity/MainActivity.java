@@ -48,8 +48,11 @@ import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.service.MusicPlaybackService;
 import com.qinghe.music163pro.util.MusicLog;
+import com.qinghe.music163pro.util.NetworkImageLoader;
 import com.qinghe.music163pro.util.UpdateChecker;
 import com.google.android.material.button.MaterialButton;
+
+import org.json.JSONObject;
 
 import java.io.File;
 
@@ -725,6 +728,19 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         row6.addView(createFuncItem(R.drawable.ic_info, "播放器信息",
                 v -> onFuncPlayerInfo()));
         contentLayout.addView(row6);
+
+        // Row 7: 查看专辑
+        if (song.getId() > 0) {
+            LinearLayout row7 = new LinearLayout(this);
+            row7.setOrientation(LinearLayout.HORIZONTAL);
+            row7.setGravity(Gravity.START);
+            row7.setPadding(0, dp(4), 0, 0);
+            row7.setLayoutParams(new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            row7.addView(createFuncItem(R.drawable.ic_album, "查看专辑",
+                    v -> onFuncViewAlbum(song)));
+            contentLayout.addView(row7);
+        }
 
         scrollView.addView(contentLayout);
         overlayContainer.addView(scrollView);
@@ -1411,6 +1427,51 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         intent.putExtra("artist_id", 0L); // Will be extracted from wiki API
         intent.putExtra("cookie", playerManager.getCookie());
         startActivity(intent);
+    }
+
+    private void onFuncViewAlbum(Song song) {
+        dismissOverlay();
+        if (song.getAlbumId() > 0) {
+            // Open album detail directly with known albumId
+            Intent intent = new Intent(this, AlbumDetailActivity.class);
+            intent.putExtra("album_id", song.getAlbumId());
+            intent.putExtra("album_name", song.getAlbum());
+            intent.putExtra("album_cover_url", song.getCoverUrl());
+            startActivity(intent);
+        } else {
+            // No albumId stored: fetch song detail first to get albumId
+            Toast.makeText(this, "正在获取专辑信息...", Toast.LENGTH_SHORT).show();
+            String cookie = playerManager.getCookie();
+            MusicApiHelper.getSongDetail(song.getId(), cookie, new MusicApiHelper.SongDetailCallback() {
+                @Override
+                public void onResult(JSONObject songDetail) {
+                    JSONObject al = songDetail.optJSONObject("al");
+                    if (al == null) al = songDetail.optJSONObject("album");
+                    if (al != null) {
+                        long albumId = al.optLong("id", 0);
+                        String albumName = al.optString("name", song.getAlbum());
+                        String albumCoverUrl = al.optString("picUrl", song.getCoverUrl() != null ? song.getCoverUrl() : "");
+                        if (albumId > 0) {
+                            song.setAlbumId(albumId);
+                            Intent intent = new Intent(MainActivity.this, AlbumDetailActivity.class);
+                            intent.putExtra("album_id", albumId);
+                            intent.putExtra("album_name", albumName);
+                            intent.putExtra("album_cover_url", albumCoverUrl);
+                            startActivity(intent);
+                        } else {
+                            Toast.makeText(MainActivity.this, "无法获取专辑信息", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Toast.makeText(MainActivity.this, "无法获取专辑信息", Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                @Override
+                public void onError(String message) {
+                    Toast.makeText(MainActivity.this, "获取专辑信息失败: " + message, Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
     }
 
     private void onFuncComments(Song song) {
@@ -2104,15 +2165,38 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             Song song = playlist.get(i);
 
             LinearLayout itemLayout = new LinearLayout(this);
-            itemLayout.setOrientation(LinearLayout.VERTICAL);
+            itemLayout.setOrientation(LinearLayout.HORIZONTAL);
             itemLayout.setPadding(dp(8), dp(6), dp(8), dp(6));
             itemLayout.setClickable(true);
             itemLayout.setFocusable(true);
 
             // Highlight current playing song
             if (i == currentIndex) {
-                itemLayout.setBackgroundColor(0xFF1E1E1E);
+                itemLayout.setBackgroundColor(0xFF2D2D2D);
             }
+
+            // Cover thumbnail
+            ImageView ivCover = new ImageView(this);
+            int coverSize = dp(36);
+            LinearLayout.LayoutParams coverLp = new LinearLayout.LayoutParams(coverSize, coverSize);
+            coverLp.gravity = Gravity.CENTER_VERTICAL;
+            ivCover.setLayoutParams(coverLp);
+            ivCover.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            android.graphics.drawable.GradientDrawable coverBg = new android.graphics.drawable.GradientDrawable();
+            coverBg.setColor(0xFF333333);
+            coverBg.setCornerRadius(dp(2));
+            ivCover.setBackground(coverBg);
+            NetworkImageLoader.load(ivCover, song.getCoverUrl());
+            itemLayout.addView(ivCover);
+
+            // Text column
+            LinearLayout textLayout = new LinearLayout(this);
+            textLayout.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout.LayoutParams textLp = new LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+            textLp.gravity = Gravity.CENTER_VERTICAL;
+            textLp.setMarginStart(dp(8));
+            textLayout.setLayoutParams(textLp);
 
             TextView tvName = new TextView(this);
             String prefix = (i == currentIndex) ? "▶ " : (i + 1) + ". ";
@@ -2121,7 +2205,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             tvName.setTextSize(13);
             tvName.setSingleLine(true);
             tvName.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            itemLayout.addView(tvName);
+            textLayout.addView(tvName);
 
             TextView tvArtist = new TextView(this);
             tvArtist.setText(song.getArtist());
@@ -2129,7 +2213,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             tvArtist.setTextSize(11);
             tvArtist.setSingleLine(true);
             tvArtist.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            itemLayout.addView(tvArtist);
+            textLayout.addView(tvArtist);
+
+            itemLayout.addView(textLayout);
 
             itemLayout.setOnClickListener(v -> {
                 playerManager.playFromCurrentPlaylist(index);
