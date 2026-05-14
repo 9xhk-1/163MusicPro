@@ -592,9 +592,20 @@ public class SongInfoActivity extends AppCompatActivity {
         // Extract cover URL for card thumbnail
         String coverUrlRes = "";
         if (resUiElement != null) {
-            JSONObject img = resUiElement.optJSONObject("image");
-            if (img != null) {
-                coverUrlRes = img.optString("imageUrl", img.optString("url", ""));
+            // images is an array in the API response
+            JSONArray imgs = resUiElement.optJSONArray("images");
+            if (imgs != null && imgs.length() > 0) {
+                JSONObject img0 = imgs.optJSONObject(0);
+                if (img0 != null) {
+                    coverUrlRes = img0.optString("imageUrl", img0.optString("url", ""));
+                }
+            }
+            // Fallback: legacy single-object form
+            if (coverUrlRes.isEmpty()) {
+                JSONObject img = resUiElement.optJSONObject("image");
+                if (img != null) {
+                    coverUrlRes = img.optString("imageUrl", img.optString("url", ""));
+                }
             }
         }
         if (coverUrlRes.isEmpty() && resInfo != null) {
@@ -654,11 +665,24 @@ public class SongInfoActivity extends AppCompatActivity {
                     rightLayout.addView(makeText(title, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
                 }
             }
-            JSONObject subTitle = resUiElement.optJSONObject("subTitle");
-            if (subTitle != null) {
-                String title = subTitle.optString("title", "");
-                if (!title.isEmpty()) {
-                    rightLayout.addView(makeSmallLabel(title));
+            // subTitles is an array in the API response
+            JSONArray subTitles = resUiElement.optJSONArray("subTitles");
+            if (subTitles != null && subTitles.length() > 0) {
+                JSONObject st0 = subTitles.optJSONObject(0);
+                if (st0 != null) {
+                    String title = st0.optString("title", "");
+                    if (!title.isEmpty()) {
+                        rightLayout.addView(makeSmallLabel(title));
+                    }
+                }
+            } else {
+                // Fallback: legacy single-object form
+                JSONObject subTitle = resUiElement.optJSONObject("subTitle");
+                if (subTitle != null) {
+                    String title = subTitle.optString("title", "");
+                    if (!title.isEmpty()) {
+                        rightLayout.addView(makeSmallLabel(title));
+                    }
                 }
             }
             String ueDesc = resUiElement.optString("description", "");
@@ -666,11 +690,22 @@ public class SongInfoActivity extends AppCompatActivity {
                 rightLayout.addView(makeText(ueDesc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
             }
             // Image text (used by some blocks)
-            JSONObject image = resUiElement.optJSONObject("image");
-            if (image != null) {
-                String imageText = image.optString("title", "");
-                if (!imageText.isEmpty()) {
-                    rightLayout.addView(makeSmallLabel(imageText));
+            JSONArray imgArr = resUiElement.optJSONArray("images");
+            if (imgArr != null && imgArr.length() > 0) {
+                JSONObject img0 = imgArr.optJSONObject(0);
+                if (img0 != null) {
+                    String imageText = img0.optString("title", "");
+                    if (!imageText.isEmpty()) {
+                        rightLayout.addView(makeSmallLabel(imageText));
+                    }
+                }
+            } else {
+                JSONObject image = resUiElement.optJSONObject("image");
+                if (image != null) {
+                    String imageText = image.optString("title", "");
+                    if (!imageText.isEmpty()) {
+                        rightLayout.addView(makeSmallLabel(imageText));
+                    }
                 }
             }
         }
@@ -779,15 +814,22 @@ public class SongInfoActivity extends AppCompatActivity {
                         resArtist = resInfo.optString("artistName", "");
                     }
                 }
-                // Fall back to uiElement subTitle if artist not found in resInfo
+                // Fall back to uiElement subTitles[] array if artist not found in resInfo
                 if (resArtist.isEmpty() && resUiElement != null) {
-                    JSONObject st = resUiElement.optJSONObject("subTitle");
-                    if (st != null) resArtist = st.optString("title", "");
+                    JSONArray sts = resUiElement.optJSONArray("subTitles");
+                    if (sts != null && sts.length() > 0) {
+                        JSONObject st0 = sts.optJSONObject(0);
+                        if (st0 != null) resArtist = st0.optString("title", "");
+                    }
+                    if (resArtist.isEmpty()) {
+                        JSONObject st = resUiElement.optJSONObject("subTitle");
+                        if (st != null) resArtist = st.optString("title", "");
+                    }
                 }
                 if (resId > 0) {
                     currentBlockSongs.add(new Song(resId, resName, resArtist, ""));
                 }
-                rightLayout.addView(makeSmallLabel("▶ 点击播放"));
+                // Artist is already shown above via uiElement.subTitles or resInfo.ar rendering
                 final int songIdx = currentBlockSongs.size() - 1;
                 if (resId > 0) {
                     card.setClickable(true);
