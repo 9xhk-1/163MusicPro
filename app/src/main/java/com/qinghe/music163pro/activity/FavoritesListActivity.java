@@ -9,6 +9,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -24,6 +25,7 @@ import com.qinghe.music163pro.manager.PlaylistManager;
 import com.qinghe.music163pro.model.PlaylistInfo;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
+import com.qinghe.music163pro.util.NetworkImageLoader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -73,8 +75,12 @@ public class FavoritesListActivity extends BaseWatchActivity {
                 if (song != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
+                    ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setText(song.getName());
                     tvArtist.setText(song.getArtist());
+                    if (ivCover != null) {
+                        NetworkImageLoader.load(ivCover, song.getCoverUrl());
+                    }
                 }
                 return view;
             }
@@ -90,12 +96,16 @@ public class FavoritesListActivity extends BaseWatchActivity {
                 if (pl != null) {
                     TextView tvName = view.findViewById(R.id.tv_playlist_name);
                     TextView tvInfo = view.findViewById(R.id.tv_playlist_info);
+                    ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setText(pl.getName());
                     String info = pl.getTrackCount() + "\u9996";
                     if (pl.getCreator() != null && !pl.getCreator().isEmpty()) {
                         info += " \u00b7 " + pl.getCreator();
                     }
                     tvInfo.setText(info);
+                    if (ivCover != null) {
+                        NetworkImageLoader.load(ivCover, pl.getCoverUrl());
+                    }
                 }
                 return view;
             }

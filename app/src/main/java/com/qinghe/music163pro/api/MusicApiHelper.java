@@ -333,6 +333,16 @@ public class MusicApiHelper {
         void onError(String message);
     }
 
+    public interface AlbumDetailCallback {
+        void onResult(String albumName, String coverUrl, List<Song> songs);
+        void onError(String message);
+    }
+
+    public interface BatchSongDetailsCallback {
+        void onResult(java.util.Map<Long, Song> songMap);
+        void onError(String message);
+    }
+
     public interface CloudItemsCallback {
         void onResult(List<CloudItem> items);
         void onError(String message);
@@ -464,8 +474,13 @@ public class MusicApiHelper {
                             }
                             int specialType = p.optInt("specialType", 0);
                             boolean subscribed = p.optBoolean("subscribed", false);
-                            playlists.add(new PlaylistInfo(id, name, trackCount, creator,
-                                    creatorUserId, subscribed, String.valueOf(specialType)));
+                            String coverUrl = pickFirstNonEmpty(p, "coverImgUrl", "picUrl", "cover");
+                            PlaylistInfo playlistInfo = new PlaylistInfo(id, name, trackCount, creator,
+                                    creatorUserId, subscribed, String.valueOf(specialType));
+                            if (!coverUrl.isEmpty()) {
+                                playlistInfo.setCoverUrl(coverUrl);
+                            }
+                            playlists.add(playlistInfo);
                         }
                     }
                 }
@@ -1372,19 +1387,10 @@ public class MusicApiHelper {
                 if (songsArray != null) {
                     for (int i = 0; i < songsArray.length(); i++) {
                         JSONObject s = songsArray.getJSONObject(i);
-                        long id = s.getLong("id");
-                        String name = s.getString("name");
-                        String artist = "";
-                        JSONArray ar = s.optJSONArray("ar");
-                        if (ar != null && ar.length() > 0) {
-                            artist = ar.getJSONObject(0).optString("name", "");
+                        Song song = parseSongFromJson(s);
+                        if (song != null && song.getId() > 0) {
+                            songMap.put(song.getId(), song);
                         }
-                        String album = "";
-                        JSONObject al = s.optJSONObject("al");
-                        if (al != null) {
-                            album = al.optString("name", "");
-                        }
-                        songMap.put(id, new Song(id, name, artist, album));
                     }
                 }
             }
@@ -1432,23 +1438,14 @@ public class MusicApiHelper {
             JSONArray songsArray = detailJson.optJSONArray("songs");
 
             if (songsArray != null) {
-                for (int i = 0; i < songsArray.length(); i++) {
-                    JSONObject s = songsArray.getJSONObject(i);
-                    long id = s.getLong("id");
-                    String name = s.getString("name");
-                    String artist = "";
-                    JSONArray ar = s.optJSONArray("ar");
-                    if (ar != null && ar.length() > 0) {
-                        artist = ar.getJSONObject(0).optString("name", "");
+                    for (int i = 0; i < songsArray.length(); i++) {
+                        JSONObject s = songsArray.getJSONObject(i);
+                        Song song = parseSongFromJson(s);
+                        if (song != null && song.getId() > 0) {
+                            songMap.put(song.getId(), song);
+                        }
                     }
-                    String album = "";
-                    JSONObject al = s.optJSONObject("al");
-                    if (al != null) {
-                        album = al.optString("name", "");
-                    }
-                    songMap.put(id, new Song(id, name, artist, album));
                 }
-            }
         }
 
         // Preserve original order from trackIds
@@ -3134,6 +3131,7 @@ public class MusicApiHelper {
         }
         String album = albumObj != null ? albumObj.optString("name", "") : "";
         String coverUrl = albumObj != null ? albumObj.optString("picUrl", "") : "";
+        long albumId = albumObj != null ? albumObj.optLong("id", 0) : 0;
         if (songName.isEmpty()) {
             songName = pickFirstNonEmpty(songObj, "fileName");
         }
@@ -3143,6 +3141,9 @@ public class MusicApiHelper {
         Song parsedSong = new Song(songId, songName, artist, album);
         if (!coverUrl.isEmpty()) {
             parsedSong.setCoverUrl(coverUrl);
+        }
+        if (albumId > 0) {
+            parsedSong.setAlbumId(albumId);
         }
         return parsedSong;
     }
@@ -3166,7 +3167,12 @@ public class MusicApiHelper {
         }
         boolean subscribed = playlistObj.optBoolean("subscribed", false);
         String specialType = String.valueOf(playlistObj.optInt("specialType", 0));
-        return new PlaylistInfo(playlistId, name, trackCount, creator, creatorUserId, subscribed, specialType);
+        String coverUrl = pickFirstNonEmpty(playlistObj, "coverImgUrl", "picUrl", "cover");
+        PlaylistInfo info = new PlaylistInfo(playlistId, name, trackCount, creator, creatorUserId, subscribed, specialType);
+        if (!coverUrl.isEmpty()) {
+            info.setCoverUrl(coverUrl);
+        }
+        return info;
     }
 
     private static CloudItem parseCloudItem(JSONObject itemObj) {
@@ -3586,6 +3592,104 @@ public class MusicApiHelper {
                 result.put("uid", uid);
                 mainHandler.post(() -> callback.onResult(result));
             } catch (Exception e) {
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    /**
+     * Get album detail by album ID.
+     * Returns album name, cover URL, and track list.
+     * Endpoint: /api/v1/album (weapi)
+     */
+    public static void getAlbumDetail(long albumId, String cookie, AlbumDetailCallback callback) {
+        executor.execute(() -> {
+            try {
+                MusicLog.op(TAG, "获取专辑详情", "albumId=" + albumId);
+                JSONObject data = new JSONObject();
+                String csrfToken = extractCsrfToken(cookie);
+                data.put("csrf_token", csrfToken);
+
+                String response = weapiPost("/api/v1/album/" + albumId, data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                JSONObject albumObj = json.optJSONObject("album");
+                if (albumObj == null) {
+                    mainHandler.post(() -> callback.onError("获取专辑详情失败"));
+                    return;
+                }
+
+                String albumName = albumObj.optString("name", "");
+                String coverUrl = albumObj.optString("picUrl", "");
+
+                List<Song> songs = new ArrayList<>();
+                JSONArray songsArr = json.optJSONArray("songs");
+                if (songsArr == null) songsArr = albumObj.optJSONArray("songs");
+                if (songsArr != null) {
+                    for (int i = 0; i < songsArr.length(); i++) {
+                        JSONObject s = songsArr.optJSONObject(i);
+                        if (s == null) continue;
+                        Song song = parseSongFromJson(s);
+                        if (song != null) {
+                            if (song.getCoverUrl() == null || song.getCoverUrl().isEmpty()) {
+                                song.setCoverUrl(coverUrl);
+                            }
+                            songs.add(song);
+                        }
+                    }
+                }
+
+                final String finalAlbumName = albumName;
+                final String finalCoverUrl = coverUrl;
+                mainHandler.post(() -> callback.onResult(finalAlbumName, finalCoverUrl, songs));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "获取专辑详情失败: " + albumId, e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    /**
+     * Batch-fetch song details (name, artist, album, coverUrl) for a list of song IDs.
+     * Used by DownloadListActivity to fill missing covers for legacy downloads.
+     */
+    public static void fetchSongsDetails(List<Long> songIds, String cookie, BatchSongDetailsCallback callback) {
+        if (songIds == null || songIds.isEmpty()) {
+            mainHandler.post(() -> callback.onResult(new java.util.HashMap<>()));
+            return;
+        }
+        executor.execute(() -> {
+            try {
+                java.util.Map<Long, Song> resultMap = new java.util.HashMap<>();
+                String csrfToken = extractCsrfToken(cookie);
+                int total = songIds.size();
+                for (int batchStart = 0; batchStart < total; batchStart += 200) {
+                    int batchEnd = Math.min(batchStart + 200, total);
+                    JSONArray batchIds = new JSONArray();
+                    for (int i = batchStart; i < batchEnd; i++) {
+                        JSONObject idObj = new JSONObject();
+                        idObj.put("id", songIds.get(i));
+                        batchIds.put(idObj);
+                    }
+                    JSONObject data = new JSONObject();
+                    data.put("c", batchIds.toString());
+                    data.put("csrf_token", csrfToken);
+                    String response = weapiPost("/api/v3/song/detail", data.toString(), cookie);
+                    JSONObject json = new JSONObject(response);
+                    JSONArray songsArr = json.optJSONArray("songs");
+                    if (songsArr != null) {
+                        for (int i = 0; i < songsArr.length(); i++) {
+                            JSONObject s = songsArr.optJSONObject(i);
+                            if (s == null) continue;
+                            Song song = parseSongFromJson(s);
+                            if (song != null && song.getId() > 0) {
+                                resultMap.put(song.getId(), song);
+                            }
+                        }
+                    }
+                }
+                mainHandler.post(() -> callback.onResult(resultMap));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "批量获取歌曲详情失败", e);
                 mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
             }
         });

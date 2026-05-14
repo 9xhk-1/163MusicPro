@@ -51,6 +51,8 @@ import com.qinghe.music163pro.util.MusicLog;
 import com.qinghe.music163pro.util.UpdateChecker;
 import com.google.android.material.button.MaterialButton;
 
+import org.json.JSONObject;
+
 import java.io.File;
 
 public class MainActivity extends AppCompatActivity implements MusicPlayerManager.PlayerCallback {
@@ -725,6 +727,19 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         row6.addView(createFuncItem(R.drawable.ic_info, "播放器信息",
                 v -> onFuncPlayerInfo()));
         contentLayout.addView(row6);
+
+        // Row 7: 查看专辑
+        if (song.getId() > 0) {
+            LinearLayout row7 = new LinearLayout(this);
+            row7.setOrientation(LinearLayout.HORIZONTAL);
+            row7.setGravity(Gravity.CENTER);
+            row7.setPadding(0, dp(4), 0, 0);
+            row7.setLayoutParams(new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            row7.addView(createFuncItem(R.drawable.ic_album, "查看专辑",
+                    v -> onFuncViewAlbum(song)));
+            contentLayout.addView(row7);
+        }
 
         scrollView.addView(contentLayout);
         overlayContainer.addView(scrollView);
@@ -1411,6 +1426,51 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         intent.putExtra("artist_id", 0L); // Will be extracted from wiki API
         intent.putExtra("cookie", playerManager.getCookie());
         startActivity(intent);
+    }
+
+    private void onFuncViewAlbum(Song song) {
+        dismissOverlay();
+        if (song.getAlbumId() > 0) {
+            // Open album detail directly with known albumId
+            Intent intent = new Intent(this, AlbumDetailActivity.class);
+            intent.putExtra("album_id", song.getAlbumId());
+            intent.putExtra("album_name", song.getAlbum());
+            intent.putExtra("album_cover_url", song.getCoverUrl());
+            startActivity(intent);
+        } else {
+            // No albumId stored: fetch song detail first to get albumId
+            Toast.makeText(this, "正在获取专辑信息...", Toast.LENGTH_SHORT).show();
+            String cookie = playerManager.getCookie();
+            MusicApiHelper.getSongDetail(song.getId(), cookie, new MusicApiHelper.SongDetailCallback() {
+                @Override
+                public void onResult(JSONObject songDetail) {
+                    JSONObject al = songDetail.optJSONObject("al");
+                    if (al == null) al = songDetail.optJSONObject("album");
+                    if (al != null) {
+                        long albumId = al.optLong("id", 0);
+                        String albumName = al.optString("name", song.getAlbum());
+                        String albumCoverUrl = al.optString("picUrl", song.getCoverUrl() != null ? song.getCoverUrl() : "");
+                        if (albumId > 0) {
+                            song.setAlbumId(albumId);
+                            Intent intent = new Intent(MainActivity.this, AlbumDetailActivity.class);
+                            intent.putExtra("album_id", albumId);
+                            intent.putExtra("album_name", albumName);
+                            intent.putExtra("album_cover_url", albumCoverUrl);
+                            startActivity(intent);
+                        } else {
+                            Toast.makeText(MainActivity.this, "无法获取专辑信息", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Toast.makeText(MainActivity.this, "无法获取专辑信息", Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                @Override
+                public void onError(String message) {
+                    Toast.makeText(MainActivity.this, "获取专辑信息失败: " + message, Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
     }
 
     private void onFuncComments(Song song) {

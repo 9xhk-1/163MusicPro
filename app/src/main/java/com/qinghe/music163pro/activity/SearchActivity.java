@@ -8,6 +8,7 @@ import android.view.ViewGroup;
 import android.widget.AbsListView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -19,6 +20,7 @@ import com.qinghe.music163pro.model.MvInfo;
 import com.qinghe.music163pro.model.PlaylistInfo;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
+import com.qinghe.music163pro.util.NetworkImageLoader;
 import com.qinghe.music163pro.util.WatchConfirmDialog;
 
 import org.json.JSONArray;
@@ -111,8 +113,12 @@ public class SearchActivity extends BaseWatchActivity {
                 if (song != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
+                    ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setText(song.getName());
                     tvArtist.setText(song.getArtist());
+                    if (ivCover != null) {
+                        NetworkImageLoader.load(ivCover, song.getCoverUrl());
+                    }
                 }
                 return view;
             }
@@ -127,12 +133,16 @@ public class SearchActivity extends BaseWatchActivity {
                 if (playlistInfo != null) {
                     TextView tvName = view.findViewById(R.id.tv_playlist_name);
                     TextView tvInfo = view.findViewById(R.id.tv_playlist_info);
+                    ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setText(playlistInfo.getName());
                     String info = playlistInfo.getTrackCount() + "首";
                     if (playlistInfo.getCreator() != null && !playlistInfo.getCreator().isEmpty()) {
                         info += " · " + playlistInfo.getCreator();
                     }
                     tvInfo.setText(info);
+                    if (ivCover != null) {
+                        NetworkImageLoader.load(ivCover, playlistInfo.getCoverUrl());
+                    }
                 }
                 return view;
             }
@@ -147,6 +157,7 @@ public class SearchActivity extends BaseWatchActivity {
                 if (mvInfo != null) {
                     TextView tvName = view.findViewById(R.id.tv_mv_name);
                     TextView tvInfo = view.findViewById(R.id.tv_mv_info);
+                    ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setText(mvInfo.getName());
                     StringBuilder info = new StringBuilder();
                     if (mvInfo.getArtist() != null && !mvInfo.getArtist().isEmpty()) {
@@ -159,6 +170,9 @@ public class SearchActivity extends BaseWatchActivity {
                         info.append(formatDuration(mvInfo.getDurationMs()));
                     }
                     tvInfo.setText(info.length() > 0 ? info.toString() : getString(R.string.tap_to_view_detail));
+                    if (ivCover != null) {
+                        NetworkImageLoader.load(ivCover, mvInfo.getCoverUrl());
+                    }
                 }
                 return view;
             }

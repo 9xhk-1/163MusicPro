@@ -9,6 +9,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -18,13 +19,16 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.util.WatchConfirmDialog;
+import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.manager.DownloadManager;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.model.Song;
+import com.qinghe.music163pro.util.NetworkImageLoader;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Download list activity - shows all downloaded songs from /sdcard/163Music/Download/
@@ -55,8 +59,13 @@ public class DownloadListActivity extends BaseWatchActivity {
                 if (song != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
+                    ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setText(song.getName());
                     tvArtist.setText(song.getArtist());
+                    if (ivCover != null) {
+                        // coverUrl may be local file:// path or remote URL
+                        NetworkImageLoader.load(ivCover, song.getCoverUrl());
+                    }
                 }
                 return view;
             }
@@ -116,6 +125,50 @@ public class DownloadListActivity extends BaseWatchActivity {
         if (adapter != null) {
             adapter.notifyDataSetChanged();
         }
+
+        // Fetch covers from network for songs without covers (legacy downloads)
+        fetchMissingCovers();
+    }
+
+    /**
+     * For songs in the download list that don't have a cover URL,
+     * fetch their details from the network to get cover URLs.
+     */
+    private void fetchMissingCovers() {
+        List<Long> missingIds = new ArrayList<>();
+        for (Song song : downloadedSongs) {
+            if (song.getId() > 0 && (song.getCoverUrl() == null || song.getCoverUrl().isEmpty())) {
+                missingIds.add(song.getId());
+            }
+        }
+        if (missingIds.isEmpty()) return;
+
+        MusicPlayerManager pm = MusicPlayerManager.getInstance();
+        String cookie = pm.getCookie();
+        MusicApiHelper.fetchSongsDetails(missingIds, cookie,
+                new MusicApiHelper.BatchSongDetailsCallback() {
+                    @Override
+                    public void onResult(Map<Long, Song> songMap) {
+                        boolean changed = false;
+                        for (Song song : downloadedSongs) {
+                            if (song.getId() > 0 && (song.getCoverUrl() == null || song.getCoverUrl().isEmpty())) {
+                                Song detail = songMap.get(song.getId());
+                                if (detail != null && detail.getCoverUrl() != null && !detail.getCoverUrl().isEmpty()) {
+                                    song.setCoverUrl(detail.getCoverUrl());
+                                    changed = true;
+                                }
+                            }
+                        }
+                        if (changed && adapter != null) {
+                            adapter.notifyDataSetChanged();
+                        }
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        // Network not available or error - just show without covers
+                    }
+                });
     }
 
     private void updateEmptyState() {

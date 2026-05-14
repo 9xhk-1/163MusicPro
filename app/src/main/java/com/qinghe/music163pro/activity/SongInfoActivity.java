@@ -723,12 +723,21 @@ public class SongInfoActivity extends AppCompatActivity {
                 }
                 String resArtist = "";
                 if (resInfo != null) {
-                    JSONArray ars = resInfo.optJSONArray("artist");
+                    JSONArray ars = resInfo.optJSONArray("ar");
+                    if (ars == null) ars = resInfo.optJSONArray("artist");
                     if (ars == null) ars = resInfo.optJSONArray("artists");
                     if (ars != null && ars.length() > 0) {
                         JSONObject a0 = ars.optJSONObject(0);
                         if (a0 != null) resArtist = a0.optString("name", "");
                     }
+                    if (resArtist.isEmpty()) {
+                        resArtist = resInfo.optString("artistName", "");
+                    }
+                }
+                // Fall back to uiElement subTitle if artist not found in resInfo
+                if (resArtist.isEmpty() && resUiElement != null) {
+                    JSONObject st = resUiElement.optJSONObject("subTitle");
+                    if (st != null) resArtist = st.optString("title", "");
                 }
                 if (resId > 0) {
                     currentBlockSongs.add(new Song(resId, resName, resArtist, ""));
