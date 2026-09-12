@@ -60,6 +60,8 @@ public class MusicPlaybackService extends Service {
     public static final String ACTION_PREVIOUS    = "com.qinghe.music163pro.ACTION_PREVIOUS";
     public static final String ACTION_PLAY_PAUSE  = "com.qinghe.music163pro.ACTION_PLAY_PAUSE";
     public static final String ACTION_NEXT        = "com.qinghe.music163pro.ACTION_NEXT";
+    public static final String ACTION_PLAY        = "com.qinghe.music163pro.ACTION_PLAY";
+    public static final String ACTION_PAUSE       = "com.qinghe.music163pro.ACTION_PAUSE";
     public static final String ACTION_CLOSE       = "com.qinghe.music163pro.ACTION_CLOSE";
     // Internal: fired by AlarmManager after 5 min of paused state
     private static final String ACTION_AUTO_CANCEL = "com.qinghe.music163pro.ACTION_AUTO_CANCEL";
@@ -98,6 +100,14 @@ public class MusicPlaybackService extends Service {
             if (ACTION_PLAY_PAUSE.equals(action)) {
                 MusicPlayerManager p = MusicPlayerManager.getInstance();
                 if (p.isPlaying()) p.pause(); else p.resume();
+                return START_STICKY;
+            }
+            if (ACTION_PLAY.equals(action)) {
+                MusicPlayerManager.getInstance().resume();
+                return START_STICKY;
+            }
+            if (ACTION_PAUSE.equals(action)) {
+                MusicPlayerManager.getInstance().pause();
                 return START_STICKY;
             }
             if (ACTION_NEXT.equals(action)) {
@@ -304,5 +314,4 @@ public class MusicPlaybackService extends Service {
         }
     }
 }
-
 
