@@ -7,17 +7,24 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.content.ComponentName;
+import android.media.AudioManager;
+import android.media.MediaMetadata;
+import android.media.session.MediaSession;
+import android.media.session.PlaybackState;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.text.TextUtils;
+import android.view.KeyEvent;
 import android.widget.RemoteViews;
 
 import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.activity.MainActivity;
 import com.qinghe.music163pro.player.MusicPlayerManager;
+import com.qinghe.music163pro.model.Song;
 
 import java.util.concurrent.TimeUnit;
 
@@ -70,6 +77,9 @@ public class MusicPlaybackService extends Service {
     private NotificationManager   notificationManager;
     private AlarmManager          alarmManager;
     private PendingIntent         autoCancelPi;
+    private MediaSession          mediaSession;
+    private AudioManager          audioManager;
+    private ComponentName         mediaButtonReceiver;
 
     private String  currentSongName  = "";
     private String  currentArtist    = "";
@@ -85,6 +95,7 @@ public class MusicPlaybackService extends Service {
         alarmManager        = (AlarmManager) getSystemService(ALARM_SERVICE);
         createChannels();
         acquireWakeLock();
+        initializeMediaSession();
         // Start foreground with a minimal keep-alive notification (required by Android)
         startForeground(FOREGROUND_ID, buildKeepAliveNotification());
     }
@@ -95,23 +106,33 @@ public class MusicPlaybackService extends Service {
             final String action = intent.getAction();
             if (ACTION_PREVIOUS.equals(action)) {
                 MusicPlayerManager.getInstance().previous();
+                updateMediaSession();
+                postXtcCard();
                 return START_STICKY;
             }
             if (ACTION_PLAY_PAUSE.equals(action)) {
                 MusicPlayerManager p = MusicPlayerManager.getInstance();
                 if (p.isPlaying()) p.pause(); else p.resume();
+                updateMediaSession();
+                postXtcCard();
                 return START_STICKY;
             }
             if (ACTION_PLAY.equals(action)) {
                 MusicPlayerManager.getInstance().resume();
+                updateMediaSession();
+                postXtcCard();
                 return START_STICKY;
             }
             if (ACTION_PAUSE.equals(action)) {
                 MusicPlayerManager.getInstance().pause();
+                updateMediaSession();
+                postXtcCard();
                 return START_STICKY;
             }
             if (ACTION_NEXT.equals(action)) {
                 MusicPlayerManager.getInstance().next();
+                updateMediaSession();
+                postXtcCard();
                 return START_STICKY;
             }
             if (ACTION_CLOSE.equals(action)) {
@@ -160,7 +181,124 @@ public class MusicPlaybackService extends Service {
     public void onDestroy() {
         super.onDestroy();
         cancelAutoCancelAlarm();
+        if (audioManager != null && mediaButtonReceiver != null) {
+            try {
+                audioManager.unregisterMediaButtonEventReceiver(mediaButtonReceiver);
+            } catch (Exception ignored) {}
+        }
+        if (mediaSession != null) {
+            mediaSession.setActive(false);
+            mediaSession.release();
+            mediaSession = null;
+        }
         releaseWakeLock();
+    }
+
+    private void initializeMediaSession() {
+        mediaSession = new MediaSession(this, "163MusicPro");
+        mediaSession.setFlags(MediaSession.FLAG_HANDLES_MEDIA_BUTTONS
+                | MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS);
+        mediaSession.setCallback(new MediaSession.Callback() {
+            @Override
+            public boolean onMediaButtonEvent(Intent intent) {
+                KeyEvent event = intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT);
+                if (event == null || event.getAction() != KeyEvent.ACTION_DOWN
+                        || event.getRepeatCount() > 0) {
+                    return true;
+                }
+                switch (event.getKeyCode()) {
+                    case KeyEvent.KEYCODE_MEDIA_PLAY:
+                        MusicPlayerManager.getInstance().resume();
+                        break;
+                    case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                        MusicPlayerManager.getInstance().pause();
+                        break;
+                    case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                    case KeyEvent.KEYCODE_HEADSETHOOK:
+                        MusicPlayerManager player = MusicPlayerManager.getInstance();
+                        if (player.isPlaying()) player.pause(); else player.resume();
+                        break;
+                    case KeyEvent.KEYCODE_MEDIA_NEXT:
+                        MusicPlayerManager.getInstance().next();
+                        break;
+                    case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+                        MusicPlayerManager.getInstance().previous();
+                        break;
+                    default:
+                        return false;
+                }
+                updateMediaSession();
+                postXtcCard();
+                return true;
+            }
+
+            @Override
+            public void onPlay() {
+                MusicPlayerManager.getInstance().resume();
+                updateMediaSession();
+            }
+
+            @Override
+            public void onPause() {
+                MusicPlayerManager.getInstance().pause();
+                updateMediaSession();
+            }
+
+            @Override
+            public void onSkipToNext() {
+                MusicPlayerManager.getInstance().next();
+                updateMediaSession();
+                postXtcCard();
+            }
+
+            @Override
+            public void onSkipToPrevious() {
+                MusicPlayerManager.getInstance().previous();
+                updateMediaSession();
+                postXtcCard();
+            }
+        });
+        mediaSession.setActive(true);
+
+        // Android 7 routes classic Bluetooth AVRCP keys through AudioManager's
+        // registered media-button receiver, as done by the original Kugou app.
+        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        mediaButtonReceiver = new ComponentName(this, HeadsetMediaButtonReceiver.class);
+        if (audioManager != null) {
+            try {
+                audioManager.registerMediaButtonEventReceiver(mediaButtonReceiver);
+            } catch (Exception ignored) {}
+        }
+        updateMediaSession();
+    }
+
+    private void updateMediaSession() {
+        if (mediaSession == null) return;
+        MusicPlayerManager player = MusicPlayerManager.getInstance();
+        long actions = PlaybackState.ACTION_PLAY | PlaybackState.ACTION_PAUSE
+                | PlaybackState.ACTION_PLAY_PAUSE | PlaybackState.ACTION_SKIP_TO_NEXT
+                | PlaybackState.ACTION_SKIP_TO_PREVIOUS;
+        int state = player.isPlaying() ? PlaybackState.STATE_PLAYING : PlaybackState.STATE_PAUSED;
+        currentIsPlaying = player.isPlaying();
+        mediaSession.setPlaybackState(new PlaybackState.Builder()
+                .setActions(actions)
+                .setState(state, player.getCurrentPosition(), 1.0f)
+                .build());
+        Song currentSong = player.getCurrentSong();
+        if (currentSong != null) {
+            currentSongName = currentSong.getName();
+            currentArtist = currentSong.getArtist();
+            mediaSession.setMetadata(new MediaMetadata.Builder()
+                    .putString(MediaMetadata.METADATA_KEY_TITLE, currentSong.getName())
+                    .putString(MediaMetadata.METADATA_KEY_ARTIST, currentSong.getArtist())
+                    .build());
+        }
+    }
+
+    private void postXtcCard() {
+        notificationManager.notify(XTC_NOTIFICATION_ID,
+                buildXtcCardNotification(currentSongName, currentArtist,
+                        currentCoverUrl, MusicPlayerManager.getInstance().isPlaying()));
     }
 
     // ── Channel creation ──────────────────────────────────────────────────────
@@ -314,4 +452,3 @@ public class MusicPlaybackService extends Service {
         }
     }
 }
-
