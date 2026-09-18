@@ -103,6 +103,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private TextView volumePercentView;
     private final Handler volumeHandler = new Handler();
 
+    // Headphone volume protection: confirmed once above the safe threshold,
+    // reset when volume drops back below it.
+    private boolean volumeSafeConfirmed = false;
+
     // Activity-level gesture detector for swipe handling
     private GestureDetector activityGestureDetector;
 
@@ -160,7 +164,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         mainPlayerContentView = findViewById(R.id.main_player_layout);
-        BackgroundUtil.applyBackground(this, mainPlayerContentView);
+        BackgroundUtil.applyBackground(this,
+                getWindow().getDecorView().findViewById(android.R.id.content));
 
         // Initialize file logging
         MusicLog.init(new File("/sdcard/163Music"));
@@ -242,16 +247,23 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         btnVolUp.setOnClickListener(v -> {
                 if (!isHeadphonesConnected()) {
+                    volumeSafeConfirmed = false;
                     adjustVolumeUp();
                     return;
                 }
                 int current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
                 int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
                 int percent = max > 0 ? Math.round(current * 100f / max) : 0;
-                if (percent >= SAFE_VOLUME_PERCENT) {
+                if (percent < SAFE_VOLUME_PERCENT) {
+                    volumeSafeConfirmed = false;
+                    adjustVolumeUp();
+                } else if (!volumeSafeConfirmed) {
                     WatchConfirmDialog.show(this, "音量保护",
                             "当前音量已达 " + percent + "%，继续调大可能损伤听力。确定继续调大吗？",
-                            () -> adjustVolumeUp(),
+                            () -> {
+                                volumeSafeConfirmed = true;
+                                adjustVolumeUp();
+                            },
                             new WatchConfirmDialog.Options(0xFF1E1E1E, 0xFFBB86FC, true));
                 } else {
                     adjustVolumeUp();
@@ -545,7 +557,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Reload speed mode setting
         playerManager.setSpeedMode(prefs.getInt("speed_mode", 0));
         // Reapply custom background
-        BackgroundUtil.applyBackground(this, mainPlayerContentView);
+        BackgroundUtil.applyBackground(this,
+                getWindow().getDecorView().findViewById(android.R.id.content));
         // Preload cloud liked IDs cache so overlay shows correct favorite state
         if (prefs.getBoolean("fav_mode_cloud", false)) {
             refreshCloudLikedIds();
@@ -1653,7 +1666,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         overlayContainer = new FrameLayout(this);
         overlayContainer.setLayoutParams(new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        BackgroundUtil.applyBackground(this, overlayContainer);
+        // Transparent: the custom background lives on the fixed content root so it
+        // stays put while the player/lyrics views slide over it.
+        overlayContainer.setBackgroundColor(android.graphics.Color.TRANSPARENT);
         // clickable/focusable makes the full-screen container consume taps that miss
         // its children, while child views still receive their own touch dispatch.
         // dispatchTouchEvent continues to observe the full event stream for gestures.

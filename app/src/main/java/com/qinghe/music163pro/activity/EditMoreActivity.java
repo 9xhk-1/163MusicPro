@@ -206,7 +206,7 @@ public class EditMoreActivity extends BaseWatchActivity {
     private void attachDrag(final View dragHandle, final View row, final String key) {
         final int touchSlop = px(8);
         dragHandle.setOnTouchListener(new View.OnTouchListener() {
-            float startRawY;
+            float rowTouchOffset;
             boolean dragging = false;
             final Handler handler = new Handler();
             Runnable longPressRunnable;
@@ -215,7 +215,7 @@ public class EditMoreActivity extends BaseWatchActivity {
             public boolean onTouch(View v, MotionEvent e) {
                 switch (e.getActionMasked()) {
                     case MotionEvent.ACTION_DOWN:
-                        startRawY = e.getRawY();
+                        rowTouchOffset = e.getRawY() - row.getTop();
                         dragging = false;
                         longPressRunnable = () -> {
                             dragging = true;
@@ -227,20 +227,23 @@ public class EditMoreActivity extends BaseWatchActivity {
                         return true;
                     case MotionEvent.ACTION_MOVE:
                         if (!dragging) {
-                            if (Math.abs(e.getRawY() - startRawY) > touchSlop) {
+                            if (Math.abs(e.getRawY() - (row.getTop() + rowTouchOffset)) > touchSlop) {
                                 handler.removeCallbacks(longPressRunnable);
                             }
                             return true;
                         }
-                        float dy = e.getRawY() - startRawY;
-                        row.setTranslationY(dy);
-                        int target = resolveTarget(row, dy);
+                        int[] loc = new int[2];
+                        enabledContainer.getLocationOnScreen(loc);
+                        float fingerY = e.getRawY() - loc[1];
+                        row.setTranslationY(fingerY - rowTouchOffset - row.getTop());
+                        int target = resolveTargetByFingerY(fingerY, row);
                         int current = enabledContainer.indexOfChild(row);
                         if (target >= 0 && target != current) {
                             enabledContainer.removeView(row);
                             enabledContainer.addView(row, target);
                             enabledKeys.remove(key);
                             enabledKeys.add(target, key);
+                            row.setTranslationY(fingerY - rowTouchOffset - row.getTop());
                         }
                         return true;
                     case MotionEvent.ACTION_UP:
@@ -260,20 +263,18 @@ public class EditMoreActivity extends BaseWatchActivity {
         });
     }
 
-    private int resolveTarget(View row, float dy) {
+    private int resolveTargetByFingerY(float fingerY, View draggedRow) {
         int count = enabledContainer.getChildCount();
-        int current = enabledContainer.indexOfChild(row);
-        int newCenter = row.getTop() + (int) row.getTranslationY() + row.getHeight() / 2;
-        int target = current;
+        int target = enabledContainer.indexOfChild(draggedRow);
         for (int i = 0; i < count; i++) {
             View child = enabledContainer.getChildAt(i);
-            if (child == row) continue;
+            if (child == draggedRow) continue;
             int childCenter = child.getTop() + child.getHeight() / 2;
-            if (i < target && newCenter < childCenter) {
+            if (i < target && fingerY < childCenter) {
                 target = i;
                 break;
             }
-            if (i > target && newCenter > childCenter) {
+            if (i > target && fingerY > childCenter) {
                 target = i;
             }
         }
