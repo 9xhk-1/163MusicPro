@@ -1595,7 +1595,7 @@ public class MusicApiHelper {
                 }
                 String csrfToken = extractCsrfToken(cookie);
                 data.put("csrf_token", csrfToken);
-                String response = weapiPost("/api/user/update", data.toString(), cookie);
+                String response = weapiPost("/api/user/profile/update", data.toString(), cookie);
                 JSONObject json = new JSONObject(response);
                 if (json.optInt("code", -1) == 200) {
                     mainHandler.post(() -> callback.onResult(true));
@@ -1619,41 +1619,55 @@ public class MusicApiHelper {
                     mainHandler.post(() -> callback.onError("文件无效"));
                     return;
                 }
-                String md5 = md5(file);
-                String filename = "avatar-" + System.currentTimeMillis() + ".jpg";
+                // 1. Request NOS upload token (matches avatar_upload.js uploadPlugin)
                 JSONObject tokenData = new JSONObject();
                 tokenData.put("bucket", "yyimgs");
                 tokenData.put("ext", "jpg");
-                tokenData.put("filename", filename);
+                tokenData.put("filename", file.getName());
                 tokenData.put("local", false);
                 tokenData.put("nos_product", 0);
-                tokenData.put("type", "avatar");
-                tokenData.put("md5", md5);
+                tokenData.put("return_body", "{\"code\":200,\"size\":\"$(ObjectSize)\"}");
+                tokenData.put("type", "other");
+                tokenData.put("csrf_token", extractCsrfToken(cookie));
                 String tokenResponse = weapiPost("/api/nos/token/alloc", tokenData.toString(), cookie);
                 JSONObject tokenResult = new JSONObject(tokenResponse).optJSONObject("result");
                 if (tokenResult == null) {
                     mainHandler.post(() -> callback.onError("上传凭证获取失败"));
                     return;
                 }
-                String bucket = tokenResult.optString("bucket", "yyimgs");
-                String lbsResponse = getRaw("https://wanproxy.127.net/lbs?version=1.0&bucketname=" + bucket);
-                JSONArray hosts = new JSONObject(lbsResponse).optJSONArray("upload");
-                if (hosts == null || hosts.length() == 0) {
-                    mainHandler.post(() -> callback.onError("上传节点获取失败"));
+                String objectKey = tokenResult.optString("objectKey", "");
+                String token = tokenResult.optString("token", "");
+                String docId = tokenResult.optString("docId", "");
+
+                // 2. Upload image bytes to NOS
+                String uploadUrl = "https://nosup-hz1.127.net/yyimgs/" + objectKey
+                        + "?offset=0&complete=true&version=1.0";
+                java.net.HttpURLConnection conn =
+                        (java.net.HttpURLConnection) new java.net.URL(uploadUrl).openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("x-nos-token", token);
+                conn.setRequestProperty("Content-Type", "image/jpeg");
+                conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+                conn.setReadTimeout(60000);
+                conn.setDoOutput(true);
+                conn.setFixedLengthStreamingMode(file.length());
+                try (InputStream in = new java.io.FileInputStream(file);
+                     java.io.OutputStream out = conn.getOutputStream()) {
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+                    out.flush();
+                }
+                int uploadCode = conn.getResponseCode();
+                conn.disconnect();
+                if (uploadCode < 200 || uploadCode >= 300) {
+                    mainHandler.post(() -> callback.onError("图片上传失败(" + uploadCode + ")"));
                     return;
                 }
-                String objectKey = tokenResult.optString("objectKey", "").replace("/", "%2F");
-                String uploadUrl = hosts.optString(0, "") + "/" + bucket + "/" + objectKey
-                        + "?offset=0&complete=true&version=1.0";
-                uploadFileToNos(uploadUrl, tokenResult.optString("token", ""), md5, file,
-                        new UploadProgressCallback() {
-                            @Override public void onProgress(int progress, String message) {}
-                            @Override public void onSuccess(String message) {}
-                            @Override public void onError(String message) {}
-                        });
 
+                // 3. Apply the uploaded image as avatar (imgid = result.docId)
                 JSONObject updateData = new JSONObject();
-                updateData.put("imgid", tokenResult.optString("objectKey", ""));
+                updateData.put("imgid", docId);
                 updateData.put("csrf_token", extractCsrfToken(cookie));
                 String updateResponse = weapiPost("/api/user/avatar/upload/v1", updateData.toString(), cookie);
                 JSONObject updateJson = new JSONObject(updateResponse);

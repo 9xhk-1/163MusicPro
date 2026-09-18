@@ -255,23 +255,15 @@ public class ProfileActivity extends AppCompatActivity {
 
     private void editNickname() {
         showInputDialog("修改昵称", nickname, InputType.TYPE_CLASS_TEXT, text -> {
-            JSONObject params = new JSONObject();
-            try {
-                params.put("nickname", text);
-                doUpdateProfile(params);
-            } catch (Exception ignored) {
-            }
+            nickname = text;
+            doUpdateProfile();
         });
     }
 
     private void editSignature() {
         showInputDialog("修改签名", signature, InputType.TYPE_CLASS_TEXT, text -> {
-            JSONObject params = new JSONObject();
-            try {
-                params.put("signature", text);
-                doUpdateProfile(params);
-            } catch (Exception ignored) {
-            }
+            signature = text;
+            doUpdateProfile();
         });
     }
 
@@ -312,15 +304,18 @@ public class ProfileActivity extends AppCompatActivity {
     }
 
     private void sendGender(int g) {
-        JSONObject params = new JSONObject();
-        try {
-            params.put("gender", g);
-            doUpdateProfile(params);
-        } catch (Exception ignored) {
-        }
+        gender = g;
+        doUpdateProfile();
     }
 
-    private void doUpdateProfile(JSONObject params) {
+    private void doUpdateProfile() {
+        JSONObject params = new JSONObject();
+        try {
+            params.put("nickname", nickname);
+            params.put("gender", gender);
+            params.put("signature", signature);
+        } catch (Exception ignored) {
+        }
         Toast.makeText(this, "正在保存...", Toast.LENGTH_SHORT).show();
         MusicApiHelper.updateUserProfile(params, cookie, new MusicApiHelper.CommentActionCallback() {
             @Override
