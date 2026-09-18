@@ -48,7 +48,6 @@ public class ProfileActivity extends AppCompatActivity {
     private String nickname = "";
     private int gender = 0;
     private String signature = "";
-    private JSONObject accountData;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -132,7 +131,6 @@ public class ProfileActivity extends AppCompatActivity {
             public void onResult(JSONObject json) {
                 runOnUiThread(() -> {
                     removeLoading();
-                    accountData = json;
                     displayAccountInfo(json);
                     fetchVipInfo();
                 });
