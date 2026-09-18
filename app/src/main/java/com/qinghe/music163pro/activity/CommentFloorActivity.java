@@ -600,7 +600,6 @@ public class CommentFloorActivity extends BaseWatchActivity {
         item.addView(footer);
 
         // Long-press: copy (always) + delete (own comments only)
-        final long finalCommentId = commentId;
         final long finalUserId = userId;
         item.setOnLongClickListener(v -> {
             boolean isOwn = myUserId > 0 && finalUserId == myUserId;

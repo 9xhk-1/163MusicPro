@@ -15,7 +15,6 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.qinghe.music163pro.util.MoreMenuPreferences;
-import com.qinghe.music163pro.util.WatchUiUtils;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -290,9 +289,5 @@ public class EditMoreActivity extends BaseWatchActivity {
         List<String> newOrder = new ArrayList<>(enabledKeys);
         newOrder.addAll(disabled);
         MoreMenuPreferences.setOrder(prefs, newOrder);
-    }
-
-    private int px(int baseValue) {
-        return WatchUiUtils.px(this, baseValue);
     }
 }
