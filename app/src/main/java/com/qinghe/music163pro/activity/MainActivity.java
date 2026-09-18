@@ -50,6 +50,7 @@ import com.qinghe.music163pro.service.MusicPlaybackService;
 import com.qinghe.music163pro.util.MusicLog;
 import com.qinghe.music163pro.util.UpdateChecker;
 import com.qinghe.music163pro.util.WatchConfirmDialog;
+import com.qinghe.music163pro.util.BackgroundUtil;
 import com.google.android.material.button.MaterialButton;
 
 import java.io.File;
@@ -162,6 +163,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         mainPlayerContentView = findViewById(R.id.main_player_layout);
+        BackgroundUtil.applyBackground(this, mainPlayerContentView);
 
         // Initialize file logging
         MusicLog.init(new File("/sdcard/163Music"));
@@ -549,6 +551,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         }
         // Reload speed mode setting
         playerManager.setSpeedMode(prefs.getInt("speed_mode", 0));
+        // Reapply custom background
+        BackgroundUtil.applyBackground(this, mainPlayerContentView);
         // Preload cloud liked IDs cache so overlay shows correct favorite state
         if (prefs.getBoolean("fav_mode_cloud", false)) {
             refreshCloudLikedIds();

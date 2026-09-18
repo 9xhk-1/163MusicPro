@@ -20,6 +20,7 @@ import com.qinghe.music163pro.api.BilibiliApiHelper;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
+import com.qinghe.music163pro.util.BackgroundUtil;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -84,6 +85,8 @@ public class LyricsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_lyrics);
+        View rootView = findViewById(R.id.lyrics_root);
+        BackgroundUtil.applyBackground(this, rootView);
 
         // Apply keep screen on setting
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);

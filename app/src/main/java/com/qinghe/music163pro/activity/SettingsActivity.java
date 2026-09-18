@@ -38,6 +38,7 @@ public class SettingsActivity extends AppCompatActivity {
         View btnAbout = findViewById(R.id.btn_settings_about);
         View btnOpenSource = findViewById(R.id.btn_settings_open_source);
         View btnXtcModule = findViewById(R.id.btn_settings_xtc_module);
+        View btnBackground = findViewById(R.id.btn_settings_background);
 
         btnToggle.setOnClickListener(v ->
                 startActivity(new Intent(this, ToggleSettingsActivity.class)));
@@ -58,6 +59,9 @@ public class SettingsActivity extends AppCompatActivity {
 
         btnXtcModule.setOnClickListener(v ->
                 startActivity(new Intent(this, XtcModuleActivity.class)));
+
+        btnBackground.setOnClickListener(v ->
+                startActivity(new Intent(this, BackgroundSettingsActivity.class)));
     }
 
     private void checkUpdateManually() {
