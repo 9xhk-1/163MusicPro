@@ -261,16 +261,6 @@ public class MusicApiHelper {
         void onError(String message);
     }
 
-    public interface ArtistTopSongCallback {
-        void onResult(JSONArray songs, JSONObject artist);
-        void onError(String message);
-    }
-
-    public interface ArtistDetailCallback {
-        void onResult(JSONObject artist);
-        void onError(String message);
-    }
-
     public interface CommentCallback {
         void onResult(JSONObject commentData);
         void onError(String message);
@@ -2392,48 +2382,6 @@ public class MusicApiHelper {
         });
     }
 
-    public static void getArtistTopSongs(long artistId, String cookie, ArtistTopSongCallback callback) {
-        executor.execute(() -> {
-            try {
-                MusicLog.op(TAG, "获取歌手热门歌曲", "artistId=" + artistId);
-                JSONObject data = new JSONObject();
-                data.put("id", artistId);
-                String csrfToken = extractCsrfToken(cookie);
-                data.put("csrf_token", csrfToken);
-                String response = weapiPost("/api/artist/top/song", data.toString(), cookie);
-                JSONObject json = new JSONObject(response);
-                JSONObject dataObj = json.optJSONObject("data");
-                JSONArray songs = dataObj != null ? dataObj.optJSONArray("songs") : null;
-                JSONObject artist = dataObj != null ? dataObj.optJSONObject("artist") : null;
-                mainHandler.post(() -> callback.onResult(
-                        songs != null ? songs : new JSONArray(), artist));
-            } catch (Exception e) {
-                MusicLog.w(TAG, "获取歌手热门歌曲失败: " + artistId, e);
-                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
-            }
-        });
-    }
-
-    public static void getArtistDetail(long artistId, String cookie, ArtistDetailCallback callback) {
-        executor.execute(() -> {
-            try {
-                MusicLog.op(TAG, "获取歌手详情", "artistId=" + artistId);
-                JSONObject data = new JSONObject();
-                data.put("id", artistId);
-                String csrfToken = extractCsrfToken(cookie);
-                data.put("csrf_token", csrfToken);
-                String response = weapiPost("/api/artist/head/info/get", data.toString(), cookie);
-                JSONObject json = new JSONObject(response);
-                JSONObject dataObj = json.optJSONObject("data");
-                JSONObject artist = dataObj != null ? dataObj.optJSONObject("artist") : null;
-                mainHandler.post(() -> callback.onResult(artist));
-            } catch (Exception e) {
-                MusicLog.w(TAG, "获取歌手详情失败: " + artistId, e);
-                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
-            }
-        });
-    }
-
     // ==================== Similar Songs & Playlists ====================
 
     /**
@@ -3266,10 +3214,6 @@ public class MusicApiHelper {
         });
     }
 
-    public static Song parseSong(JSONObject songObj) {
-        return parseSongFromJson(songObj);
-    }
-
     private static Song parseSongFromJson(JSONObject songObj) {
         if (songObj == null) {
             return null;
@@ -3293,13 +3237,6 @@ public class MusicApiHelper {
         }
         String album = albumObj != null ? albumObj.optString("name", "") : "";
         String coverUrl = albumObj != null ? albumObj.optString("picUrl", "") : "";
-        long artistId = 0;
-        if (artists != null && artists.length() > 0) {
-            JSONObject firstArtist = artists.optJSONObject(0);
-            if (firstArtist != null) {
-                artistId = firstArtist.optLong("id", 0);
-            }
-        }
         if (songName.isEmpty()) {
             songName = pickFirstNonEmpty(songObj, "fileName");
         }
@@ -3309,9 +3246,6 @@ public class MusicApiHelper {
         Song parsedSong = new Song(songId, songName, artist, album);
         if (!coverUrl.isEmpty()) {
             parsedSong.setCoverUrl(coverUrl);
-        }
-        if (artistId > 0) {
-            parsedSong.setArtistId(artistId);
         }
         return parsedSong;
     }
