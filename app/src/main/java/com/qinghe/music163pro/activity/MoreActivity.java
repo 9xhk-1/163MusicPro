@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Toast;
 
@@ -44,6 +45,7 @@ public class MoreActivity extends AppCompatActivity {
     private View btnTopList;
     private View btnHistory;
     private View btnLogin;
+    private View btnSettings;
     private GestureDetector gestureDetector;
     private SharedPreferences prefs;
 
@@ -72,7 +74,7 @@ public class MoreActivity extends AppCompatActivity {
         btnProfile = findViewById(R.id.btn_menu_profile);
         btnPersonalFM = findViewById(R.id.btn_menu_personal_fm);
         btnLogin = findViewById(R.id.btn_menu_login);
-        View btnSettings = findViewById(R.id.btn_menu_settings);
+        btnSettings = findViewById(R.id.btn_menu_settings);
 
         btnFavorites.setOnClickListener(v ->
                 startActivity(new Intent(this, FavoritesListActivity.class)));
@@ -175,6 +177,38 @@ public class MoreActivity extends AppCompatActivity {
         applyVisibility(btnProfile, MoreMenuPreferences.KEY_PROFILE, true);
         applyVisibility(btnPersonalFM, MoreMenuPreferences.KEY_PERSONAL_FM, false);
         applyVisibility(btnLogin, MoreMenuPreferences.KEY_LOGIN, false);
+        applyMenuOrder();
+    }
+
+    private void applyMenuOrder() {
+        if (btnFavorites == null || btnFavorites.getParent() == null) return;
+        ViewGroup parent = (ViewGroup) btnFavorites.getParent();
+        View titleView = parent.getChildAt(0);
+
+        java.util.Map<String, View> viewByKey = new java.util.LinkedHashMap<>();
+        viewByKey.put(MoreMenuPreferences.KEY_FAVORITES, btnFavorites);
+        viewByKey.put(MoreMenuPreferences.KEY_MY_PLAYLISTS, btnMyPlaylists);
+        viewByKey.put(MoreMenuPreferences.KEY_DAILY_RECOMMEND, btnDailyRecommend);
+        viewByKey.put(MoreMenuPreferences.KEY_RADAR_PLAYLIST, btnRadarPlaylist);
+        viewByKey.put(MoreMenuPreferences.KEY_MUSIC_CLOUD, btnMusicCloud);
+        viewByKey.put(MoreMenuPreferences.KEY_SEARCH, btnSearch);
+        viewByKey.put(MoreMenuPreferences.KEY_SONG_RECOGNITION, btnSongRecognition);
+        viewByKey.put(MoreMenuPreferences.KEY_DOWNLOADS, btnDownloads);
+        viewByKey.put(MoreMenuPreferences.KEY_RINGTONES, btnRingtones);
+        viewByKey.put(MoreMenuPreferences.KEY_TOPLIST, btnTopList);
+        viewByKey.put(MoreMenuPreferences.KEY_HISTORY, btnHistory);
+        viewByKey.put(MoreMenuPreferences.KEY_PROFILE, btnProfile);
+        viewByKey.put(MoreMenuPreferences.KEY_PERSONAL_FM, btnPersonalFM);
+        viewByKey.put(MoreMenuPreferences.KEY_LOGIN, btnLogin);
+
+        java.util.List<String> order = MoreMenuPreferences.getOrder(prefs);
+        parent.removeAllViews();
+        parent.addView(titleView);
+        for (String key : order) {
+            View view = viewByKey.get(key);
+            if (view != null) parent.addView(view);
+        }
+        parent.addView(btnSettings);
     }
 
     private void applyVisibility(View target, String key, boolean requireLogin) {

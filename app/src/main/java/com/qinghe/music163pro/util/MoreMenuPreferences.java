@@ -67,4 +67,34 @@ public final class MoreMenuPreferences {
     public static List<String> allKeys() {
         return ALL_KEYS;
     }
+
+    public static List<String> getOrder(SharedPreferences prefs) {
+        List<String> order = new ArrayList<>();
+        if (prefs != null) {
+            String saved = prefs.getString("more_order", "");
+            if (saved != null && !saved.isEmpty()) {
+                for (String key : saved.split(",")) {
+                    if (ALL_KEYS.contains(key) && !order.contains(key)) {
+                        order.add(key);
+                    }
+                }
+            }
+        }
+        for (String key : ALL_KEYS) {
+            if (!order.contains(key)) {
+                order.add(key);
+            }
+        }
+        return order;
+    }
+
+    public static void setOrder(SharedPreferences prefs, List<String> order) {
+        if (prefs == null) return;
+        StringBuilder sb = new StringBuilder();
+        for (String key : order) {
+            if (sb.length() > 0) sb.append(',');
+            sb.append(key);
+        }
+        prefs.edit().putString("more_order", sb.toString()).apply();
+    }
 }
