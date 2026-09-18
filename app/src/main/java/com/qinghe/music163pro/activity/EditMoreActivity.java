@@ -1,6 +1,5 @@
 package com.qinghe.music163pro.activity;
 
-import android.animation.LayoutTransition;
 import android.content.SharedPreferences;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -75,15 +74,9 @@ public class EditMoreActivity extends BaseWatchActivity {
 
         enabledContainer = new LinearLayout(this);
         enabledContainer.setOrientation(LinearLayout.VERTICAL);
-        LayoutTransition lt = new LayoutTransition();
-        lt.enableTransitionType(LayoutTransition.CHANGING);
-        lt.enableTransitionType(LayoutTransition.DISAPPEARING);
-        lt.enableTransitionType(LayoutTransition.APPEARING);
-        enabledContainer.setLayoutTransition(lt);
 
         disabledContainer = new LinearLayout(this);
         disabledContainer.setOrientation(LinearLayout.VERTICAL);
-        disabledContainer.setLayoutTransition(new LayoutTransition());
 
         root.addView(makeSectionTitle("已加入（长按拖动排序）"));
         root.addView(enabledContainer);
@@ -205,8 +198,10 @@ public class EditMoreActivity extends BaseWatchActivity {
 
     private void attachDrag(final View dragHandle, final View row, final String key) {
         final int touchSlop = px(8);
+        final int rowStep = px(52) + px(4);
         dragHandle.setOnTouchListener(new View.OnTouchListener() {
-            float rowTouchOffset;
+            float fingerOffsetInRow;
+            float downRawY;
             boolean dragging = false;
             final Handler handler = new Handler();
             Runnable longPressRunnable;
@@ -215,7 +210,10 @@ public class EditMoreActivity extends BaseWatchActivity {
             public boolean onTouch(View v, MotionEvent e) {
                 switch (e.getActionMasked()) {
                     case MotionEvent.ACTION_DOWN:
-                        rowTouchOffset = e.getRawY() - row.getTop();
+                        downRawY = e.getRawY();
+                        int[] downLoc = new int[2];
+                        enabledContainer.getLocationOnScreen(downLoc);
+                        fingerOffsetInRow = e.getRawY() - downLoc[1] - row.getTop();
                         dragging = false;
                         longPressRunnable = () -> {
                             dragging = true;
@@ -227,7 +225,7 @@ public class EditMoreActivity extends BaseWatchActivity {
                         return true;
                     case MotionEvent.ACTION_MOVE:
                         if (!dragging) {
-                            if (Math.abs(e.getRawY() - (row.getTop() + rowTouchOffset)) > touchSlop) {
+                            if (Math.abs(e.getRawY() - downRawY) > touchSlop) {
                                 handler.removeCallbacks(longPressRunnable);
                             }
                             return true;
@@ -235,15 +233,18 @@ public class EditMoreActivity extends BaseWatchActivity {
                         int[] loc = new int[2];
                         enabledContainer.getLocationOnScreen(loc);
                         float fingerY = e.getRawY() - loc[1];
-                        row.setTranslationY(fingerY - rowTouchOffset - row.getTop());
-                        int target = resolveTargetByFingerY(fingerY, row);
+                        float rowTop = fingerY - fingerOffsetInRow;
+                        row.setTranslationY(rowTop - row.getTop());
+                        int target = (int) Math.floor((rowTop + row.getHeight() / 2f) / rowStep);
+                        int count = enabledContainer.getChildCount();
+                        target = Math.max(0, Math.min(target, count - 1));
                         int current = enabledContainer.indexOfChild(row);
-                        if (target >= 0 && target != current) {
+                        if (target != current) {
                             enabledContainer.removeView(row);
                             enabledContainer.addView(row, target);
                             enabledKeys.remove(key);
                             enabledKeys.add(target, key);
-                            row.setTranslationY(fingerY - rowTouchOffset - row.getTop());
+                            row.setTranslationY(rowTop - row.getTop());
                         }
                         return true;
                     case MotionEvent.ACTION_UP:
@@ -261,24 +262,6 @@ public class EditMoreActivity extends BaseWatchActivity {
                 return false;
             }
         });
-    }
-
-    private int resolveTargetByFingerY(float fingerY, View draggedRow) {
-        int count = enabledContainer.getChildCount();
-        int target = enabledContainer.indexOfChild(draggedRow);
-        for (int i = 0; i < count; i++) {
-            View child = enabledContainer.getChildAt(i);
-            if (child == draggedRow) continue;
-            int childCenter = child.getTop() + child.getHeight() / 2;
-            if (i < target && fingerY < childCenter) {
-                target = i;
-                break;
-            }
-            if (i > target && fingerY > childCenter) {
-                target = i;
-            }
-        }
-        return target;
     }
 
     private void persistOrder() {
