@@ -92,6 +92,14 @@
             android:name=".service.MusicPlaybackService"
             android:exported="false" />
 
+        <receiver
+            android:name=".service.HeadsetMediaButtonReceiver"
+            android:exported="true">
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
         <!-- Required by 小天才 (XTC) system to enable the lock-screen music card -->
         <meta-data
             android:name="com.xtc.music.notification_version"

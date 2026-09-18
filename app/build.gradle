@@ -12,7 +12,7 @@ android {
         minSdk 23
         targetSdk 27 
         versionCode 39
-        versionName "20260514"
+        versionName "20260912"
     }
 
     signingConfigs {
