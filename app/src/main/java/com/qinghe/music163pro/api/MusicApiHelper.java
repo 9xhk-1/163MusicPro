@@ -1581,6 +1581,95 @@ public class MusicApiHelper {
     // ==================== Top List ====================
 
     /**
+     * Update current user profile fields (nickname, gender, signature, birthday).
+     * (matches NeteaseCloudMusicApiBackup module/user_update.js)
+     */
+    public static void updateUserProfile(JSONObject params, String cookie, CommentActionCallback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject data = new JSONObject();
+                java.util.Iterator<String> keys = params.keys();
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    data.put(key, params.get(key));
+                }
+                String csrfToken = extractCsrfToken(cookie);
+                data.put("csrf_token", csrfToken);
+                String response = weapiPost("/api/user/update", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                if (json.optInt("code", -1) == 200) {
+                    mainHandler.post(() -> callback.onResult(true));
+                } else {
+                    mainHandler.post(() -> callback.onError(json.optString("message", "更新失败")));
+                }
+            } catch (Exception e) {
+                MusicLog.w(TAG, "更新用户信息失败", e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    /**
+     * Upload a new avatar image and apply it to the current account.
+     */
+    public static void uploadAvatar(File file, String cookie, CommentActionCallback callback) {
+        executor.execute(() -> {
+            try {
+                if (file == null || !file.exists() || file.length() <= 0) {
+                    mainHandler.post(() -> callback.onError("文件无效"));
+                    return;
+                }
+                String md5 = md5(file);
+                String filename = "avatar-" + System.currentTimeMillis() + ".jpg";
+                JSONObject tokenData = new JSONObject();
+                tokenData.put("bucket", "yyimgs");
+                tokenData.put("ext", "jpg");
+                tokenData.put("filename", filename);
+                tokenData.put("local", false);
+                tokenData.put("nos_product", 0);
+                tokenData.put("type", "avatar");
+                tokenData.put("md5", md5);
+                String tokenResponse = weapiPost("/api/nos/token/alloc", tokenData.toString(), cookie);
+                JSONObject tokenResult = new JSONObject(tokenResponse).optJSONObject("result");
+                if (tokenResult == null) {
+                    mainHandler.post(() -> callback.onError("上传凭证获取失败"));
+                    return;
+                }
+                String bucket = tokenResult.optString("bucket", "yyimgs");
+                String lbsResponse = getRaw("https://wanproxy.127.net/lbs?version=1.0&bucketname=" + bucket);
+                JSONArray hosts = new JSONObject(lbsResponse).optJSONArray("upload");
+                if (hosts == null || hosts.length() == 0) {
+                    mainHandler.post(() -> callback.onError("上传节点获取失败"));
+                    return;
+                }
+                String objectKey = tokenResult.optString("objectKey", "").replace("/", "%2F");
+                String uploadUrl = hosts.optString(0, "") + "/" + bucket + "/" + objectKey
+                        + "?offset=0&complete=true&version=1.0";
+                uploadFileToNos(uploadUrl, tokenResult.optString("token", ""), md5, file,
+                        new UploadProgressCallback() {
+                            @Override public void onProgress(int progress, String message) {}
+                            @Override public void onSuccess(String message) {}
+                            @Override public void onError(String message) {}
+                        });
+
+                JSONObject updateData = new JSONObject();
+                updateData.put("imgid", tokenResult.optString("objectKey", ""));
+                updateData.put("csrf_token", extractCsrfToken(cookie));
+                String updateResponse = weapiPost("/api/user/avatar/upload/v1", updateData.toString(), cookie);
+                JSONObject updateJson = new JSONObject(updateResponse);
+                if (updateJson.optInt("code", -1) == 200) {
+                    mainHandler.post(() -> callback.onResult(true));
+                } else {
+                    mainHandler.post(() -> callback.onError(updateJson.optString("message", "头像更新失败")));
+                }
+            } catch (Exception e) {
+                MusicLog.w(TAG, "上传头像失败", e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    /**
      * Get all top/chart lists.
      * (same as NeteaseCloudMusicApiBackup module/toplist.js)
      */
