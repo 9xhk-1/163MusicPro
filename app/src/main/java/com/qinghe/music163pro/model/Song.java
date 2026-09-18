@@ -22,6 +22,8 @@ public class Song implements Serializable {
     private boolean forceLocalPlayback;
     /** Album cover image URL (al.picUrl from NetEase API). May be null or empty. */
     private String coverUrl;
+    /** First artist ID (ar[0].id from NetEase API). 0 if unknown. */
+    private long artistId;
 
     public Song() {}
 
@@ -66,6 +68,9 @@ public class Song implements Serializable {
 
     public String getCoverUrl() { return coverUrl; }
     public void setCoverUrl(String coverUrl) { this.coverUrl = coverUrl; }
+
+    public long getArtistId() { return artistId; }
+    public void setArtistId(long artistId) { this.artistId = artistId; }
 
     /** Check if this song is from Bilibili */
     public boolean isBilibili() {

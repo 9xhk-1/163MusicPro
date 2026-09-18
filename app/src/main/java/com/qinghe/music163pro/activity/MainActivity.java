@@ -751,6 +751,19 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 v -> onFuncPlayerInfo()));
         contentLayout.addView(row6);
 
+        // Row 7: 歌手
+        if (!song.getArtist().isEmpty()) {
+            LinearLayout row7 = new LinearLayout(this);
+            row7.setOrientation(LinearLayout.HORIZONTAL);
+            row7.setGravity(Gravity.START);
+            row7.setPadding(0, dp(4), 0, 0);
+            row7.setLayoutParams(new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            row7.addView(createFuncItem(R.drawable.ic_person, "歌手",
+                    v -> onFuncArtist(song)));
+            contentLayout.addView(row7);
+        }
+
         scrollView.addView(contentLayout);
         overlayContainer.addView(scrollView);
         rootView.addView(overlayContainer);
@@ -1449,6 +1462,20 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         intent.putExtra("artist_name", song.getArtist());
         intent.putExtra("artist_id", 0L); // Will be extracted from wiki API
         intent.putExtra("cookie", playerManager.getCookie());
+        startActivity(intent);
+    }
+
+    private void onFuncArtist(Song song) {
+        dismissOverlay();
+        long artistId = song.getArtistId();
+        if (artistId <= 0) {
+            Toast.makeText(this, "暂无歌手信息", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent intent = new Intent(this, ArtistActivity.class);
+        intent.putExtra("artist_id", artistId);
+        intent.putExtra("artist_name", song.getArtist());
+        intent.putExtra("cover_url", song.getCoverUrl());
         startActivity(intent);
     }
 
