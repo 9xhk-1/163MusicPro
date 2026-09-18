@@ -20,6 +20,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -68,6 +69,7 @@ public class CommentActivity extends BaseWatchActivity {
     private long songId;
     private String songName;
     private String cookie;
+    private long myUserId = 0;
 
     private int currentSortType = 99; // 99=推荐, 2=最热, 3=最新
     private int pageNo = 1;
@@ -105,6 +107,7 @@ public class CommentActivity extends BaseWatchActivity {
 
         buildUI();
         loadComments(true);
+        loadCurrentUserId();
     }
 
     // ──────────────────────────────────────────────────────
@@ -580,12 +583,125 @@ public class CommentActivity extends BaseWatchActivity {
 
         item.addView(footer);
 
-        // Long-press to delete comment (with confirmation)
-        final String displayNick = nickname;
-        final String displayContent = content;
+        // Long-press: copy (always) + delete (own comments only)
+        final long finalCommentId = commentId;
+        final long finalUserId = userId;
         item.setOnLongClickListener(v -> {
-            showConfirmDialog("删除评论", "确定删除「" + displayNick + "」的评论？\n\n" + (displayContent.length() > 40 ? displayContent.substring(0, 40) + "..." : displayContent), () -> {
-                MusicApiHelper.deleteComment(songId, commentId, cookie, new MusicApiHelper.CommentActionCallback() {
+            boolean isOwn = myUserId > 0 && finalUserId == myUserId;
+            showCommentActions(finalCommentId, content, isOwn);
+            return true;
+        });
+
+        return item;
+    }
+
+    private void loadCurrentUserId() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        long cached = prefs.getLong("current_user_id", 0);
+        if (cached > 0) {
+            myUserId = cached;
+        }
+        if (cookie == null || cookie.isEmpty() || !cookie.contains("MUSIC_U")) {
+            return;
+        }
+        MusicApiHelper.getUserAccount(cookie, new MusicApiHelper.AccountCallback() {
+            @Override
+            public void onResult(JSONObject json) {
+                long uid = 0;
+                JSONObject profile = json.optJSONObject("profile");
+                if (profile != null) {
+                    uid = profile.optLong("userId", 0);
+                }
+                if (uid <= 0) {
+                    JSONObject account = json.optJSONObject("account");
+                    if (account != null) {
+                        uid = account.optLong("id", 0);
+                    }
+                }
+                if (uid > 0) {
+                    myUserId = uid;
+                    prefs.edit().putLong("current_user_id", uid).apply();
+                }
+            }
+
+            @Override
+            public void onError(String message) {
+            }
+        });
+    }
+
+    private void showCommentActions(long commentId, String content, boolean isOwn) {
+        FrameLayout overlay = buildActionSheet(isOwn, commentId, content);
+        if (overlay != null) {
+            ((FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content)).addView(overlay);
+        }
+    }
+
+    private FrameLayout buildActionSheet(boolean isOwn, long commentId, String content) {
+        FrameLayout overlay = new FrameLayout(this);
+        overlay.setLayoutParams(new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        overlay.setBackgroundColor(0x99000000);
+        overlay.setClickable(true);
+        overlay.setFocusable(true);
+
+        LinearLayout sheet = new LinearLayout(this);
+        sheet.setOrientation(LinearLayout.VERTICAL);
+        sheet.setBackgroundColor(0xFF1E1E1E);
+        sheet.setPadding(0, px(6), 0, px(6));
+        FrameLayout.LayoutParams sheetParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        sheetParams.gravity = Gravity.BOTTOM;
+        sheet.setLayoutParams(sheetParams);
+        sheet.addView(makeActionRow("复制", 0xFFFFFFFF, v -> {
+            copyToClipboard(content);
+            ((ViewGroup) overlay.getParent()).removeView(overlay);
+        }));
+        if (isOwn) {
+            sheet.addView(makeActionRow("删除", 0xFFCF6679, v -> {
+                ((ViewGroup) overlay.getParent()).removeView(overlay);
+                showConfirmDialog("删除评论", "确定删除这条评论吗？\n\n"
+                        + (content.length() > 40 ? content.substring(0, 40) + "..." : content),
+                        () -> deleteOwnComment(commentId));
+            }));
+        }
+        sheet.addView(makeActionRow("取消", 0xFF999999, v ->
+                ((ViewGroup) overlay.getParent()).removeView(overlay)));
+        overlay.addView(sheet);
+        overlay.setOnClickListener(v -> {
+            // consume
+        });
+        sheet.setOnClickListener(v -> {
+            // consume so taps don't dismiss
+        });
+        return overlay;
+    }
+
+    private View makeActionRow(String label, int color, View.OnClickListener listener) {
+        TextView tv = new TextView(this);
+        tv.setText(label);
+        tv.setTextColor(color);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(15));
+        tv.setGravity(Gravity.CENTER);
+        tv.setPadding(px(12), px(14), px(12), px(14));
+        tv.setClickable(true);
+        tv.setFocusable(true);
+        tv.setOnClickListener(listener);
+        return tv;
+    }
+
+    private void copyToClipboard(String text) {
+        android.content.ClipboardManager cm =
+                (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (cm != null) {
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("comment", text));
+            Toast.makeText(this, "已复制", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void deleteOwnComment(long commentId) {
+        MusicApiHelper.deleteComment(songId, commentId, cookie,
+                new MusicApiHelper.CommentActionCallback() {
                     @Override
                     public void onResult(boolean success) {
                         runOnUiThread(() -> {
@@ -593,21 +709,17 @@ public class CommentActivity extends BaseWatchActivity {
                                 Toast.makeText(CommentActivity.this, "评论已删除", Toast.LENGTH_SHORT).show();
                                 loadComments(true);
                             } else {
-                                Toast.makeText(CommentActivity.this, "删除失败（可能不是自己的评论）", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(CommentActivity.this, "删除失败", Toast.LENGTH_SHORT).show();
                             }
                         });
                     }
 
                     @Override
                     public void onError(String message) {
-                        runOnUiThread(() -> Toast.makeText(CommentActivity.this, "删除失败: " + message, Toast.LENGTH_SHORT).show());
+                        runOnUiThread(() -> Toast.makeText(CommentActivity.this,
+                                "删除失败: " + message, Toast.LENGTH_SHORT).show());
                     }
                 });
-            });
-            return true;
-        });
-
-        return item;
     }
 
     private void updateLikeText(TextView tv, boolean liked, int count) {
