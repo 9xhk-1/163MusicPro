@@ -219,6 +219,7 @@ public class EditMoreActivity extends BaseWatchActivity {
                         dragging = false;
                         longPressRunnable = () -> {
                             dragging = true;
+                            row.getParent().requestDisallowInterceptTouchEvent(true);
                             row.animate().scaleX(1.03f).scaleY(1.03f)
                                     .setDuration(80).start();
                         };
@@ -247,6 +248,7 @@ public class EditMoreActivity extends BaseWatchActivity {
                         handler.removeCallbacks(longPressRunnable);
                         if (dragging) {
                             dragging = false;
+                            row.getParent().requestDisallowInterceptTouchEvent(false);
                             row.animate().translationY(0).scaleX(1f).scaleY(1f)
                                     .setDuration(120).start();
                             persistOrder();

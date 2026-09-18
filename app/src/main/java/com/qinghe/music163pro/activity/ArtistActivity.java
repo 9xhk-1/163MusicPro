@@ -102,11 +102,21 @@ public class ArtistActivity extends BaseWatchActivity {
 
     private void loadArtistData() {
         String cookie = MusicPlayerManager.getInstance().getCookie();
+        MusicApiHelper.getArtistDetail(artistId, cookie,
+                new MusicApiHelper.ArtistDetailCallback() {
+                    @Override
+                    public void onResult(JSONObject artist) {
+                        runOnUiThread(() -> showArtistHeader(artist));
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                    }
+                });
         MusicApiHelper.getArtistTopSongs(artistId, cookie,
                 new MusicApiHelper.ArtistTopSongCallback() {
                     @Override
                     public void onResult(JSONArray songs, JSONObject artist) {
-                        runOnUiThread(() -> showArtistHeader(artist));
                         parseAndShowSongs(songs);
                         runOnUiThread(() -> loadArtistDesc());
                     }
@@ -115,7 +125,7 @@ public class ArtistActivity extends BaseWatchActivity {
                     public void onError(String message) {
                         runOnUiThread(() -> {
                             Toast.makeText(ArtistActivity.this,
-                                    "获取歌手信息失败", Toast.LENGTH_SHORT).show();
+                                    "获取歌手歌曲失败", Toast.LENGTH_SHORT).show();
                             loadArtistDesc();
                         });
                     }

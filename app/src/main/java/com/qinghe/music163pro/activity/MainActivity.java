@@ -103,9 +103,6 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private TextView volumePercentView;
     private final Handler volumeHandler = new Handler();
 
-    // Headphone volume protection
-    private boolean volumeSafeConfirmed = false;
-
     // Activity-level gesture detector for swipe handling
     private GestureDetector activityGestureDetector;
 
@@ -245,20 +242,16 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         btnVolUp.setOnClickListener(v -> {
                 if (!isHeadphonesConnected()) {
-                    volumeSafeConfirmed = false;
                     adjustVolumeUp();
                     return;
                 }
                 int current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
                 int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
                 int percent = max > 0 ? Math.round(current * 100f / max) : 0;
-                if (percent >= SAFE_VOLUME_PERCENT && !volumeSafeConfirmed) {
+                if (percent >= SAFE_VOLUME_PERCENT) {
                     WatchConfirmDialog.show(this, "音量保护",
                             "当前音量已达 " + percent + "%，继续调大可能损伤听力。确定继续调大吗？",
-                            () -> {
-                                volumeSafeConfirmed = true;
-                                adjustVolumeUp();
-                            },
+                            () -> adjustVolumeUp(),
                             new WatchConfirmDialog.Options(0xFF1E1E1E, 0xFFBB86FC, true));
                 } else {
                     adjustVolumeUp();
@@ -1660,7 +1653,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         overlayContainer = new FrameLayout(this);
         overlayContainer.setLayoutParams(new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        overlayContainer.setBackgroundColor(0xFF1E1E1E);
+        BackgroundUtil.applyBackground(this, overlayContainer);
         // clickable/focusable makes the full-screen container consume taps that miss
         // its children, while child views still receive their own touch dispatch.
         // dispatchTouchEvent continues to observe the full event stream for gestures.
