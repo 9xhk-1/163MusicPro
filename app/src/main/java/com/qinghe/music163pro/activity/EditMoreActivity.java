@@ -41,7 +41,6 @@ public class EditMoreActivity extends BaseWatchActivity {
         itemLabels.put(MoreMenuPreferences.KEY_PROFILE, "个人中心");
         itemLabels.put(MoreMenuPreferences.KEY_PERSONAL_FM, "私人漫游");
         itemLabels.put(MoreMenuPreferences.KEY_LOGIN, "登录");
-        itemLabels.put(MoreMenuPreferences.KEY_BILIBILI, "听bilibili");
 
         SharedPreferences prefs = MoreMenuPreferences.getPrefs(this);
         LinearLayout container = findViewById(R.id.container_more_edit);

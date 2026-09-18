@@ -49,6 +49,7 @@ import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.service.MusicPlaybackService;
 import com.qinghe.music163pro.util.MusicLog;
 import com.qinghe.music163pro.util.UpdateChecker;
+import com.qinghe.music163pro.util.WatchConfirmDialog;
 import com.google.android.material.button.MaterialButton;
 
 import java.io.File;
@@ -66,6 +67,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private static final int VOLUME_INDICATOR_TOP_MARGIN_DP = 10;
     private static final int VOLUME_INDICATOR_ANIM_DURATION_MS = 160;
     private static final float VOLUME_INDICATOR_INITIAL_SCALE = 0.96f;
+    private static final int SAFE_VOLUME_PERCENT = 60;
     private static final int LYRIC_MODE_FOLLOW = 0;
     private static final int LYRIC_MODE_BLOCK = 1;
     private static final String QUALITY_TIER_UNAVAILABLE = "暂无";
@@ -99,6 +101,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private ProgressBar volumeProgressBar;
     private TextView volumePercentView;
     private final Handler volumeHandler = new Handler();
+
+    // Headphone volume protection
+    private boolean volumeSafeConfirmed = false;
 
     // Activity-level gesture detector for swipe handling
     private GestureDetector activityGestureDetector;
@@ -237,9 +242,25 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         });
 
         btnVolUp.setOnClickListener(v -> {
-                audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,
-                        AudioManager.ADJUST_RAISE, AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE);
-                showVolumeIndicator();
+                if (!isHeadphonesConnected()) {
+                    volumeSafeConfirmed = false;
+                    adjustVolumeUp();
+                    return;
+                }
+                int current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+                int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+                int percent = max > 0 ? Math.round(current * 100f / max) : 0;
+                if (percent >= SAFE_VOLUME_PERCENT && !volumeSafeConfirmed) {
+                    WatchConfirmDialog.show(this, "音量保护",
+                            "当前音量已达 " + percent + "%，继续调大可能损伤听力。确定继续调大吗？",
+                            () -> {
+                                volumeSafeConfirmed = true;
+                                adjustVolumeUp();
+                            },
+                            new WatchConfirmDialog.Options(0xFF1E1E1E, 0xFFBB86FC, true));
+                } else {
+                    adjustVolumeUp();
+                }
         });
 
         // Changed: "more functions" overlay instead of toggle favorite
@@ -978,6 +999,20 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 overlayContainer = null;
             }
         }
+    }
+
+    private boolean isHeadphonesConnected() {
+        try {
+            return audioManager.isWiredHeadsetOn() || audioManager.isBluetoothA2dpOn();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void adjustVolumeUp() {
+        audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,
+                AudioManager.ADJUST_RAISE, AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE);
+        showVolumeIndicator();
     }
 
     private void showVolumeIndicator() {

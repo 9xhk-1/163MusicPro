@@ -44,7 +44,6 @@ public class MoreActivity extends AppCompatActivity {
     private View btnTopList;
     private View btnHistory;
     private View btnLogin;
-    private View btnBilibili;
     private GestureDetector gestureDetector;
     private SharedPreferences prefs;
 
@@ -73,7 +72,6 @@ public class MoreActivity extends AppCompatActivity {
         btnProfile = findViewById(R.id.btn_menu_profile);
         btnPersonalFM = findViewById(R.id.btn_menu_personal_fm);
         btnLogin = findViewById(R.id.btn_menu_login);
-        btnBilibili = findViewById(R.id.btn_menu_bilibili);
         View btnSettings = findViewById(R.id.btn_menu_settings);
 
         btnFavorites.setOnClickListener(v ->
@@ -116,9 +114,6 @@ public class MoreActivity extends AppCompatActivity {
 
         btnLogin.setOnClickListener(v ->
                 startActivity(new Intent(this, LoginActivity.class)));
-
-        btnBilibili.setOnClickListener(v ->
-                startActivity(new Intent(this, BilibiliActivity.class)));
 
         btnSettings.setOnClickListener(v ->
                 startActivity(new Intent(this, SettingsActivity.class)));
@@ -163,7 +158,6 @@ public class MoreActivity extends AppCompatActivity {
         btnMusicCloud.setTag(loggedIn);
         btnPersonalFM.setTag(true);
         btnLogin.setTag(true);
-        btnBilibili.setTag(true);
     }
 
     private void updateMenuVisibility() {
@@ -181,7 +175,6 @@ public class MoreActivity extends AppCompatActivity {
         applyVisibility(btnProfile, MoreMenuPreferences.KEY_PROFILE, true);
         applyVisibility(btnPersonalFM, MoreMenuPreferences.KEY_PERSONAL_FM, false);
         applyVisibility(btnLogin, MoreMenuPreferences.KEY_LOGIN, false);
-        applyVisibility(btnBilibili, MoreMenuPreferences.KEY_BILIBILI, false);
     }
 
     private void applyVisibility(View target, String key, boolean requireLogin) {

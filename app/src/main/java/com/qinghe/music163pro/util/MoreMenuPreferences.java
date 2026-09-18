@@ -28,7 +28,6 @@ public final class MoreMenuPreferences {
     public static final String KEY_PROFILE = "more_show_profile";
     public static final String KEY_PERSONAL_FM = "more_show_personal_fm";
     public static final String KEY_LOGIN = "more_show_login";
-    public static final String KEY_BILIBILI = "more_show_bilibili";
 
     private static final List<String> ALL_KEYS = Collections.unmodifiableList(Arrays.asList(
             KEY_FAVORITES,
@@ -44,8 +43,7 @@ public final class MoreMenuPreferences {
             KEY_HISTORY,
             KEY_PROFILE,
             KEY_PERSONAL_FM,
-            KEY_LOGIN,
-            KEY_BILIBILI
+            KEY_LOGIN
     ));
 
     private MoreMenuPreferences() {
