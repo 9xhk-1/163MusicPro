@@ -15,6 +15,7 @@ public class PlaylistInfo implements Serializable {
     private long userId;        // creator's user ID
     private boolean subscribed; // whether current user subscribed to this playlist
     private String specialType; // "5" = "我喜欢的音乐"
+    private String coverUrl;    // playlist cover image URL
 
     public PlaylistInfo() {}
 
@@ -56,6 +57,9 @@ public class PlaylistInfo implements Serializable {
 
     public String getSpecialType() { return specialType; }
     public void setSpecialType(String specialType) { this.specialType = specialType; }
+
+    public String getCoverUrl() { return coverUrl; }
+    public void setCoverUrl(String coverUrl) { this.coverUrl = coverUrl; }
 
     /** Check if this is the default "我喜欢的音乐" playlist */
     public boolean isLikedPlaylist() { return "5".equals(specialType); }

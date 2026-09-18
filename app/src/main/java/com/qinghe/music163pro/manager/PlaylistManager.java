@@ -25,6 +25,80 @@ public class PlaylistManager {
     private static final String TAG = "PlaylistManager";
     private static final String EXT_DIR_NAME = "163Music";
     private static final String EXT_FILE_NAME = "playlists.json";
+    private static final String IDS_FILE_NAME = "playlist-ids.json";
+
+    public PlaylistManager() {
+        initIdsFile();
+    }
+
+    private File getIdsFile() {
+        return new File(new File(Environment.getExternalStorageDirectory(), EXT_DIR_NAME), IDS_FILE_NAME);
+    }
+
+    private void initIdsFile() {
+        try {
+            File idsFile = getIdsFile();
+            if (!idsFile.exists()) {
+                JSONArray idsArr = new JSONArray();
+                // Migrate from playlists.json
+                List<PlaylistInfo> existing = getPlaylists();
+                for (PlaylistInfo p : existing) {
+                    idsArr.put(p.getId());
+                }
+                saveIdsArray(idsArr);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error initializing playlist-ids.json", e);
+        }
+    }
+
+    private JSONArray loadIdsArray() {
+        try {
+            File idsFile = getIdsFile();
+            if (!idsFile.exists()) return new JSONArray();
+            FileInputStream fis = new FileInputStream(idsFile);
+            InputStreamReader reader = new InputStreamReader(fis, "UTF-8");
+            StringBuilder sb = new StringBuilder();
+            char[] buf = new char[1024];
+            int len;
+            while ((len = reader.read(buf)) != -1) sb.append(buf, 0, len);
+            reader.close();
+            fis.close();
+            return new JSONArray(sb.toString());
+        } catch (Exception e) {
+            Log.w(TAG, "Error loading playlist-ids.json", e);
+            return new JSONArray();
+        }
+    }
+
+    private void saveIdsArray(JSONArray arr) {
+        try {
+            File dir = new File(Environment.getExternalStorageDirectory(), EXT_DIR_NAME);
+            if (!dir.exists()) dir.mkdirs();
+            File idsFile = getIdsFile();
+            FileOutputStream fos = new FileOutputStream(idsFile);
+            OutputStreamWriter writer = new OutputStreamWriter(fos, "UTF-8");
+            writer.write(arr.toString());
+            writer.flush();
+            writer.close();
+            fos.close();
+        } catch (Exception e) {
+            Log.w(TAG, "Error saving playlist-ids.json", e);
+        }
+    }
+
+    public List<Long> getPlaylistIds() {
+        List<Long> ids = new ArrayList<>();
+        try {
+            JSONArray arr = loadIdsArray();
+            for (int i = 0; i < arr.length(); i++) {
+                ids.add(arr.getLong(i));
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error reading playlist IDs", e);
+        }
+        return ids;
+    }
 
     public void addPlaylist(PlaylistInfo playlist) {
         List<PlaylistInfo> list = getPlaylists();
@@ -33,6 +107,19 @@ public class PlaylistManager {
         }
         list.add(0, playlist);
         savePlaylists(list);
+        // Also add to ids file
+        try {
+            JSONArray arr = loadIdsArray();
+            for (int i = 0; i < arr.length(); i++) {
+                if (arr.getLong(i) == playlist.getId()) return;
+            }
+            JSONArray newArr = new JSONArray();
+            newArr.put(playlist.getId());
+            for (int i = 0; i < arr.length(); i++) newArr.put(arr.getLong(i));
+            saveIdsArray(newArr);
+        } catch (Exception e) {
+            Log.w(TAG, "Error adding playlist ID", e);
+        }
     }
 
     public void removePlaylist(long playlistId) {
@@ -44,6 +131,17 @@ public class PlaylistManager {
             }
         }
         savePlaylists(updated);
+        // Also remove from ids file
+        try {
+            JSONArray arr = loadIdsArray();
+            JSONArray newArr = new JSONArray();
+            for (int i = 0; i < arr.length(); i++) {
+                if (arr.getLong(i) != playlistId) newArr.put(arr.getLong(i));
+            }
+            saveIdsArray(newArr);
+        } catch (Exception e) {
+            Log.w(TAG, "Error removing playlist ID", e);
+        }
     }
 
     public boolean isPlaylistSaved(long playlistId) {

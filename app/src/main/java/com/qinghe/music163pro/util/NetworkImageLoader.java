@@ -61,6 +61,9 @@ public final class NetworkImageLoader {
     }
 
     private static Bitmap downloadBitmap(String imageUrl) {
+        if (imageUrl.startsWith("file://")) {
+            return loadLocalBitmap(imageUrl.substring(7));
+        }
         HttpURLConnection conn = null;
         InputStream inputStream = null;
         try {
@@ -120,5 +123,18 @@ public final class NetworkImageLoader {
             inSampleSize *= 2;
         }
         return Math.max(1, inSampleSize);
+    }
+
+    private static Bitmap loadLocalBitmap(String filePath) {
+        try {
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(filePath, opts);
+            opts.inSampleSize = calculateInSampleSize(opts, 128, 128);
+            opts.inJustDecodeBounds = false;
+            return BitmapFactory.decodeFile(filePath, opts);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

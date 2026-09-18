@@ -12,10 +12,11 @@
 
     <ImageView
         android:id="@+id/iv_playlist_icon"
-        android:layout_width="18dp"
-        android:layout_height="18dp"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
         android:layout_marginEnd="8dp"
-        android:src="@drawable/ic_queue_music" />
+        android:scaleType="centerCrop"
+        android:background="#FF252525" />
 
     <LinearLayout
         android:layout_width="0dp"
