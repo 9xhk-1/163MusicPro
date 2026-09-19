@@ -110,6 +110,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     // reset when volume drops back below it.
     private boolean volumeSafeConfirmed = false;
 
+    // Song id whose cover is currently being fetched for the background (-1 = none)
+    private long coverFetchInFlightId = -1;
+
     // Activity-level gesture detector for swipe handling
     private GestureDetector activityGestureDetector;
 
@@ -3544,17 +3547,55 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         final View root = getWindow().getDecorView().findViewById(android.R.id.content);
         Song song = playerManager.getBackgroundSong();
         final String cover = song != null && song.getCoverUrl() != null ? song.getCoverUrl() : "";
-        if (cover.isEmpty()) {
+        if (!cover.isEmpty()) {
+            if (BackgroundUtil.hasCoverBackground(cover)) {
+                BackgroundUtil.applyBackground(this, root);
+            } else {
+                BackgroundUtil.loadCoverBackground(this, cover,
+                        () -> BackgroundUtil.applyBackground(this, root));
+            }
+            return;
+        }
+        // No cover url yet: try to fetch it from the API by song id.
+        if (song != null && song.getId() > 0) {
+            fetchCoverForBackground(song);
+        } else {
             BackgroundUtil.clearCoverBackground();
             BackgroundUtil.applyBackground(this, root);
+        }
+    }
+
+    private void fetchCoverForBackground(final Song song) {
+        final long songId = song.getId();
+        if (coverFetchInFlightId == songId) {
             return;
         }
-        if (BackgroundUtil.hasCoverBackground(cover)) {
-            BackgroundUtil.applyBackground(this, root);
-            return;
-        }
-        BackgroundUtil.loadCoverBackground(this, cover,
-                () -> BackgroundUtil.applyBackground(this, root));
+        coverFetchInFlightId = songId;
+        final View root = getWindow().getDecorView().findViewById(android.R.id.content);
+        MusicApiHelper.fetchSongsDetails(java.util.Collections.singletonList(songId),
+                playerManager.getCookie(), new MusicApiHelper.BatchSongDetailsCallback() {
+                    @Override
+                    public void onResult(java.util.Map<Long, Song> songMap) {
+                        coverFetchInFlightId = -1;
+                        Song detail = songMap != null ? songMap.get(songId) : null;
+                        String fetched = detail != null ? detail.getCoverUrl() : null;
+                        if (fetched != null && !fetched.isEmpty()) {
+                            song.setCoverUrl(fetched);
+                            playerManager.savePlaybackState();
+                            updateCoverBackground();
+                        } else {
+                            BackgroundUtil.clearCoverBackground();
+                            BackgroundUtil.applyBackground(MainActivity.this, root);
+                        }
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        coverFetchInFlightId = -1;
+                        BackgroundUtil.clearCoverBackground();
+                        BackgroundUtil.applyBackground(MainActivity.this, root);
+                    }
+                });
     }
 
     @Override

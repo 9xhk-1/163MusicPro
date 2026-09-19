@@ -35,7 +35,7 @@ public final class NetworkImageLoader {
     private static final int TARGET_WIDTH = 320;
     private static final int TARGET_HEIGHT = 180;
     private static final int PRELOAD_BELOW = 3;
-    private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(2);
+    private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(3);
     private static final LruCache<String, Bitmap> MEMORY_CACHE =
             new LruCache<String, Bitmap>((int) Math.min(Runtime.getRuntime().maxMemory() / 8, 8 * 1024 * 1024)) {
                 @Override
@@ -84,6 +84,11 @@ public final class NetworkImageLoader {
 
     public static void load(ImageView imageView, String imageUrl) {
         if (imageView == null) {
+            return;
+        }
+        // Already showing this exact image: leave it (avoids black flash / reload).
+        if (imageUrl != null && imageUrl.equals(imageView.getTag())
+                && imageView.getDrawable() != null) {
             return;
         }
         imageView.setTag(imageUrl);
@@ -194,19 +199,18 @@ public final class NetworkImageLoader {
     /** For lists with their own OnScrollListener: call from onScrollStateChanged. */
     public static void onListScrollStateChanged(AbsListView view, BaseAdapter adapter,
                                                 int scrollState, CoverUrlProvider provider) {
-        if (scrollState == AbsListView.OnScrollListener.SCROLL_STATE_FLING) {
-            setListScrollingFast(true);
-        } else {
+        if (scrollState == AbsListView.OnScrollListener.SCROLL_STATE_IDLE) {
+            // List settled: load the covers that are actually on screen.
             setListScrollingFast(false);
-            if (scrollState == AbsListView.OnScrollListener.SCROLL_STATE_IDLE) {
-                // Rebind visible rows once the list has settled so the covers
-                // currently on screen are (re)loaded.
-                if (adapter != null) {
-                    view.post(adapter::notifyDataSetChanged);
-                } else {
-                    view.post(() -> reloadVisible(view, provider));
-                }
+            if (adapter != null) {
+                view.post(adapter::notifyDataSetChanged);
+            } else {
+                view.post(() -> reloadVisible(view, provider));
             }
+        } else {
+            // While the user is scrolling (drag or fling) don't start any new
+            // downloads, so rows scrolled past are never loaded.
+            setListScrollingFast(true);
         }
     }
 

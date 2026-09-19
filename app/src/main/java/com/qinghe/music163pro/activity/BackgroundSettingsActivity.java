@@ -14,6 +14,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.util.BackgroundUtil;
@@ -107,14 +108,55 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
 
     private void useAlbumCover() {
         BackgroundUtil.setMode(this, BackgroundUtil.MODE_COVER);
-        Song song = MusicPlayerManager.getInstance().getBackgroundSong();
-        final String coverUrl = song != null ? song.getCoverUrl() : null;
-        if (coverUrl == null || coverUrl.isEmpty()) {
+        final Song song = MusicPlayerManager.getInstance().getBackgroundSong();
+        if (song == null) {
             BackgroundUtil.clearCoverBackground();
             refreshPreview();
-            Toast.makeText(this, "当前无歌曲封面，播放歌曲后自动更新", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "暂无歌曲，播放歌曲后自动更新", Toast.LENGTH_SHORT).show();
             return;
         }
+        String coverUrl = song.getCoverUrl();
+        if (coverUrl != null && !coverUrl.isEmpty()) {
+            loadCoverAndPreview(coverUrl);
+            return;
+        }
+        if (song.getId() > 0) {
+            Toast.makeText(this, "正在获取专辑封面...", Toast.LENGTH_SHORT).show();
+            final long songId = song.getId();
+            MusicApiHelper.fetchSongsDetails(java.util.Collections.singletonList(songId),
+                    MusicPlayerManager.getInstance().getCookie(),
+                    new MusicApiHelper.BatchSongDetailsCallback() {
+                        @Override
+                        public void onResult(java.util.Map<Long, Song> songMap) {
+                            Song detail = songMap != null ? songMap.get(songId) : null;
+                            String url = detail != null ? detail.getCoverUrl() : null;
+                            if (url != null && !url.isEmpty()) {
+                                song.setCoverUrl(url);
+                                loadCoverAndPreview(url);
+                            } else {
+                                BackgroundUtil.clearCoverBackground();
+                                refreshPreview();
+                                Toast.makeText(BackgroundSettingsActivity.this,
+                                        "获取封面失败，已使用默认背景", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+
+                        @Override
+                        public void onError(String message) {
+                            BackgroundUtil.clearCoverBackground();
+                            refreshPreview();
+                            Toast.makeText(BackgroundSettingsActivity.this,
+                                    "获取封面失败，已使用默认背景", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+        } else {
+            BackgroundUtil.clearCoverBackground();
+            refreshPreview();
+            Toast.makeText(this, "当前无歌曲封面", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void loadCoverAndPreview(final String coverUrl) {
         Toast.makeText(this, "正在获取专辑封面...", Toast.LENGTH_SHORT).show();
         BackgroundUtil.loadCoverBackground(this, coverUrl, () -> {
             refreshPreview();
