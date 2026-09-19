@@ -115,18 +115,20 @@ public final class NetworkImageLoader {
                 if (!request.cancelled) {
                     bitmap = downloadBitmap(imageUrl, request);
                 }
+                final Bitmap finalBitmap = bitmap;
                 List<ImageView> views;
                 synchronized (ACTIVE_REQUESTS) {
                     views = new ArrayList<>(request.views);
                     ACTIVE_REQUESTS.remove(imageUrl);
                 }
-                if (bitmap != null) {
-                    MEMORY_CACHE.put(imageUrl, bitmap);
+                if (finalBitmap != null) {
+                    MEMORY_CACHE.put(imageUrl, finalBitmap);
                 }
                 for (ImageView view : views) {
-                    view.post(() -> {
-                        if (bitmap != null && imageUrl.equals(view.getTag())) {
-                            view.setImageBitmap(bitmap);
+                    final ImageView target = view;
+                    target.post(() -> {
+                        if (finalBitmap != null && imageUrl.equals(target.getTag())) {
+                            target.setImageBitmap(finalBitmap);
                         }
                     });
                 }
