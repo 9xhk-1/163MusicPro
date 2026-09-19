@@ -110,9 +110,6 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     // reset when volume drops back below it.
     private boolean volumeSafeConfirmed = false;
 
-    // Cover of the song currently used as background (avoid re-downloading)
-    private String currentBgCover = null;
-
     // Activity-level gesture detector for swipe handling
     private GestureDetector activityGestureDetector;
 
@@ -566,7 +563,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         BackgroundUtil.applyBackground(this,
                 getWindow().getDecorView().findViewById(android.R.id.content));
         // Keep the cover background in sync with the current song
-        updateCoverBackground(playerManager.getCurrentSong());
+        updateCoverBackground();
         // Preload cloud liked IDs cache so overlay shows correct favorite state
         if (prefs.getBoolean("fav_mode_cloud", false)) {
             refreshCloudLikedIds();
@@ -3531,37 +3528,33 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             // Reload lyrics for new song
             loadLyricsForOverlay(song, tvLyricsTimeRef);
         }
-        updateCoverBackground(song);
+        updateCoverBackground();
     }
 
     /**
-     * In MODE_COVER the background automatically follows the playing song's
-     * album cover; on failure fall back to the default background.
+     * In MODE_COVER the background always follows the current song's album
+     * cover (kept in memory, never saved to disk). It is (re)loaded whenever
+     * the screen is shown, regardless of playback state; if the cover cannot
+     * be fetched the default background is used.
      */
-    private void updateCoverBackground(Song song) {
+    private void updateCoverBackground() {
         if (!BackgroundUtil.MODE_COVER.equals(BackgroundUtil.getMode(this))) {
             return;
         }
+        final View root = getWindow().getDecorView().findViewById(android.R.id.content);
+        Song song = playerManager.getBackgroundSong();
         final String cover = song != null && song.getCoverUrl() != null ? song.getCoverUrl() : "";
-        if (cover.equals(currentBgCover)) {
+        if (cover.isEmpty()) {
+            BackgroundUtil.clearCoverBackground();
+            BackgroundUtil.applyBackground(this, root);
             return;
         }
-        currentBgCover = cover;
-        final MainActivity activity = this;
-        new Thread(() -> {
-            boolean ok = false;
-            if (!cover.isEmpty()) {
-                ok = BackgroundUtil.saveBackgroundFromUrl(activity, cover);
-            }
-            final boolean success = ok;
-            runOnUiThread(() -> {
-                if (!success) {
-                    BackgroundUtil.clearBackground(activity);
-                }
-                BackgroundUtil.applyBackground(activity,
-                        getWindow().getDecorView().findViewById(android.R.id.content));
-            });
-        }).start();
+        if (BackgroundUtil.hasCoverBackground(cover)) {
+            BackgroundUtil.applyBackground(this, root);
+            return;
+        }
+        BackgroundUtil.loadCoverBackground(this, cover,
+                () -> BackgroundUtil.applyBackground(this, root));
     }
 
     @Override

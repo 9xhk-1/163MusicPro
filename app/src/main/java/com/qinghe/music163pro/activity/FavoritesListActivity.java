@@ -86,7 +86,7 @@ public class FavoritesListActivity extends BaseWatchActivity {
             }
         };
         lvFavorites.setAdapter(songAdapter);
-        NetworkImageLoader.attachListViewOptimization(lvFavorites, position ->
+        NetworkImageLoader.attachListViewOptimization(lvFavorites, songAdapter, position ->
                 position >= 0 && position < favoritesList.size()
                         ? favoritesList.get(position).getCoverUrl() : null);
 
@@ -114,7 +114,7 @@ public class FavoritesListActivity extends BaseWatchActivity {
             }
         };
         lvFavPlaylists.setAdapter(playlistAdapter);
-        NetworkImageLoader.attachListViewOptimization(lvFavPlaylists, position ->
+        NetworkImageLoader.attachListViewOptimization(lvFavPlaylists, playlistAdapter, position ->
                 position >= 0 && position < playlistsList.size()
                         ? playlistsList.get(position).getCoverUrl() : null);
 

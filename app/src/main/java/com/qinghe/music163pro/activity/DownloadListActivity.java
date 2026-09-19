@@ -71,7 +71,7 @@ public class DownloadListActivity extends BaseWatchActivity {
             }
         };
         lvDownloads.setAdapter(adapter);
-        NetworkImageLoader.attachListViewOptimization(lvDownloads, position ->
+        NetworkImageLoader.attachListViewOptimization(lvDownloads, adapter, position ->
                 position >= 0 && position < downloadedSongs.size()
                         ? downloadedSongs.get(position).getCoverUrl() : null);
 

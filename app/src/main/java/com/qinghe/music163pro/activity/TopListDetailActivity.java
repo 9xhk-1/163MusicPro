@@ -95,7 +95,7 @@ public class TopListDetailActivity extends AppCompatActivity {
             }
         };
         lvSongs.setAdapter(adapter);
-        NetworkImageLoader.attachListViewOptimization(lvSongs, position ->
+        NetworkImageLoader.attachListViewOptimization(lvSongs, adapter, position ->
                 position >= 0 && position < displayList.size()
                         ? displayList.get(position).getCoverUrl() : null);
 

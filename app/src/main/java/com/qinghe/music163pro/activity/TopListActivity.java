@@ -104,7 +104,7 @@ public class TopListActivity extends AppCompatActivity {
             }
         };
         lvTopList.setAdapter(adapter);
-        NetworkImageLoader.attachListViewOptimization(lvTopList, position ->
+        NetworkImageLoader.attachListViewOptimization(lvTopList, adapter, position ->
                 position >= 0 && position < items.size()
                         ? items.get(position).coverUrl : null);
 

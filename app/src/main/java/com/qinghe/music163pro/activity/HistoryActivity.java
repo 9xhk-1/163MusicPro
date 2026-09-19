@@ -122,7 +122,7 @@ public class HistoryActivity extends BaseWatchActivity {
             }
         };
         lvHistory.setAdapter(adapter);
-        NetworkImageLoader.attachListViewOptimization(lvHistory, position ->
+        NetworkImageLoader.attachListViewOptimization(lvHistory, adapter, position ->
                 position >= 0 && position < displayList.size()
                         ? displayList.get(position).getCoverUrl() : null);
 

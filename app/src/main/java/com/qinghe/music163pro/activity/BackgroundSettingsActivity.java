@@ -107,54 +107,57 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
 
     private void useAlbumCover() {
         BackgroundUtil.setMode(this, BackgroundUtil.MODE_COVER);
-        Song song = MusicPlayerManager.getInstance().getCurrentSong();
-        if (song == null || song.getCoverUrl() == null || song.getCoverUrl().isEmpty()) {
-            BackgroundUtil.clearBackground(this);
+        Song song = MusicPlayerManager.getInstance().getBackgroundSong();
+        final String coverUrl = song != null ? song.getCoverUrl() : null;
+        if (coverUrl == null || coverUrl.isEmpty()) {
+            BackgroundUtil.clearCoverBackground();
             refreshPreview();
             Toast.makeText(this, "当前无歌曲封面，播放歌曲后自动更新", Toast.LENGTH_SHORT).show();
             return;
         }
-        final String coverUrl = song.getCoverUrl();
         Toast.makeText(this, "正在获取专辑封面...", Toast.LENGTH_SHORT).show();
-        new Thread(() -> {
-            boolean ok = BackgroundUtil.saveBackgroundFromUrl(this, coverUrl);
-            runOnUiThread(() -> {
-                if (ok) {
-                    refreshPreview();
-                    Toast.makeText(this, "背景已跟随专辑封面", Toast.LENGTH_SHORT).show();
-                } else {
-                    BackgroundUtil.clearBackground(this);
-                    refreshPreview();
-                    Toast.makeText(this, "获取封面失败，已使用默认背景", Toast.LENGTH_SHORT).show();
-                }
-            });
-        }).start();
+        BackgroundUtil.loadCoverBackground(this, coverUrl, () -> {
+            refreshPreview();
+            boolean ok = BackgroundUtil.hasCoverBackground(coverUrl);
+            Toast.makeText(this, ok ? "背景已跟随专辑封面" : "获取封面失败，已使用默认背景",
+                    Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void resetBackground() {
         BackgroundUtil.setMode(this, BackgroundUtil.MODE_DEFAULT);
         BackgroundUtil.clearBackground(this);
+        BackgroundUtil.clearCoverBackground();
         refreshPreview();
         Toast.makeText(this, "已恢复默认背景", Toast.LENGTH_SHORT).show();
     }
 
     private void refreshPreview() {
-        if (BackgroundUtil.MODE_DEFAULT.equals(BackgroundUtil.getMode(this))
-                || !BackgroundUtil.hasCustomBackground(this)) {
-            ivPreview.setImageDrawable(null);
-            ivPreview.setBackgroundColor(0xFF1E1E1E);
+        String mode = BackgroundUtil.getMode(this);
+        if (BackgroundUtil.MODE_COVER.equals(mode)) {
+            Bitmap cover = BackgroundUtil.getCoverBackground();
+            if (cover != null) {
+                ivPreview.setBackgroundColor(0xFF1E1E1E);
+                ivPreview.setImageDrawable(new BitmapDrawable(getResources(), cover));
+            } else {
+                ivPreview.setImageDrawable(null);
+                ivPreview.setBackgroundColor(0xFF1E1E1E);
+            }
             return;
         }
-        try {
-            BitmapFactory.Options opts = new BitmapFactory.Options();
-            opts.inSampleSize = 2;
-            Bitmap bmp = BitmapFactory.decodeFile(
-                    BackgroundUtil.getBackgroundFile(this).getAbsolutePath(), opts);
-            if (bmp != null) {
-                ivPreview.setImageDrawable(new BitmapDrawable(getResources(), bmp));
-                return;
+        if (BackgroundUtil.MODE_CUSTOM.equals(mode) && BackgroundUtil.hasCustomBackground(this)) {
+            try {
+                BitmapFactory.Options opts = new BitmapFactory.Options();
+                opts.inSampleSize = 2;
+                Bitmap bmp = BitmapFactory.decodeFile(
+                        BackgroundUtil.getBackgroundFile(this).getAbsolutePath(), opts);
+                if (bmp != null) {
+                    ivPreview.setBackgroundColor(0xFF1E1E1E);
+                    ivPreview.setImageDrawable(new BitmapDrawable(getResources(), bmp));
+                    return;
+                }
+            } catch (Exception ignored) {
             }
-        } catch (Exception ignored) {
         }
         ivPreview.setImageDrawable(null);
         ivPreview.setBackgroundColor(0xFF1E1E1E);

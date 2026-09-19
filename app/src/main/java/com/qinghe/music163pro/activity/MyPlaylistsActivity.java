@@ -155,7 +155,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
             }
         };
         lvPlaylists.setAdapter(adapter);
-        NetworkImageLoader.attachListViewOptimization(lvPlaylists, position ->
+        NetworkImageLoader.attachListViewOptimization(lvPlaylists, adapter, position ->
                 position >= 0 && position < displayList.size()
                         ? displayList.get(position).getCoverUrl() : null);
 

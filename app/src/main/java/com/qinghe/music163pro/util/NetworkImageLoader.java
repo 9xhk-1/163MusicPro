@@ -6,6 +6,7 @@ import android.util.LruCache;
 import android.view.View;
 import android.widget.AbsListView;
 import android.widget.ImageView;
+import android.widget.ListAdapter;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -168,16 +169,18 @@ public final class NetworkImageLoader {
 
     /**
      * Attach scroll optimization to a cover list:
-     * - fast fling: pause downloads
-     * - settled: rebind visible rows + preload a few below
+     * - fast fling: pause downloads (skipped rows are not loaded)
+     * - settled: rebind the visible rows so on-screen covers load, then preload
+     *   a few rows below.
      * Note: replaces any existing OnScrollListener on the list.
      */
     public static void attachListViewOptimization(final AbsListView listView,
+                                                  final ListAdapter adapter,
                                                   final CoverUrlProvider provider) {
         listView.setOnScrollListener(new AbsListView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(AbsListView view, int scrollState) {
-                onListScrollStateChanged(view, scrollState, provider);
+                onListScrollStateChanged(view, adapter, scrollState, provider);
             }
 
             @Override
@@ -189,14 +192,20 @@ public final class NetworkImageLoader {
     }
 
     /** For lists with their own OnScrollListener: call from onScrollStateChanged. */
-    public static void onListScrollStateChanged(AbsListView view, int scrollState,
-                                                CoverUrlProvider provider) {
+    public static void onListScrollStateChanged(AbsListView view, ListAdapter adapter,
+                                                int scrollState, CoverUrlProvider provider) {
         if (scrollState == AbsListView.OnScrollListener.SCROLL_STATE_FLING) {
             setListScrollingFast(true);
         } else {
             setListScrollingFast(false);
             if (scrollState == AbsListView.OnScrollListener.SCROLL_STATE_IDLE) {
-                reloadVisible(view, provider);
+                // Rebind visible rows once the list has settled so the covers
+                // currently on screen are (re)loaded.
+                if (adapter != null) {
+                    view.post(adapter::notifyDataSetChanged);
+                } else {
+                    view.post(() -> reloadVisible(view, provider));
+                }
             }
         }
     }

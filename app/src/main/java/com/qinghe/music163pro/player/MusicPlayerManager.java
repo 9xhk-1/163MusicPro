@@ -207,6 +207,24 @@ public class MusicPlayerManager {
         return null;
     }
 
+    /**
+     * Best song to derive the background cover from: the current song if it has
+     * a cover, otherwise the first playlist song with a cover (so the background
+     * still loads when nothing is playing yet).
+     */
+    public Song getBackgroundSong() {
+        Song current = getCurrentSong();
+        if (current != null && current.getCoverUrl() != null && !current.getCoverUrl().isEmpty()) {
+            return current;
+        }
+        for (Song song : playlist) {
+            if (song != null && song.getCoverUrl() != null && !song.getCoverUrl().isEmpty()) {
+                return song;
+            }
+        }
+        return current;
+    }
+
     public boolean isPlaying() {
         return isPlaying;
     }
@@ -1221,6 +1239,12 @@ public class MusicPlayerManager {
                 if (current.getSource() != null) songJson.put("source", current.getSource());
                 if (current.getBvid() != null) songJson.put("bvid", current.getBvid());
                 if (current.getCid() != 0) songJson.put("cid", current.getCid());
+                if (current.getCoverUrl() != null && !current.getCoverUrl().isEmpty()) {
+                    songJson.put("coverUrl", current.getCoverUrl());
+                }
+                if (current.getAlbumId() > 0) {
+                    songJson.put("albumId", current.getAlbumId());
+                }
                 if (current.isForceLocalPlayback()) {
                     songJson.put(KEY_FORCE_LOCAL_PLAYBACK, true);
                 }
@@ -1240,6 +1264,12 @@ public class MusicPlayerManager {
                 if (s.getSource() != null) obj.put("source", s.getSource());
                 if (s.getBvid() != null) obj.put("bvid", s.getBvid());
                 if (s.getCid() != 0) obj.put("cid", s.getCid());
+                if (s.getCoverUrl() != null && !s.getCoverUrl().isEmpty()) {
+                    obj.put("coverUrl", s.getCoverUrl());
+                }
+                if (s.getAlbumId() > 0) {
+                    obj.put("albumId", s.getAlbumId());
+                }
                 if (s.isForceLocalPlayback()) obj.put(KEY_FORCE_LOCAL_PLAYBACK, true);
                 playlistArr.put(obj);
             }
@@ -1300,6 +1330,14 @@ public class MusicPlayerManager {
                 long cid = obj.optLong("cid", 0);
                 if (cid != 0) {
                     song.setCid(cid);
+                }
+                String cover = obj.optString("coverUrl", null);
+                if (cover != null && !cover.isEmpty()) {
+                    song.setCoverUrl(cover);
+                }
+                long albumId = obj.optLong("albumId", 0);
+                if (albumId > 0) {
+                    song.setAlbumId(albumId);
                 }
                 song.setForceLocalPlayback(obj.optBoolean(KEY_FORCE_LOCAL_PLAYBACK, false));
                 restoredList.add(song);

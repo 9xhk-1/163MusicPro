@@ -10,6 +10,7 @@ import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -240,30 +241,31 @@ public class SearchActivity extends BaseWatchActivity {
             if (currentTab == TAB_SONGS && !isLoadingMoreSongs && hasMoreSongs) {
                 loadMoreSongs();
             }
-        }, position -> position >= 0 && position < songList.size()
+        }, songAdapter, position -> position >= 0 && position < songList.size()
                 ? songList.get(position).getCoverUrl() : null));
 
         lvPlaylists.setOnScrollListener(buildScrollListener(() -> {
             if (currentTab == TAB_PLAYLISTS && !isLoadingMorePlaylists && hasMorePlaylists) {
                 loadMorePlaylists();
             }
-        }, position -> position >= 0 && position < playlistList.size()
+        }, playlistAdapter, position -> position >= 0 && position < playlistList.size()
                 ? playlistList.get(position).getCoverUrl() : null));
 
         lvMvs.setOnScrollListener(buildScrollListener(() -> {
             if (currentTab == TAB_MVS && !isLoadingMoreMvs && hasMoreMvs) {
                 loadMoreMvs();
             }
-        }, position -> position >= 0 && position < mvList.size()
+        }, mvAdapter, position -> position >= 0 && position < mvList.size()
                 ? mvList.get(position).getCoverUrl() : null));
     }
 
     private AbsListView.OnScrollListener buildScrollListener(Runnable loadMoreAction,
+                                                             ListAdapter adapter,
                                                              NetworkImageLoader.CoverUrlProvider provider) {
         return new AbsListView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(AbsListView view, int scrollState) {
-                NetworkImageLoader.onListScrollStateChanged(view, scrollState, provider);
+                NetworkImageLoader.onListScrollStateChanged(view, adapter, scrollState, provider);
             }
 
             @Override

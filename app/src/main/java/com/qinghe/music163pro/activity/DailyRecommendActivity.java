@@ -55,7 +55,7 @@ public class DailyRecommendActivity extends BaseWatchActivity {
             }
         };
         listView.setAdapter(adapter);
-        NetworkImageLoader.attachListViewOptimization(listView, position ->
+        NetworkImageLoader.attachListViewOptimization(listView, adapter, position ->
                 position >= 0 && position < songs.size()
                         ? songs.get(position).getCoverUrl() : null);
         listView.setOnItemClickListener((parent, view, position, id) -> playFromDailyRecommend(position));
