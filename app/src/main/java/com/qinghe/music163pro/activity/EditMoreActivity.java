@@ -202,7 +202,10 @@ public class EditMoreActivity extends BaseWatchActivity {
         dragHandle.setOnTouchListener(new View.OnTouchListener() {
             float fingerOffsetInRow;
             float downRawY;
+            int containerScreenY;
             boolean dragging = false;
+            int fromIndex = -1;
+            int currentTarget = -1;
             final Handler handler = new Handler();
             Runnable longPressRunnable;
 
@@ -213,10 +216,13 @@ public class EditMoreActivity extends BaseWatchActivity {
                         downRawY = e.getRawY();
                         int[] downLoc = new int[2];
                         enabledContainer.getLocationOnScreen(downLoc);
-                        fingerOffsetInRow = e.getRawY() - downLoc[1] - row.getTop();
+                        containerScreenY = downLoc[1];
+                        fingerOffsetInRow = e.getRawY() - containerScreenY - row.getTop();
                         dragging = false;
                         longPressRunnable = () -> {
                             dragging = true;
+                            fromIndex = enabledContainer.indexOfChild(row);
+                            currentTarget = fromIndex;
                             row.getParent().requestDisallowInterceptTouchEvent(true);
                             row.animate().scaleX(1.03f).scaleY(1.03f)
                                     .setDuration(80).start();
@@ -230,21 +236,15 @@ public class EditMoreActivity extends BaseWatchActivity {
                             }
                             return true;
                         }
-                        int[] loc = new int[2];
-                        enabledContainer.getLocationOnScreen(loc);
-                        float fingerY = e.getRawY() - loc[1];
+                        float fingerY = e.getRawY() - containerScreenY;
                         float rowTop = fingerY - fingerOffsetInRow;
                         row.setTranslationY(rowTop - row.getTop());
-                        int target = (int) Math.floor((rowTop + row.getHeight() / 2f) / rowStep);
                         int count = enabledContainer.getChildCount();
+                        int target = (int) Math.floor((rowTop + row.getHeight() / 2f) / rowStep);
                         target = Math.max(0, Math.min(target, count - 1));
-                        int current = enabledContainer.indexOfChild(row);
-                        if (target != current) {
-                            enabledContainer.removeView(row);
-                            enabledContainer.addView(row, target);
-                            enabledKeys.remove(key);
-                            enabledKeys.add(target, key);
-                            row.setTranslationY(rowTop - row.getTop());
+                        if (target != currentTarget) {
+                            currentTarget = target;
+                            shiftOtherRows(row, fromIndex, target, rowStep);
                         }
                         return true;
                     case MotionEvent.ACTION_UP:
@@ -253,8 +253,17 @@ public class EditMoreActivity extends BaseWatchActivity {
                         if (dragging) {
                             dragging = false;
                             row.getParent().requestDisallowInterceptTouchEvent(false);
-                            row.animate().translationY(0).scaleX(1f).scaleY(1f)
-                                    .setDuration(120).start();
+                            if (currentTarget >= 0 && currentTarget != fromIndex) {
+                                enabledContainer.removeView(row);
+                                enabledContainer.addView(row, currentTarget);
+                                enabledKeys.remove(key);
+                                enabledKeys.add(currentTarget, key);
+                            }
+                            for (int i = 0; i < enabledContainer.getChildCount(); i++) {
+                                View child = enabledContainer.getChildAt(i);
+                                child.animate().translationY(0).scaleX(1f).scaleY(1f)
+                                        .setDuration(120).start();
+                            }
                             persistOrder();
                         }
                         return true;
@@ -262,6 +271,21 @@ public class EditMoreActivity extends BaseWatchActivity {
                 return false;
             }
         });
+    }
+
+    private void shiftOtherRows(View draggedRow, int fromIndex, int target, int rowStep) {
+        int count = enabledContainer.getChildCount();
+        for (int i = 0; i < count; i++) {
+            View child = enabledContainer.getChildAt(i);
+            if (child == draggedRow) continue;
+            float ty = 0;
+            if (target > fromIndex) {
+                if (i > fromIndex && i <= target) ty = -rowStep;
+            } else if (target < fromIndex) {
+                if (i >= target && i < fromIndex) ty = rowStep;
+            }
+            child.setTranslationY(ty);
+        }
     }
 
     private void persistOrder() {

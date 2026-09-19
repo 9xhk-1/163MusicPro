@@ -10,14 +10,17 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.qinghe.music163pro.model.Song;
+import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.util.BackgroundUtil;
 
 /**
- * Custom background settings: pick an image to use as the main player and
- * lyrics screen background, or reset to default.
+ * Custom background settings: pick an image or use the current album cover as
+ * the main player / lyrics background, or reset to default.
  */
 public class BackgroundSettingsActivity extends BaseWatchActivity {
 
@@ -29,9 +32,14 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        ScrollView scroll = new ScrollView(this);
+        scroll.setBackgroundColor(0xFF121212);
+        scroll.setFillViewport(true);
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF121212);
+        scroll.addView(root);
+        setContentView(scroll);
 
         root.addView(buildTitleBar());
 
@@ -39,13 +47,13 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
         ivPreview.setScaleType(ImageView.ScaleType.CENTER_CROP);
         ivPreview.setBackgroundColor(0xFF1E1E1E);
         LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
+                LinearLayout.LayoutParams.MATCH_PARENT, px(180));
         previewParams.setMargins(px(14), px(8), px(14), px(8));
         ivPreview.setLayoutParams(previewParams);
         root.addView(ivPreview);
 
         TextView hint = new TextView(this);
-        hint.setText("选择一张图片作为主界面和歌词界面的背景");
+        hint.setText("选择图片或使用当前专辑封面作为背景");
         hint.setTextColor(0x80FFFFFF);
         hint.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
         hint.setGravity(Gravity.CENTER);
@@ -53,43 +61,20 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
         root.addView(hint);
 
         root.addView(buildButton("选择图片", v -> pickImage()));
+        root.addView(buildButton("使用专辑封面", v -> useAlbumCover()));
         root.addView(buildButton("恢复默认背景", v -> resetBackground()));
 
-        setContentView(root);
         refreshPreview();
     }
 
     private View buildTitleBar() {
-        LinearLayout bar = new LinearLayout(this);
-        bar.setOrientation(LinearLayout.HORIZONTAL);
-        bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setBackgroundColor(0xFF1A1A1A);
-        bar.setPadding(px(8), px(8), px(12), px(8));
-
-        TextView back = new TextView(this);
-        back.setText("‹");
-        back.setTextColor(0xFFBB86FC);
-        back.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(22));
-        back.setPadding(px(4), 0, px(8), 0);
-        back.setClickable(true);
-        back.setFocusable(true);
-        back.setOnClickListener(v -> finish());
-        bar.addView(back);
-
         TextView title = new TextView(this);
         title.setText("自定义背景");
         title.setTextColor(0xFFFFFFFF);
         title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(15));
         title.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        title.setLayoutParams(titleParams);
-        bar.addView(title);
-
-        View spacer = new View(this);
-        spacer.setLayoutParams(new LinearLayout.LayoutParams(px(24), 1));
-        bar.addView(spacer);
-        return bar;
+        title.setPadding(px(12), px(10), px(12), px(6));
+        return title;
     }
 
     private View buildButton(String label, View.OnClickListener listener) {
@@ -120,6 +105,27 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
         startActivityForResult(intent, REQ_PICK_IMAGE);
     }
 
+    private void useAlbumCover() {
+        Song song = MusicPlayerManager.getInstance().getCurrentSong();
+        if (song == null || song.getCoverUrl() == null || song.getCoverUrl().isEmpty()) {
+            Toast.makeText(this, "当前无歌曲封面", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final String coverUrl = song.getCoverUrl();
+        Toast.makeText(this, "正在获取专辑封面...", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            boolean ok = BackgroundUtil.saveBackgroundFromUrl(this, coverUrl);
+            runOnUiThread(() -> {
+                if (ok) {
+                    refreshPreview();
+                    Toast.makeText(this, "已使用专辑封面作为背景", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "获取封面失败", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }).start();
+    }
+
     private void resetBackground() {
         BackgroundUtil.clearBackground(this);
         refreshPreview();
@@ -130,7 +136,7 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
         if (BackgroundUtil.hasCustomBackground(this)) {
             try {
                 BitmapFactory.Options opts = new BitmapFactory.Options();
-                opts.inSampleSize = 4;
+                opts.inSampleSize = 2;
                 Bitmap bmp = BitmapFactory.decodeFile(
                         BackgroundUtil.getBackgroundFile(this).getAbsolutePath(), opts);
                 if (bmp != null) {

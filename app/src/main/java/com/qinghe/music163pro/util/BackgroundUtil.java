@@ -13,6 +13,8 @@ import android.view.View;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 /**
  * Custom background image support for the main player and lyrics screens.
@@ -53,6 +55,38 @@ public final class BackgroundUtil {
 
     public static void clearBackground(Context context) {
         getBackgroundFile(context).delete();
+    }
+
+    /**
+     * Download an image from a URL and save it as the custom background.
+     * Returns true on success.
+     */
+    public static boolean saveBackgroundFromUrl(Context context, String url) {
+        if (url == null || url.isEmpty()) return false;
+        HttpURLConnection conn = null;
+        InputStream is = null;
+        try {
+            conn = (HttpURLConnection) new URL(url).openConnection();
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(15000);
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+            conn.connect();
+            is = conn.getInputStream();
+            FileOutputStream fos = new FileOutputStream(getBackgroundFile(context));
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = is.read(buf)) != -1) fos.write(buf, 0, n);
+            fos.close();
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        } finally {
+            try {
+                if (is != null) is.close();
+            } catch (Exception ignored) {
+            }
+            if (conn != null) conn.disconnect();
+        }
     }
 
     /**
