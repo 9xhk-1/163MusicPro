@@ -5,8 +5,8 @@ import android.graphics.BitmapFactory;
 import android.util.LruCache;
 import android.view.View;
 import android.widget.AbsListView;
+import android.widget.BaseAdapter;
 import android.widget.ImageView;
-import android.widget.ListAdapter;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -175,7 +175,7 @@ public final class NetworkImageLoader {
      * Note: replaces any existing OnScrollListener on the list.
      */
     public static void attachListViewOptimization(final AbsListView listView,
-                                                  final ListAdapter adapter,
+                                                  final BaseAdapter adapter,
                                                   final CoverUrlProvider provider) {
         listView.setOnScrollListener(new AbsListView.OnScrollListener() {
             @Override
@@ -192,7 +192,7 @@ public final class NetworkImageLoader {
     }
 
     /** For lists with their own OnScrollListener: call from onScrollStateChanged. */
-    public static void onListScrollStateChanged(AbsListView view, ListAdapter adapter,
+    public static void onListScrollStateChanged(AbsListView view, BaseAdapter adapter,
                                                 int scrollState, CoverUrlProvider provider) {
         if (scrollState == AbsListView.OnScrollListener.SCROLL_STATE_FLING) {
             setListScrollingFast(true);

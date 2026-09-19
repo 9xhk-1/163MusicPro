@@ -10,7 +10,6 @@ import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -260,7 +259,7 @@ public class SearchActivity extends BaseWatchActivity {
     }
 
     private AbsListView.OnScrollListener buildScrollListener(Runnable loadMoreAction,
-                                                             ListAdapter adapter,
+                                                             android.widget.BaseAdapter adapter,
                                                              NetworkImageLoader.CoverUrlProvider provider) {
         return new AbsListView.OnScrollListener() {
             @Override
