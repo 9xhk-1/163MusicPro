@@ -155,6 +155,9 @@ public class MyPlaylistsActivity extends AppCompatActivity {
             }
         };
         lvPlaylists.setAdapter(adapter);
+        NetworkImageLoader.attachListViewOptimization(lvPlaylists, position ->
+                position >= 0 && position < displayList.size()
+                        ? displayList.get(position).getCoverUrl() : null);
 
         lvPlaylists.setOnItemClickListener((parent, view, position, id) -> {
             PlaylistInfo pl = displayList.get(position);
@@ -408,5 +411,11 @@ public class MyPlaylistsActivity extends AppCompatActivity {
     private int px(int baseValue) {
         int screenWidth = getResources().getDisplayMetrics().widthPixels;
         return (int) (baseValue * screenWidth / 320f + 0.5f);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 }

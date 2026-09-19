@@ -122,6 +122,9 @@ public class HistoryActivity extends BaseWatchActivity {
             }
         };
         lvHistory.setAdapter(adapter);
+        NetworkImageLoader.attachListViewOptimization(lvHistory, position ->
+                position >= 0 && position < displayList.size()
+                        ? displayList.get(position).getCoverUrl() : null);
 
         lvHistory.setOnItemClickListener((parent, view, position, id) -> {
             Song song = displayList.get(position);
@@ -211,5 +214,11 @@ public class HistoryActivity extends BaseWatchActivity {
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
                 new WatchConfirmDialog.Options(0xFF424242, 0xFFBB86FC, true));
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 }

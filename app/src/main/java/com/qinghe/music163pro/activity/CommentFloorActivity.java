@@ -975,4 +975,10 @@ public class CommentFloorActivity extends BaseWatchActivity {
         WatchConfirmDialog.show(this, title, message, onConfirm,
                 new WatchConfirmDialog.Options(0xFF1E1E1E, 0xFFBB86FC, false));
     }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
+    }
 }

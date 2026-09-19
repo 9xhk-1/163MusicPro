@@ -86,6 +86,9 @@ public class FavoritesListActivity extends BaseWatchActivity {
             }
         };
         lvFavorites.setAdapter(songAdapter);
+        NetworkImageLoader.attachListViewOptimization(lvFavorites, position ->
+                position >= 0 && position < favoritesList.size()
+                        ? favoritesList.get(position).getCoverUrl() : null);
 
         // Playlist adapter
         playlistAdapter = new ArrayAdapter<PlaylistInfo>(this, R.layout.item_playlist, R.id.tv_playlist_name, playlistsList) {
@@ -111,6 +114,9 @@ public class FavoritesListActivity extends BaseWatchActivity {
             }
         };
         lvFavPlaylists.setAdapter(playlistAdapter);
+        NetworkImageLoader.attachListViewOptimization(lvFavPlaylists, position ->
+                position >= 0 && position < playlistsList.size()
+                        ? playlistsList.get(position).getCoverUrl() : null);
 
         // Tab click handlers
         tabFavSongs.setOnClickListener(v -> switchToSongTab());
@@ -436,5 +442,11 @@ public class FavoritesListActivity extends BaseWatchActivity {
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
                 new WatchConfirmDialog.Options(0xFF1E1E1E, 0xFFBB86FC, true));
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 }

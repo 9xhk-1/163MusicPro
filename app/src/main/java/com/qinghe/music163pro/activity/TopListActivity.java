@@ -104,6 +104,9 @@ public class TopListActivity extends AppCompatActivity {
             }
         };
         lvTopList.setAdapter(adapter);
+        NetworkImageLoader.attachListViewOptimization(lvTopList, position ->
+                position >= 0 && position < items.size()
+                        ? items.get(position).coverUrl : null);
 
         lvTopList.setOnItemClickListener((parent, view, position, id) -> {
             TopListItem item = items.get(position);
@@ -150,5 +153,11 @@ public class TopListActivity extends AppCompatActivity {
     private int px(int baseValue) {
         int screenWidth = getResources().getDisplayMetrics().widthPixels;
         return (int) (baseValue * screenWidth / 320f + 0.5f);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 }

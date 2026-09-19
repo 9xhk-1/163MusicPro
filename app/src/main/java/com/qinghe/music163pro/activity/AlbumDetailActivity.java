@@ -150,6 +150,9 @@ public class AlbumDetailActivity extends AppCompatActivity {
             }
         };
         lvSongs.setAdapter(adapter);
+        NetworkImageLoader.attachListViewOptimization(lvSongs, position ->
+                position >= 0 && position < displayList.size()
+                        ? displayList.get(position).getCoverUrl() : null);
 
         lvSongs.setOnItemClickListener((parent, view, position, id) -> {
             Song song = displayList.get(position);
@@ -203,5 +206,11 @@ public class AlbumDetailActivity extends AppCompatActivity {
         int screenWidth = getResources().getDisplayMetrics().widthPixels;
         float scale = screenWidth / 320f;
         return Math.round(baseValue * scale);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 }

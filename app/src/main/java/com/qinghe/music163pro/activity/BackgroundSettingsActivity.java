@@ -53,7 +53,7 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
         root.addView(ivPreview);
 
         TextView hint = new TextView(this);
-        hint.setText("选择图片或使用当前专辑封面作为背景");
+        hint.setText("默认跟随专辑封面：每播放一首歌自动以其封面为背景（获取失败用默认背景）");
         hint.setTextColor(0x80FFFFFF);
         hint.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
         hint.setGravity(Gravity.CENTER);
@@ -106,9 +106,12 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
     }
 
     private void useAlbumCover() {
+        BackgroundUtil.setMode(this, BackgroundUtil.MODE_COVER);
         Song song = MusicPlayerManager.getInstance().getCurrentSong();
         if (song == null || song.getCoverUrl() == null || song.getCoverUrl().isEmpty()) {
-            Toast.makeText(this, "当前无歌曲封面", Toast.LENGTH_SHORT).show();
+            BackgroundUtil.clearBackground(this);
+            refreshPreview();
+            Toast.makeText(this, "当前无歌曲封面，播放歌曲后自动更新", Toast.LENGTH_SHORT).show();
             return;
         }
         final String coverUrl = song.getCoverUrl();
@@ -118,33 +121,40 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
             runOnUiThread(() -> {
                 if (ok) {
                     refreshPreview();
-                    Toast.makeText(this, "已使用专辑封面作为背景", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "背景已跟随专辑封面", Toast.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(this, "获取封面失败", Toast.LENGTH_SHORT).show();
+                    BackgroundUtil.clearBackground(this);
+                    refreshPreview();
+                    Toast.makeText(this, "获取封面失败，已使用默认背景", Toast.LENGTH_SHORT).show();
                 }
             });
         }).start();
     }
 
     private void resetBackground() {
+        BackgroundUtil.setMode(this, BackgroundUtil.MODE_DEFAULT);
         BackgroundUtil.clearBackground(this);
         refreshPreview();
         Toast.makeText(this, "已恢复默认背景", Toast.LENGTH_SHORT).show();
     }
 
     private void refreshPreview() {
-        if (BackgroundUtil.hasCustomBackground(this)) {
-            try {
-                BitmapFactory.Options opts = new BitmapFactory.Options();
-                opts.inSampleSize = 2;
-                Bitmap bmp = BitmapFactory.decodeFile(
-                        BackgroundUtil.getBackgroundFile(this).getAbsolutePath(), opts);
-                if (bmp != null) {
-                    ivPreview.setImageDrawable(new BitmapDrawable(getResources(), bmp));
-                    return;
-                }
-            } catch (Exception ignored) {
+        if (BackgroundUtil.MODE_DEFAULT.equals(BackgroundUtil.getMode(this))
+                || !BackgroundUtil.hasCustomBackground(this)) {
+            ivPreview.setImageDrawable(null);
+            ivPreview.setBackgroundColor(0xFF1E1E1E);
+            return;
+        }
+        try {
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inSampleSize = 2;
+            Bitmap bmp = BitmapFactory.decodeFile(
+                    BackgroundUtil.getBackgroundFile(this).getAbsolutePath(), opts);
+            if (bmp != null) {
+                ivPreview.setImageDrawable(new BitmapDrawable(getResources(), bmp));
+                return;
             }
+        } catch (Exception ignored) {
         }
         ivPreview.setImageDrawable(null);
         ivPreview.setBackgroundColor(0xFF1E1E1E);
@@ -157,6 +167,7 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
             Uri uri = data.getData();
             if (uri != null) {
                 BackgroundUtil.saveBackground(this, uri);
+                BackgroundUtil.setMode(this, BackgroundUtil.MODE_CUSTOM);
                 refreshPreview();
                 Toast.makeText(this, "背景已设置", Toast.LENGTH_SHORT).show();
             }

@@ -95,6 +95,9 @@ public class TopListDetailActivity extends AppCompatActivity {
             }
         };
         lvSongs.setAdapter(adapter);
+        NetworkImageLoader.attachListViewOptimization(lvSongs, position ->
+                position >= 0 && position < displayList.size()
+                        ? displayList.get(position).getCoverUrl() : null);
 
         lvSongs.setOnItemClickListener((parent, view, position, id) -> {
             Song song = displayList.get(position);
@@ -135,5 +138,11 @@ public class TopListDetailActivity extends AppCompatActivity {
     private int px(int baseValue) {
         int screenWidth = getResources().getDisplayMetrics().widthPixels;
         return (int) (baseValue * screenWidth / 320f + 0.5f);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 }

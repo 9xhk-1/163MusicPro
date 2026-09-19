@@ -184,6 +184,9 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
             }
         };
         lvSongs.setAdapter(adapter);
+        NetworkImageLoader.attachListViewOptimization(lvSongs, position ->
+                position >= 0 && position < displayList.size()
+                        ? displayList.get(position).getCoverUrl() : null);
 
         lvSongs.setOnItemClickListener((parent, view, position, id) -> {
             List<Song> playlist = new ArrayList<>(displayList);
@@ -468,5 +471,11 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
                 new WatchConfirmDialog.Options(0xFF1E1E1E, 0xFFBB86FC, true));
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 }

@@ -110,6 +110,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     // reset when volume drops back below it.
     private boolean volumeSafeConfirmed = false;
 
+    // Cover of the song currently used as background (avoid re-downloading)
+    private String currentBgCover = null;
+
     // Activity-level gesture detector for swipe handling
     private GestureDetector activityGestureDetector;
 
@@ -562,6 +565,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Reapply custom background
         BackgroundUtil.applyBackground(this,
                 getWindow().getDecorView().findViewById(android.R.id.content));
+        // Keep the cover background in sync with the current song
+        updateCoverBackground(playerManager.getCurrentSong());
         // Preload cloud liked IDs cache so overlay shows correct favorite state
         if (prefs.getBoolean("fav_mode_cloud", false)) {
             refreshCloudLikedIds();
@@ -3526,6 +3531,37 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             // Reload lyrics for new song
             loadLyricsForOverlay(song, tvLyricsTimeRef);
         }
+        updateCoverBackground(song);
+    }
+
+    /**
+     * In MODE_COVER the background automatically follows the playing song's
+     * album cover; on failure fall back to the default background.
+     */
+    private void updateCoverBackground(Song song) {
+        if (!BackgroundUtil.MODE_COVER.equals(BackgroundUtil.getMode(this))) {
+            return;
+        }
+        final String cover = song != null && song.getCoverUrl() != null ? song.getCoverUrl() : "";
+        if (cover.equals(currentBgCover)) {
+            return;
+        }
+        currentBgCover = cover;
+        final MainActivity activity = this;
+        new Thread(() -> {
+            boolean ok = false;
+            if (!cover.isEmpty()) {
+                ok = BackgroundUtil.saveBackgroundFromUrl(activity, cover);
+            }
+            final boolean success = ok;
+            runOnUiThread(() -> {
+                if (!success) {
+                    BackgroundUtil.clearBackground(activity);
+                }
+                BackgroundUtil.applyBackground(activity,
+                        getWindow().getDecorView().findViewById(android.R.id.content));
+            });
+        }).start();
     }
 
     @Override
@@ -3694,5 +3730,6 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         lyricsScrollHandler.removeCallbacksAndMessages(null);
         volumeHandler.removeCallbacksAndMessages(null);
         dismissVolumeIndicator();
+        NetworkImageLoader.cancelAll();
     }
 }

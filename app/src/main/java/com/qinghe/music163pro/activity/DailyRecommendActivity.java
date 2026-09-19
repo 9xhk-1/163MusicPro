@@ -55,6 +55,9 @@ public class DailyRecommendActivity extends BaseWatchActivity {
             }
         };
         listView.setAdapter(adapter);
+        NetworkImageLoader.attachListViewOptimization(listView, position ->
+                position >= 0 && position < songs.size()
+                        ? songs.get(position).getCoverUrl() : null);
         listView.setOnItemClickListener((parent, view, position, id) -> playFromDailyRecommend(position));
 
         loadDailyRecommend();
@@ -97,5 +100,11 @@ public class DailyRecommendActivity extends BaseWatchActivity {
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(intent);
         finish();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 }

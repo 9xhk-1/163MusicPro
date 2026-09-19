@@ -68,6 +68,9 @@ public class SongRecognitionResultActivity extends BaseWatchActivity {
             }
         };
         lvResults.setAdapter(adapter);
+        NetworkImageLoader.attachListViewOptimization(lvResults, position ->
+                position >= 0 && position < resultSongs.size()
+                        ? resultSongs.get(position).getCoverUrl() : null);
         lvResults.setEmptyView(tvEmpty);
 
         lvResults.setOnItemClickListener((parent, view, position, id) -> {
@@ -79,5 +82,11 @@ public class SongRecognitionResultActivity extends BaseWatchActivity {
             startActivity(intent);
             finish();
         });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 }

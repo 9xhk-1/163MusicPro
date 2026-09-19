@@ -240,25 +240,30 @@ public class SearchActivity extends BaseWatchActivity {
             if (currentTab == TAB_SONGS && !isLoadingMoreSongs && hasMoreSongs) {
                 loadMoreSongs();
             }
-        }));
+        }, position -> position >= 0 && position < songList.size()
+                ? songList.get(position).getCoverUrl() : null));
 
         lvPlaylists.setOnScrollListener(buildScrollListener(() -> {
             if (currentTab == TAB_PLAYLISTS && !isLoadingMorePlaylists && hasMorePlaylists) {
                 loadMorePlaylists();
             }
-        }));
+        }, position -> position >= 0 && position < playlistList.size()
+                ? playlistList.get(position).getCoverUrl() : null));
 
         lvMvs.setOnScrollListener(buildScrollListener(() -> {
             if (currentTab == TAB_MVS && !isLoadingMoreMvs && hasMoreMvs) {
                 loadMoreMvs();
             }
-        }));
+        }, position -> position >= 0 && position < mvList.size()
+                ? mvList.get(position).getCoverUrl() : null));
     }
 
-    private AbsListView.OnScrollListener buildScrollListener(Runnable loadMoreAction) {
+    private AbsListView.OnScrollListener buildScrollListener(Runnable loadMoreAction,
+                                                             NetworkImageLoader.CoverUrlProvider provider) {
         return new AbsListView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(AbsListView view, int scrollState) {
+                NetworkImageLoader.onListScrollStateChanged(view, scrollState, provider);
             }
 
             @Override
@@ -266,6 +271,8 @@ public class SearchActivity extends BaseWatchActivity {
                 if (totalItemCount > 0 && firstVisibleItem + visibleItemCount >= totalItemCount) {
                     loadMoreAction.run();
                 }
+                NetworkImageLoader.onListScrolled(firstVisibleItem, visibleItemCount,
+                        totalItemCount, provider);
             }
         };
     }
@@ -541,5 +548,11 @@ public class SearchActivity extends BaseWatchActivity {
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
                 new WatchConfirmDialog.Options(0xFF1E1E1E, 0xFFBB86FC, true));
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 }

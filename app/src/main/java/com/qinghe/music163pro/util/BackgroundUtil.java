@@ -1,6 +1,7 @@
 package com.qinghe.music163pro.util;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -20,14 +21,37 @@ import java.net.URL;
  * Custom background image support for the main player and lyrics screens.
  * The selected image is copied into internal storage and a darkened copy is
  * applied as the screen background so text remains readable.
+ *
+ * Modes:
+ * - MODE_COVER: background follows the playing song's album cover
+ *   (updated automatically on every song change; falls back to the default
+ *   dark color when the cover cannot be fetched).
+ * - MODE_CUSTOM: a user-picked static image.
+ * - MODE_DEFAULT: plain dark background.
  */
 public final class BackgroundUtil {
 
+    public static final String MODE_COVER = "cover";
+    public static final String MODE_CUSTOM = "custom";
+    public static final String MODE_DEFAULT = "default";
+
+    private static final String PREFS_NAME = "music163_settings";
+    private static final String KEY_MODE = "background_mode";
     private static final String FILE_NAME = "custom_background.jpg";
     private static final int DEFAULT_BG_COLOR = 0xFF121212;
     private static final int SCRIM_ALPHA = 150; // 0..255
 
     private BackgroundUtil() {
+    }
+
+    public static String getMode(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.getString(KEY_MODE, MODE_COVER);
+    }
+
+    public static void setMode(Context context, String mode) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().putString(KEY_MODE, mode).apply();
     }
 
     public static File getBackgroundFile(Context context) {
@@ -91,11 +115,11 @@ public final class BackgroundUtil {
 
     /**
      * Apply the custom background (darkened) to a root view, or reset to the
-     * default dark color when no background is set.
+     * default dark color when none is set or the mode is MODE_DEFAULT.
      */
     public static void applyBackground(Context context, View root) {
         if (root == null) return;
-        if (!hasCustomBackground(context)) {
+        if (MODE_DEFAULT.equals(getMode(context)) || !hasCustomBackground(context)) {
             root.setBackgroundColor(DEFAULT_BG_COLOR);
             return;
         }

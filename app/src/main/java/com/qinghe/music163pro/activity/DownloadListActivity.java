@@ -71,6 +71,9 @@ public class DownloadListActivity extends BaseWatchActivity {
             }
         };
         lvDownloads.setAdapter(adapter);
+        NetworkImageLoader.attachListViewOptimization(lvDownloads, position ->
+                position >= 0 && position < downloadedSongs.size()
+                        ? downloadedSongs.get(position).getCoverUrl() : null);
 
         lvDownloads.setOnItemClickListener((parent, view, position, id) -> {
             playDownloadedSong(position);
@@ -228,6 +231,12 @@ public class DownloadListActivity extends BaseWatchActivity {
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
                 new WatchConfirmDialog.Options(0xFF424242, 0xFFBB86FC, true));
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 
 }
