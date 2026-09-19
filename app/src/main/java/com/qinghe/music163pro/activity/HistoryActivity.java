@@ -9,6 +9,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -21,6 +22,7 @@ import com.qinghe.music163pro.util.WatchConfirmDialog;
 import com.qinghe.music163pro.manager.HistoryManager;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
+import com.qinghe.music163pro.util.NetworkImageLoader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -109,13 +111,20 @@ public class HistoryActivity extends BaseWatchActivity {
                 if (song != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
+                    ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setText(song.getName());
                     tvArtist.setText(song.getArtist());
+                    if (ivCover != null) {
+                        NetworkImageLoader.load(ivCover, song.getCoverUrl());
+                    }
                 }
                 return view;
             }
         };
         lvHistory.setAdapter(adapter);
+        NetworkImageLoader.attachListViewOptimization(lvHistory, adapter, position ->
+                position >= 0 && position < displayList.size()
+                        ? displayList.get(position).getCoverUrl() : null);
 
         lvHistory.setOnItemClickListener((parent, view, position, id) -> {
             Song song = displayList.get(position);
@@ -159,6 +168,37 @@ public class HistoryActivity extends BaseWatchActivity {
             tvEmpty.setVisibility(View.GONE);
             lvHistory.setVisibility(View.VISIBLE);
         }
+
+        // Fetch coverUrls from API in background
+        if (!displayList.isEmpty()) {
+            String cookie = playerManager.getCookie();
+            if (cookie != null && !cookie.isEmpty()) {
+                List<Long> ids = new ArrayList<>();
+                for (Song s : displayList) {
+                    ids.add(s.getId());
+                }
+                com.qinghe.music163pro.api.MusicApiHelper.fetchSongsDetails(ids, cookie,
+                        new com.qinghe.music163pro.api.MusicApiHelper.BatchSongDetailsCallback() {
+                    @Override
+                    public void onResult(java.util.Map<Long, Song> songMap) {
+                        if (songMap.isEmpty()) return;
+                        for (int i = 0; i < displayList.size(); i++) {
+                            Song local = displayList.get(i);
+                            Song fresh = songMap.get(local.getId());
+                            if (fresh != null && fresh.getCoverUrl() != null && !fresh.getCoverUrl().isEmpty()) {
+                                local.setCoverUrl(fresh.getCoverUrl());
+                            }
+                        }
+                        adapter.notifyDataSetChanged();
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        // Keep local data, silently ignore
+                    }
+                });
+            }
+        }
     }
 
     private void showClearConfirmDialog() {
@@ -174,5 +214,11 @@ public class HistoryActivity extends BaseWatchActivity {
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
                 new WatchConfirmDialog.Options(0xFF424242, 0xFFBB86FC, true));
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 }

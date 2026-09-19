@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
@@ -12,6 +13,7 @@ import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
+import com.qinghe.music163pro.util.NetworkImageLoader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,13 +44,20 @@ public class DailyRecommendActivity extends BaseWatchActivity {
                 if (song != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
+                    ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setText((position + 1) + ". " + song.getName());
                     tvArtist.setText(song.getArtist());
+                    if (ivCover != null) {
+                        NetworkImageLoader.load(ivCover, song.getCoverUrl());
+                    }
                 }
                 return view;
             }
         };
         listView.setAdapter(adapter);
+        NetworkImageLoader.attachListViewOptimization(listView, adapter, position ->
+                position >= 0 && position < songs.size()
+                        ? songs.get(position).getCoverUrl() : null);
         listView.setOnItemClickListener((parent, view, position, id) -> playFromDailyRecommend(position));
 
         loadDailyRecommend();
@@ -91,5 +100,11 @@ public class DailyRecommendActivity extends BaseWatchActivity {
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(intent);
         finish();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 }

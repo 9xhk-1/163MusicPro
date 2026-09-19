@@ -3,6 +3,7 @@ package com.qinghe.music163pro.util;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -28,7 +29,6 @@ public final class MoreMenuPreferences {
     public static final String KEY_PROFILE = "more_show_profile";
     public static final String KEY_PERSONAL_FM = "more_show_personal_fm";
     public static final String KEY_LOGIN = "more_show_login";
-    public static final String KEY_BILIBILI = "more_show_bilibili";
 
     private static final List<String> ALL_KEYS = Collections.unmodifiableList(Arrays.asList(
             KEY_FAVORITES,
@@ -44,8 +44,7 @@ public final class MoreMenuPreferences {
             KEY_HISTORY,
             KEY_PROFILE,
             KEY_PERSONAL_FM,
-            KEY_LOGIN,
-            KEY_BILIBILI
+            KEY_LOGIN
     ));
 
     private MoreMenuPreferences() {
@@ -68,5 +67,35 @@ public final class MoreMenuPreferences {
 
     public static List<String> allKeys() {
         return ALL_KEYS;
+    }
+
+    public static List<String> getOrder(SharedPreferences prefs) {
+        List<String> order = new ArrayList<>();
+        if (prefs != null) {
+            String saved = prefs.getString("more_order", "");
+            if (saved != null && !saved.isEmpty()) {
+                for (String key : saved.split(",")) {
+                    if (ALL_KEYS.contains(key) && !order.contains(key)) {
+                        order.add(key);
+                    }
+                }
+            }
+        }
+        for (String key : ALL_KEYS) {
+            if (!order.contains(key)) {
+                order.add(key);
+            }
+        }
+        return order;
+    }
+
+    public static void setOrder(SharedPreferences prefs, List<String> order) {
+        if (prefs == null) return;
+        StringBuilder sb = new StringBuilder();
+        for (String key : order) {
+            if (sb.length() > 0) sb.append(',');
+            sb.append(key);
+        }
+        prefs.edit().putString("more_order", sb.toString()).apply();
     }
 }

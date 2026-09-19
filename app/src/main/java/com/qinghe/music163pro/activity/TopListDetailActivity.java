@@ -8,6 +8,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -19,6 +20,7 @@ import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
+import com.qinghe.music163pro.util.NetworkImageLoader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -82,13 +84,20 @@ public class TopListDetailActivity extends AppCompatActivity {
                 if (song != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
+                    ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setText((position + 1) + ". " + song.getName());
                     tvArtist.setText(song.getArtist());
+                    if (ivCover != null) {
+                        NetworkImageLoader.load(ivCover, song.getCoverUrl());
+                    }
                 }
                 return view;
             }
         };
         lvSongs.setAdapter(adapter);
+        NetworkImageLoader.attachListViewOptimization(lvSongs, adapter, position ->
+                position >= 0 && position < displayList.size()
+                        ? displayList.get(position).getCoverUrl() : null);
 
         lvSongs.setOnItemClickListener((parent, view, position, id) -> {
             Song song = displayList.get(position);
@@ -129,5 +138,11 @@ public class TopListDetailActivity extends AppCompatActivity {
     private int px(int baseValue) {
         int screenWidth = getResources().getDisplayMetrics().widthPixels;
         return (int) (baseValue * screenWidth / 320f + 0.5f);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 }

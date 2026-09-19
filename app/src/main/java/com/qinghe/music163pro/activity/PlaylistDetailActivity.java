@@ -23,6 +23,7 @@ import com.qinghe.music163pro.manager.PlaylistManager;
 import com.qinghe.music163pro.model.PlaylistInfo;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
+import com.qinghe.music163pro.util.NetworkImageLoader;
 import com.qinghe.music163pro.util.WatchConfirmDialog;
 
 import org.json.JSONObject;
@@ -172,13 +173,20 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
                 if (song != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
+                    ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setText((position + 1) + ". " + song.getName());
                     tvArtist.setText(song.getArtist());
+                    if (ivCover != null) {
+                        NetworkImageLoader.load(ivCover, song.getCoverUrl());
+                    }
                 }
                 return view;
             }
         };
         lvSongs.setAdapter(adapter);
+        NetworkImageLoader.attachListViewOptimization(lvSongs, adapter, position ->
+                position >= 0 && position < displayList.size()
+                        ? displayList.get(position).getCoverUrl() : null);
 
         lvSongs.setOnItemClickListener((parent, view, position, id) -> {
             List<Song> playlist = new ArrayList<>(displayList);
@@ -463,5 +471,11 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
                 new WatchConfirmDialog.Options(0xFF1E1E1E, 0xFFBB86FC, true));
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 }

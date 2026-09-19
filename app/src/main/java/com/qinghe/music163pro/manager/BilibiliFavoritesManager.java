@@ -22,11 +22,150 @@ public class BilibiliFavoritesManager {
     private static final String TAG = "BiliFavorites";
     private static final String EXT_DIR_NAME = "163Music";
     private static final String EXT_FILE_NAME = "bilibili-favorites.json";
+    private static final String IDS_FILE_NAME = "bilibili-favorite-ids.json";
 
     private final Context context;
 
+    /** Lightweight ID-only record for Bilibili favorites. */
+    public static class BilibiliId {
+        public String bvid;
+        public long cid;
+
+        public BilibiliId(String bvid, long cid) {
+            this.bvid = bvid;
+            this.cid = cid;
+        }
+    }
+
     public BilibiliFavoritesManager(Context context) {
         this.context = context.getApplicationContext();
+        initIdsFile();
+    }
+
+    private File getIdsFile() {
+        return new File(new File(Environment.getExternalStorageDirectory(), EXT_DIR_NAME), IDS_FILE_NAME);
+    }
+
+    private void initIdsFile() {
+        try {
+            File idsFile = getIdsFile();
+            if (!idsFile.exists()) {
+                JSONArray idsArr = new JSONArray();
+                // Migrate from bilibili-favorites.json
+                File oldFile = getFavoritesFile();
+                if (oldFile.exists()) {
+                    try (FileInputStream fis = new FileInputStream(oldFile);
+                         InputStreamReader reader = new InputStreamReader(fis, "UTF-8")) {
+                        StringBuilder sb = new StringBuilder();
+                        char[] buf = new char[1024];
+                        int len;
+                        while ((len = reader.read(buf)) != -1) sb.append(buf, 0, len);
+                        JSONArray oldArr = new JSONArray(sb.toString());
+                        for (int i = 0; i < oldArr.length(); i++) {
+                            JSONObject obj = oldArr.getJSONObject(i);
+                            String bvid = obj.optString("bvid", "");
+                            if (!bvid.isEmpty()) {
+                                JSONObject idEntry = new JSONObject();
+                                idEntry.put("bvid", bvid);
+                                idEntry.put("cid", obj.optLong("cid", 0));
+                                idsArr.put(idEntry);
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.w(TAG, "Error migrating bilibili IDs", e);
+                    }
+                }
+                saveIdsArray(idsArr);
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error initializing bilibili-favorite-ids.json", e);
+        }
+    }
+
+    private JSONArray loadIdsArray() {
+        try {
+            File idsFile = getIdsFile();
+            if (!idsFile.exists()) return new JSONArray();
+            try (FileInputStream fis = new FileInputStream(idsFile);
+                 InputStreamReader reader = new InputStreamReader(fis, "UTF-8")) {
+                StringBuilder sb = new StringBuilder();
+                char[] buf = new char[1024];
+                int len;
+                while ((len = reader.read(buf)) != -1) sb.append(buf, 0, len);
+                return new JSONArray(sb.toString());
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error loading bilibili-favorite-ids.json", e);
+            return new JSONArray();
+        }
+    }
+
+    private void saveIdsArray(JSONArray arr) {
+        try {
+            File dir = new File(Environment.getExternalStorageDirectory(), EXT_DIR_NAME);
+            if (!dir.exists()) dir.mkdirs();
+            File idsFile = getIdsFile();
+            try (FileOutputStream fos = new FileOutputStream(idsFile);
+                 OutputStreamWriter writer = new OutputStreamWriter(fos, "UTF-8")) {
+                writer.write(arr.toString());
+                writer.flush();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error saving bilibili-favorite-ids.json", e);
+        }
+    }
+
+    public List<BilibiliId> getFavoriteIds() {
+        List<BilibiliId> result = new ArrayList<>();
+        try {
+            JSONArray arr = loadIdsArray();
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject obj = arr.optJSONObject(i);
+                if (obj != null) {
+                    result.add(new BilibiliId(obj.optString("bvid", ""), obj.optLong("cid", 0)));
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error reading bilibili favorite IDs", e);
+        }
+        return result;
+    }
+
+    public void addFavoriteById(String bvid, long cid) {
+        if (bvid == null || bvid.trim().isEmpty()) return;
+        try {
+            JSONArray arr = loadIdsArray();
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject obj = arr.optJSONObject(i);
+                if (obj != null && bvid.equalsIgnoreCase(obj.optString("bvid", ""))) return;
+            }
+            JSONArray newArr = new JSONArray();
+            JSONObject idEntry = new JSONObject();
+            idEntry.put("bvid", bvid);
+            idEntry.put("cid", cid);
+            newArr.put(idEntry);
+            for (int i = 0; i < arr.length(); i++) newArr.put(arr.get(i));
+            saveIdsArray(newArr);
+        } catch (Exception e) {
+            Log.w(TAG, "Error adding bilibili favorite ID", e);
+        }
+    }
+
+    public void removeFavoriteById(String bvid) {
+        if (bvid == null) return;
+        try {
+            JSONArray arr = loadIdsArray();
+            JSONArray newArr = new JSONArray();
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject obj = arr.optJSONObject(i);
+                if (obj != null && !bvid.equalsIgnoreCase(obj.optString("bvid", ""))) {
+                    newArr.put(obj);
+                }
+            }
+            saveIdsArray(newArr);
+        } catch (Exception e) {
+            Log.w(TAG, "Error removing bilibili favorite ID", e);
+        }
     }
 
     public List<BilibiliFavorite> getFavorites() {
@@ -82,6 +221,7 @@ public class BilibiliFavoritesManager {
         }
         list.add(0, favorite);
         saveFavorites(list);
+        addFavoriteById(favorite.getBvid(), 0);
     }
 
     public void removeFavorite(String bvid) {
@@ -93,6 +233,7 @@ public class BilibiliFavoritesManager {
             }
         }
         saveFavorites(updated);
+        removeFavoriteById(bvid);
     }
 
     private void saveFavorites(List<BilibiliFavorite> list) {

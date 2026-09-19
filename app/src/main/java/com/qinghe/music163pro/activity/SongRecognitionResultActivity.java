@@ -5,12 +5,14 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
 import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
+import com.qinghe.music163pro.util.NetworkImageLoader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,17 +53,24 @@ public class SongRecognitionResultActivity extends BaseWatchActivity {
                 if (song != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
+                    ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setText(song.getName());
                     String artist = song.getArtist();
                     if (song.getAlbum() != null && !song.getAlbum().isEmpty()) {
                         artist += " · " + song.getAlbum();
                     }
                     tvArtist.setText(artist);
+                    if (ivCover != null) {
+                        NetworkImageLoader.load(ivCover, song.getCoverUrl());
+                    }
                 }
                 return view;
             }
         };
         lvResults.setAdapter(adapter);
+        NetworkImageLoader.attachListViewOptimization(lvResults, adapter, position ->
+                position >= 0 && position < resultSongs.size()
+                        ? resultSongs.get(position).getCoverUrl() : null);
         lvResults.setEmptyView(tvEmpty);
 
         lvResults.setOnItemClickListener((parent, view, position, id) -> {
@@ -73,5 +82,11 @@ public class SongRecognitionResultActivity extends BaseWatchActivity {
             startActivity(intent);
             finish();
         });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 }

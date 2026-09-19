@@ -1,9 +1,15 @@
 package com.qinghe.music163pro.activity;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -11,41 +17,55 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.player.MusicPlayerManager;
+import com.qinghe.music163pro.util.NetworkImageLoader;
 
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+
 /**
- * Profile activity - shows user account info and VIP details.
- * Designed for watch screen (320x360 dpi).
+ * Profile activity - shows and edits user account info.
+ * Editable fields (avatar, nickname, gender, signature) are grouped together
+ * with larger rows; other info (age, follows, fans, register time, VIP) is
+ * shown read-only.
  */
 public class ProfileActivity extends AppCompatActivity {
 
+    private static final String PREFS_NAME = "music163_settings";
+    private static final int REQ_PICK_AVATAR = 4001;
+
     private LinearLayout contentLayout;
+    private ImageView avatarView;
+    private String cookie = "";
+    private String avatarUrl = "";
+    private String nickname = "";
+    private int gender = 0;
+    private String signature = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         if (prefs.getBoolean("keep_screen_on", false)) {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
+        cookie = MusicPlayerManager.getInstance().getCookie();
+        if (cookie == null) cookie = "";
 
         ScrollView scrollView = new ScrollView(this);
         scrollView.setBackgroundColor(0xFF121212);
         scrollView.setFillViewport(true);
-
         contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
-        contentLayout.setPadding(px(8), px(8), px(8), px(8));
+        contentLayout.setPadding(px(10), px(10), px(10), px(10));
         scrollView.addView(contentLayout);
-
         setContentView(scrollView);
 
-        // Title
         TextView title = new TextView(this);
         title.setText("个人中心");
         title.setTextColor(0xFFFFFFFF);
@@ -54,246 +74,245 @@ public class ProfileActivity extends AppCompatActivity {
         title.setPadding(0, 0, 0, px(8));
         contentLayout.addView(title);
 
-        // Loading
-        TextView tvLoading = new TextView(this);
-        tvLoading.setText("加载中...");
-        tvLoading.setTextColor(0xFF757575);
-        tvLoading.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
-        tvLoading.setGravity(Gravity.CENTER);
-        contentLayout.addView(tvLoading);
+        buildAvatarHeader();
 
-        // Fetch account info
-        String cookie = MusicPlayerManager.getInstance().getCookie();
+        TextView loading = new TextView(this);
+        loading.setText("加载中...");
+        loading.setTextColor(0xFF757575);
+        loading.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
+        loading.setGravity(Gravity.CENTER);
+        loading.setTag("loading");
+        contentLayout.addView(loading);
+
+        fetchAccount();
+    }
+
+    private void buildAvatarHeader() {
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(0, 0, 0, px(8));
+
+        avatarView = new ImageView(this);
+        int avatarSize = px(64);
+        avatarView.setLayoutParams(new LinearLayout.LayoutParams(avatarSize, avatarSize));
+        avatarView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        GradientDrawable avatarBg = new GradientDrawable();
+        avatarBg.setShape(GradientDrawable.OVAL);
+        avatarBg.setColor(0xFF333333);
+        avatarView.setBackground(avatarBg);
+        avatarView.setClipToOutline(true);
+        avatarView.setClickable(true);
+        avatarView.setFocusable(true);
+        avatarView.setOnClickListener(v -> changeAvatar());
+        header.addView(avatarView);
+
+        TextView hint = new TextView(this);
+        hint.setText("点头像可更换\n登录后显示信息");
+        hint.setTextColor(0x80FFFFFF);
+        hint.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
+        hint.setPadding(px(12), 0, 0, 0);
+        header.addView(hint);
+
+        contentLayout.addView(header);
+    }
+
+    private void fetchAccount() {
+        if (cookie.isEmpty()) {
+            removeLoading();
+            addInfoRow("状态", "未登录");
+            return;
+        }
         MusicApiHelper.getUserAccount(cookie, new MusicApiHelper.AccountCallback() {
             @Override
             public void onResult(JSONObject json) {
-                contentLayout.removeView(tvLoading);
-                displayAccountInfo(json);
-                // Also fetch VIP info separately for reliable expiry time
-                fetchVipInfo(cookie);
+                runOnUiThread(() -> {
+                    removeLoading();
+                    displayAccountInfo(json);
+                    fetchVipInfo();
+                });
             }
 
             @Override
             public void onError(String message) {
-                tvLoading.setText("加载失败: " + message);
+                runOnUiThread(() -> {
+                    removeLoading();
+                    addInfoRow("状态", "加载失败");
+                });
             }
         });
     }
 
-    /**
-     * Fetch VIP info from dedicated endpoint for reliable expiry display.
-     */
-    private void fetchVipInfo(String cookie) {
+    private void fetchVipInfo() {
         MusicApiHelper.getVipInfo(cookie, new MusicApiHelper.VipInfoCallback() {
             @Override
             public void onResult(JSONObject json) {
-                displayVipInfo(json);
+                runOnUiThread(() -> displayVipInfo(json));
             }
 
             @Override
             public void onError(String message) {
-                // VIP info is supplementary, don't show error
             }
         });
+    }
+
+    private void removeLoading() {
+        for (int i = contentLayout.getChildCount() - 1; i >= 0; i--) {
+            if ("loading".equals(contentLayout.getChildAt(i).getTag())) {
+                contentLayout.removeViewAt(i);
+            }
+        }
+    }
+
+    private void displayAccountInfo(JSONObject json) {
+        JSONObject profile = json.optJSONObject("profile");
+        if (profile == null) {
+            addInfoRow("状态", "获取信息失败");
+            return;
+        }
+
+        nickname = profile.optString("nickname", "");
+        gender = profile.optInt("gender", 0);
+        signature = profile.optString("signature", "");
+        avatarUrl = profile.optString("avatarUrl", "");
+        long userId = profile.optLong("userId", 0);
+
+        if (userId > 0) {
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+            prefs.edit().putLong("current_user_id", userId).apply();
+        }
+
+        if (!avatarUrl.isEmpty()) {
+            NetworkImageLoader.load(avatarView, avatarUrl);
+        }
+
+        // Read-only info
+        addSectionTitle("基本信息");
+        addInfoRow("昵称", nickname.isEmpty() ? "未设置" : nickname);
+        addInfoRow("性别", genderText(gender));
+        addInfoRow("签名", signature.isEmpty() ? "未设置" : signature);
+        addInfoRow("用户ID", String.valueOf(userId));
+
+        long birthday = profile.optLong("birthday", 0);
+        if (birthday > 0) {
+            long ageMillis = System.currentTimeMillis() - birthday;
+            int age = (int) (ageMillis / (1000L * 60 * 60 * 24 * 365));
+            if (age > 0) addInfoRow("年龄", age + " 岁");
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+            addInfoRow("生日", sdf.format(new java.util.Date(birthday)));
+        }
+
+        int follows = profile.optInt("follows", 0);
+        int followeds = profile.optInt("followeds", 0);
+        addInfoRow("关注", String.valueOf(follows));
+        addInfoRow("粉丝", String.valueOf(followeds));
+
+        long createTime = profile.optLong("createTime", 0);
+        if (createTime > 0) {
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+            addInfoRow("注册时间", sdf.format(new java.util.Date(createTime)));
+        }
+
+        addSectionTitle("VIP");
+        // VIP expiry is shown via dedicated endpoint below.
     }
 
     private void displayVipInfo(JSONObject json) {
         try {
             JSONObject data = json.optJSONObject("data");
             if (data == null) return;
-
+            boolean found = false;
+            String[] keys = {"associator", "redVipLevel", "musicPackage"};
+            String[] labels = {"黑胶VIP", "红钻VIP", "音乐包"};
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
             long now = System.currentTimeMillis();
-            boolean foundAny = false;
-
-            // Try all known VIP sub-objects; field may be "expireTime" or "expTime"
-            String[] keys   = {"associator", "redVipLevel", "musicPackage"};
-            String[] labels = {"黑胶VIP",     "红钻VIP",      "音乐包"};
-
             for (int i = 0; i < keys.length; i++) {
                 JSONObject obj = data.optJSONObject(keys[i]);
                 if (obj == null) continue;
-                // Support both field name variants used by different API versions
-                long expTime = obj.optLong("expireTime", 0);
-                if (expTime <= 0) expTime = obj.optLong("expTime", 0);
-                if (expTime <= 0) continue;
-
-                if (!foundAny) {
-                    addSectionTitle("VIP详情");
-                    foundAny = true;
-                }
-                boolean expired = expTime < now;
-                addInfoRow(labels[i] + "到期", sdf.format(new java.util.Date(expTime))
-                        + (expired ? " (已过期)" : " ✓"));
-                if (expTime > now) {
-                    long days = (expTime - now) / (1000 * 60 * 60 * 24);
-                    addInfoRow(labels[i] + "剩余", days + " 天");
-                }
+                long exp = obj.optLong("expireTime", obj.optLong("expTime", 0));
+                if (exp <= 0) continue;
+                boolean expired = exp < now;
+                addInfoRow(labels[i] + "到期",
+                        sdf.format(new java.util.Date(exp)) + (expired ? "（已过期）" : ""));
+                found = true;
             }
-        } catch (Exception e) {
-            // Non-critical, ignore
+            if (!found) {
+                addInfoRow("VIP状态", "未开通");
+            }
+        } catch (Exception ignored) {
         }
     }
 
-    private void displayAccountInfo(JSONObject json) {
-        try {
-            JSONObject profile = json.optJSONObject("profile");
-            JSONObject account = json.optJSONObject("account");
+    private String genderText(int g) {
+        return g == 1 ? "男" : (g == 2 ? "女" : "未设置");
+    }
 
-            if (profile == null && account == null) {
-                addInfoRow("状态", "未登录或获取信息失败");
+    private void reloadAccount() {
+        contentLayout.removeAllViews();
+        TextView title = new TextView(this);
+        title.setText("个人中心");
+        title.setTextColor(0xFFFFFFFF);
+        title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(15));
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, 0, 0, px(8));
+        contentLayout.addView(title);
+        buildAvatarHeader();
+        TextView loading = new TextView(this);
+        loading.setText("加载中...");
+        loading.setTextColor(0xFF757575);
+        loading.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
+        loading.setGravity(Gravity.CENTER);
+        loading.setTag("loading");
+        contentLayout.addView(loading);
+        fetchAccount();
+    }
+
+    private void changeAvatar() {
+        if (cookie.isEmpty()) {
+            Toast.makeText(this, "请先登录", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("image/*");
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        startActivityForResult(intent, REQ_PICK_AVATAR);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_PICK_AVATAR && resultCode == RESULT_OK && data != null) {
+            Uri uri = data.getData();
+            if (uri == null) return;
+            File avatarFile = new File(getCacheDir(), "avatar_tmp.jpg");
+            try {
+                InputStream is = getContentResolver().openInputStream(uri);
+                FileOutputStream fos = new FileOutputStream(avatarFile);
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = is.read(buf)) != -1) fos.write(buf, 0, n);
+                fos.close();
+                is.close();
+            } catch (Exception e) {
+                Toast.makeText(this, "读取图片失败", Toast.LENGTH_SHORT).show();
                 return;
             }
-
-            // Profile info
-            if (profile != null) {
-                addSectionTitle("基本信息");
-                addInfoRow("昵称", profile.optString("nickname", "未知"));
-
-                long userId = profile.optLong("userId", 0);
-                if (userId > 0) {
-                    addInfoRow("用户ID", String.valueOf(userId));
+            Toast.makeText(this, "正在上传头像...", Toast.LENGTH_SHORT).show();
+            MusicApiHelper.uploadAvatar(avatarFile, cookie, new MusicApiHelper.CommentActionCallback() {
+                @Override
+                public void onResult(boolean success) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(ProfileActivity.this, "头像已更新", Toast.LENGTH_SHORT).show();
+                        reloadAccount();
+                    });
                 }
 
-                int gender = profile.optInt("gender", 0);
-                String genderStr = gender == 1 ? "男" : (gender == 2 ? "女" : "未设置");
-                addInfoRow("性别", genderStr);
-
-                String signature = profile.optString("signature", "");
-                if (!signature.isEmpty()) {
-                    addInfoRow("签名", signature);
+                @Override
+                public void onError(String message) {
+                    runOnUiThread(() -> Toast.makeText(ProfileActivity.this,
+                            "头像更新失败: " + message, Toast.LENGTH_SHORT).show());
                 }
-
-                int level = profile.optInt("level", -1);
-                if (level >= 0) {
-                    addInfoRow("等级", "Lv." + level);
-                }
-
-                long birthday = profile.optLong("birthday", 0);
-                if (birthday > 0) {
-                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
-                    addInfoRow("生日", sdf.format(new java.util.Date(birthday)));
-                }
-
-                String province = profile.optString("province", "");
-                String city = profile.optString("city", "");
-                if (!province.isEmpty() || !city.isEmpty()) {
-                    addInfoRow("地区", province + " " + city);
-                }
-
-                int follows = profile.optInt("follows", 0);
-                int followeds = profile.optInt("followeds", 0);
-                addInfoRow("关注", String.valueOf(follows));
-                addInfoRow("粉丝", String.valueOf(followeds));
-
-                int playlistCount = profile.optInt("playlistCount", 0);
-                if (playlistCount > 0) {
-                    addInfoRow("歌单数", String.valueOf(playlistCount));
-                }
-
-                long createTime = profile.optLong("createTime", 0);
-                if (createTime > 0) {
-                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
-                    addInfoRow("注册时间", sdf.format(new java.util.Date(createTime)));
-                }
-
-                int authority = profile.optInt("authority", 0);
-                int authStatus = profile.optInt("authStatus", 0);
-                if (authStatus > 0) {
-                    addInfoRow("认证状态", "已认证 ✓");
-                }
-
-                int vipType = profile.optInt("vipType", 0);
-                if (vipType > 0) {
-                    String vipStr;
-                    switch (vipType) {
-                        case 10:
-                        case 11: vipStr = "黑胶VIP"; break;
-                        default: vipStr = "VIP (类型" + vipType + ")"; break;
-                    }
-                    addInfoRow("VIP类型", vipStr);
-                }
-
-                // VIP expiry from profile.vipRights — show regardless of vipType field
-                java.text.SimpleDateFormat sdfDate = new java.text.SimpleDateFormat("yyyy-MM-dd");
-                long profileVipExp = 0;
-                JSONObject vipRights = profile.optJSONObject("vipRights");
-                if (vipRights != null) {
-                    JSONObject assoc = vipRights.optJSONObject("associator");
-                    if (assoc != null) {
-                        profileVipExp = assoc.optLong("expireTime", 0);
-                        if (profileVipExp <= 0) profileVipExp = assoc.optLong("expTime", 0);
-                        if (profileVipExp > 0) {
-                            long now = System.currentTimeMillis();
-                            boolean expired = profileVipExp < now;
-                            addInfoRow("VIP到期", sdfDate.format(new java.util.Date(profileVipExp))
-                                    + (expired ? " (已过期)" : " ✓"));
-                            if (!expired) {
-                                long days = (profileVipExp - now) / (1000 * 60 * 60 * 24);
-                                addInfoRow("VIP剩余", days + " 天");
-                            }
-                        }
-                    }
-                    JSONObject musicPkg = vipRights.optJSONObject("musicPackage");
-                    if (musicPkg != null) {
-                        long expTime = musicPkg.optLong("expireTime", 0);
-                        if (expTime <= 0) expTime = musicPkg.optLong("expTime", 0);
-                        if (expTime > 0) {
-                            long now = System.currentTimeMillis();
-                            boolean expired = expTime < now;
-                            addInfoRow("音乐包到期", sdfDate.format(new java.util.Date(expTime))
-                                    + (expired ? " (已过期)" : " ✓"));
-                        }
-                    }
-                }
-            }
-
-            // Account info
-            if (account != null) {
-                addSectionTitle("账号信息");
-
-                int status = account.optInt("status", -1);
-                addInfoRow("账号状态", status == 0 ? "正常" : "异常(" + status + ")");
-
-                int vipType = account.optInt("vipType", 0);
-                String vipStr;
-                switch (vipType) {
-                    case 0: vipStr = "普通用户"; break;
-                    case 10:
-                    case 11: vipStr = "黑胶VIP"; break;
-                    default: vipStr = "VIP (类型" + vipType + ")"; break;
-                }
-                addInfoRow("会员类型", vipStr);
-
-                // Show VIP expiry from account — try both common field names
-                long vipExpireTime = account.optLong("vipExpiresTime", 0);
-                if (vipExpireTime <= 0) {
-                    vipExpireTime = account.optLong("vipExpireTime", 0);
-                }
-                if (vipExpireTime > 0) {
-                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
-                    boolean isExpired = vipExpireTime < System.currentTimeMillis();
-                    addInfoRow("会员到期", sdf.format(new java.util.Date(vipExpireTime))
-                            + (isExpired ? " (已过期)" : " ✓"));
-                }
-
-                long createTime = account.optLong("createTime", 0);
-                if (createTime > 0) {
-                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm");
-                    addInfoRow("创建时间", sdf.format(new java.util.Date(createTime)));
-                }
-
-                boolean anonimousUser = account.optBoolean("anonimousUser", false);
-                if (anonimousUser) {
-                    addInfoRow("匿名用户", "是");
-                }
-
-                boolean paidFee = account.optBoolean("paidFee", false);
-                addInfoRow("付费状态", paidFee ? "已付费 ✓" : "未付费");
-            }
-
-        } catch (Exception e) {
-            addInfoRow("错误", "解析信息失败: " + e.getMessage());
+            });
         }
     }
 
@@ -310,27 +329,33 @@ public class ProfileActivity extends AppCompatActivity {
     private void addInfoRow(String label, String value) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setPadding(px(4), px(3), px(4), px(3));
-        row.setBackgroundColor(0xFF333333);
-        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(px(12), px(14), px(12), px(14));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(0xFF1E1E1E);
+        bg.setCornerRadius(px(6));
+        row.setBackground(bg);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        rowParams.bottomMargin = px(2);
-        row.setLayoutParams(rowParams);
+        params.bottomMargin = px(3);
+        row.setLayoutParams(params);
 
         TextView tvLabel = new TextView(this);
-        tvLabel.setText(label + "：");
+        tvLabel.setText(label);
         tvLabel.setTextColor(0xFF999999);
-        tvLabel.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
-        tvLabel.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        tvLabel.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
         row.addView(tvLabel);
 
         TextView tvValue = new TextView(this);
         tvValue.setText(value);
         tvValue.setTextColor(0xFFFFFFFF);
-        tvValue.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
+        tvValue.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
+        tvValue.setGravity(Gravity.END);
+        tvValue.setPadding(px(8), 0, 0, 0);
+        tvValue.setSingleLine(true);
+        tvValue.setEllipsize(android.text.TextUtils.TruncateAt.END);
         tvValue.setLayoutParams(new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(tvValue);
 
         contentLayout.addView(row);

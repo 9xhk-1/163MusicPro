@@ -44,6 +44,7 @@ public class DownloadManager {
     /** Legacy constant kept for backward-compatibility checks. */
     private static final String SONG_FILE = SONG_FILE_MP3;
     private static final String LYRICS_FILE = "lyrics.lrc";
+    private static final String COVER_FILE = "cover.jpg";
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -249,6 +250,7 @@ public class DownloadManager {
                 saveSongInfo(songDir, song);
                 if (!bilibili) {
                     downloadLyrics(songDir, song);
+                    downloadCover(songDir, song);
                 }
 
                 long now = System.currentTimeMillis();
@@ -280,6 +282,9 @@ public class DownloadManager {
             obj.put("source", song.getSource());
             obj.put("bvid", song.getBvid());
             obj.put("cid", song.getCid());
+            if (song.getCoverUrl() != null && !song.getCoverUrl().isEmpty()) {
+                obj.put("coverUrl", song.getCoverUrl());
+            }
 
             File infoFile = new File(songDir, INFO_FILE);
             FileOutputStream fos = new FileOutputStream(infoFile);
@@ -324,6 +329,39 @@ public class DownloadManager {
             }
         } catch (Exception e) {
             Log.w(TAG, "Error downloading translated lyrics", e);
+        }
+    }
+
+    /**
+     * Download album cover for a song and save as cover.jpg in the song's download folder.
+     */
+    private static void downloadCover(File songDir, Song song) {
+        String coverUrl = song.getCoverUrl();
+        if (coverUrl == null || coverUrl.isEmpty()) return;
+        File coverFile = new File(songDir, COVER_FILE);
+        if (coverFile.exists()) return;
+        try {
+            java.net.URL url = new java.net.URL(coverUrl);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(10000);
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+            try {
+                InputStream is = conn.getInputStream();
+                FileOutputStream fos = new FileOutputStream(coverFile);
+                byte[] buffer = new byte[8192];
+                int len;
+                while ((len = is.read(buffer)) != -1) {
+                    fos.write(buffer, 0, len);
+                }
+                fos.flush();
+                fos.close();
+                is.close();
+            } finally {
+                conn.disconnect();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Error downloading cover for " + song.getName(), e);
         }
     }
 
@@ -470,6 +508,16 @@ public class DownloadManager {
             song.setSource(obj.optString("source", null));
             song.setBvid(obj.optString("bvid", ""));
             song.setCid(obj.optLong("cid", 0));
+            // Load cover URL: prefer local cover.jpg, then info.json stored URL
+            File localCover = new File(songDir, COVER_FILE);
+            if (localCover.exists()) {
+                song.setCoverUrl("file://" + localCover.getAbsolutePath());
+            } else {
+                String storedCoverUrl = obj.optString("coverUrl", "");
+                if (!storedCoverUrl.isEmpty()) {
+                    song.setCoverUrl(storedCoverUrl);
+                }
+            }
             LocalTrackInfo bestTrack = getBestStructuredTrack(songDir);
             if (bestTrack != null) {
                 song.setUrl(bestTrack.audioFile.getAbsolutePath());

@@ -48,8 +48,13 @@ import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.service.MusicPlaybackService;
 import com.qinghe.music163pro.util.MusicLog;
+import com.qinghe.music163pro.util.NetworkImageLoader;
 import com.qinghe.music163pro.util.UpdateChecker;
+import com.qinghe.music163pro.util.WatchConfirmDialog;
+import com.qinghe.music163pro.util.BackgroundUtil;
 import com.google.android.material.button.MaterialButton;
+
+import org.json.JSONObject;
 
 import java.io.File;
 
@@ -66,6 +71,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private static final int VOLUME_INDICATOR_TOP_MARGIN_DP = 10;
     private static final int VOLUME_INDICATOR_ANIM_DURATION_MS = 160;
     private static final float VOLUME_INDICATOR_INITIAL_SCALE = 0.96f;
+    private static final int SAFE_VOLUME_PERCENT = 60;
     private static final int LYRIC_MODE_FOLLOW = 0;
     private static final int LYRIC_MODE_BLOCK = 1;
     private static final String QUALITY_TIER_UNAVAILABLE = "暂无";
@@ -99,6 +105,13 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private ProgressBar volumeProgressBar;
     private TextView volumePercentView;
     private final Handler volumeHandler = new Handler();
+
+    // Headphone volume protection: confirmed once above the safe threshold,
+    // reset when volume drops back below it.
+    private boolean volumeSafeConfirmed = false;
+
+    // Song id whose cover is currently being fetched for the background (-1 = none)
+    private long coverFetchInFlightId = -1;
 
     // Activity-level gesture detector for swipe handling
     private GestureDetector activityGestureDetector;
@@ -157,6 +170,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         mainPlayerContentView = findViewById(R.id.main_player_layout);
+        BackgroundUtil.applyBackground(this,
+                getWindow().getDecorView().findViewById(android.R.id.content));
 
         // Initialize file logging
         MusicLog.init(new File("/sdcard/163Music"));
@@ -237,9 +252,28 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         });
 
         btnVolUp.setOnClickListener(v -> {
-                audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,
-                        AudioManager.ADJUST_RAISE, AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE);
-                showVolumeIndicator();
+                if (!isHeadphonesConnected()) {
+                    volumeSafeConfirmed = false;
+                    adjustVolumeUp();
+                    return;
+                }
+                int current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+                int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+                int percent = max > 0 ? Math.round(current * 100f / max) : 0;
+                if (percent < SAFE_VOLUME_PERCENT) {
+                    volumeSafeConfirmed = false;
+                    adjustVolumeUp();
+                } else if (!volumeSafeConfirmed) {
+                    WatchConfirmDialog.show(this, "音量保护",
+                            "当前音量已达 " + percent + "%，继续调大可能损伤听力。确定继续调大吗？",
+                            () -> {
+                                volumeSafeConfirmed = true;
+                                adjustVolumeUp();
+                            },
+                            new WatchConfirmDialog.Options(0xFF1E1E1E, 0xFFBB86FC, true));
+                } else {
+                    adjustVolumeUp();
+                }
         });
 
         // Changed: "more functions" overlay instead of toggle favorite
@@ -528,6 +562,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         }
         // Reload speed mode setting
         playerManager.setSpeedMode(prefs.getInt("speed_mode", 0));
+        // Reapply custom background
+        BackgroundUtil.applyBackground(this,
+                getWindow().getDecorView().findViewById(android.R.id.content));
+        // Keep the cover background in sync with the current song
+        updateCoverBackground();
         // Preload cloud liked IDs cache so overlay shows correct favorite state
         if (prefs.getBoolean("fav_mode_cloud", false)) {
             refreshCloudLikedIds();
@@ -725,6 +764,19 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         row6.addView(createFuncItem(R.drawable.ic_info, "播放器信息",
                 v -> onFuncPlayerInfo()));
         contentLayout.addView(row6);
+
+        // Row 7: 查看专辑
+        if (song.getId() > 0) {
+            LinearLayout row7 = new LinearLayout(this);
+            row7.setOrientation(LinearLayout.HORIZONTAL);
+            row7.setGravity(Gravity.START);
+            row7.setPadding(0, dp(4), 0, 0);
+            row7.setLayoutParams(new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            row7.addView(createFuncItem(R.drawable.ic_album, "查看专辑",
+                    v -> onFuncViewAlbum(song)));
+            contentLayout.addView(row7);
+        }
 
         scrollView.addView(contentLayout);
         overlayContainer.addView(scrollView);
@@ -978,6 +1030,20 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 overlayContainer = null;
             }
         }
+    }
+
+    private boolean isHeadphonesConnected() {
+        try {
+            return audioManager.isWiredHeadsetOn() || audioManager.isBluetoothA2dpOn();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void adjustVolumeUp() {
+        audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,
+                AudioManager.ADJUST_RAISE, AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE);
+        showVolumeIndicator();
     }
 
     private void showVolumeIndicator() {
@@ -1413,6 +1479,51 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         startActivity(intent);
     }
 
+    private void onFuncViewAlbum(Song song) {
+        dismissOverlay();
+        if (song.getAlbumId() > 0) {
+            // Open album detail directly with known albumId
+            Intent intent = new Intent(this, AlbumDetailActivity.class);
+            intent.putExtra("album_id", song.getAlbumId());
+            intent.putExtra("album_name", song.getAlbum());
+            intent.putExtra("album_cover_url", song.getCoverUrl());
+            startActivity(intent);
+        } else {
+            // No albumId stored: fetch song detail first to get albumId
+            Toast.makeText(this, "正在获取专辑信息...", Toast.LENGTH_SHORT).show();
+            String cookie = playerManager.getCookie();
+            MusicApiHelper.getSongDetail(song.getId(), cookie, new MusicApiHelper.SongDetailCallback() {
+                @Override
+                public void onResult(JSONObject songDetail) {
+                    JSONObject al = songDetail.optJSONObject("al");
+                    if (al == null) al = songDetail.optJSONObject("album");
+                    if (al != null) {
+                        long albumId = al.optLong("id", 0);
+                        String albumName = al.optString("name", song.getAlbum());
+                        String albumCoverUrl = al.optString("picUrl", song.getCoverUrl() != null ? song.getCoverUrl() : "");
+                        if (albumId > 0) {
+                            song.setAlbumId(albumId);
+                            Intent intent = new Intent(MainActivity.this, AlbumDetailActivity.class);
+                            intent.putExtra("album_id", albumId);
+                            intent.putExtra("album_name", albumName);
+                            intent.putExtra("album_cover_url", albumCoverUrl);
+                            startActivity(intent);
+                        } else {
+                            Toast.makeText(MainActivity.this, "无法获取专辑信息", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Toast.makeText(MainActivity.this, "无法获取专辑信息", Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                @Override
+                public void onError(String message) {
+                    Toast.makeText(MainActivity.this, "获取专辑信息失败: " + message, Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+    }
+
     private void onFuncComments(Song song) {
         dismissOverlay();
         Intent intent = new Intent(this, CommentActivity.class);
@@ -1594,7 +1705,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         overlayContainer = new FrameLayout(this);
         overlayContainer.setLayoutParams(new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        overlayContainer.setBackgroundColor(0xFF1E1E1E);
+        // Transparent: the custom background lives on the fixed content root so it
+        // stays put while the player/lyrics views slide over it.
+        overlayContainer.setBackgroundColor(android.graphics.Color.TRANSPARENT);
         // clickable/focusable makes the full-screen container consume taps that miss
         // its children, while child views still receive their own touch dispatch.
         // dispatchTouchEvent continues to observe the full event stream for gestures.
@@ -2104,15 +2217,38 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             Song song = playlist.get(i);
 
             LinearLayout itemLayout = new LinearLayout(this);
-            itemLayout.setOrientation(LinearLayout.VERTICAL);
+            itemLayout.setOrientation(LinearLayout.HORIZONTAL);
             itemLayout.setPadding(dp(8), dp(6), dp(8), dp(6));
             itemLayout.setClickable(true);
             itemLayout.setFocusable(true);
 
             // Highlight current playing song
             if (i == currentIndex) {
-                itemLayout.setBackgroundColor(0xFF1E1E1E);
+                itemLayout.setBackgroundColor(0xFF2D2D2D);
             }
+
+            // Cover thumbnail
+            ImageView ivCover = new ImageView(this);
+            int coverSize = dp(36);
+            LinearLayout.LayoutParams coverLp = new LinearLayout.LayoutParams(coverSize, coverSize);
+            coverLp.gravity = Gravity.CENTER_VERTICAL;
+            ivCover.setLayoutParams(coverLp);
+            ivCover.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            android.graphics.drawable.GradientDrawable coverBg = new android.graphics.drawable.GradientDrawable();
+            coverBg.setColor(0xFF333333);
+            coverBg.setCornerRadius(dp(2));
+            ivCover.setBackground(coverBg);
+            NetworkImageLoader.load(ivCover, song.getCoverUrl());
+            itemLayout.addView(ivCover);
+
+            // Text column
+            LinearLayout textLayout = new LinearLayout(this);
+            textLayout.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout.LayoutParams textLp = new LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+            textLp.gravity = Gravity.CENTER_VERTICAL;
+            textLp.setMarginStart(dp(8));
+            textLayout.setLayoutParams(textLp);
 
             TextView tvName = new TextView(this);
             String prefix = (i == currentIndex) ? "▶ " : (i + 1) + ". ";
@@ -2121,7 +2257,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             tvName.setTextSize(13);
             tvName.setSingleLine(true);
             tvName.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            itemLayout.addView(tvName);
+            textLayout.addView(tvName);
 
             TextView tvArtist = new TextView(this);
             tvArtist.setText(song.getArtist());
@@ -2129,7 +2265,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             tvArtist.setTextSize(11);
             tvArtist.setSingleLine(true);
             tvArtist.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            itemLayout.addView(tvArtist);
+            textLayout.addView(tvArtist);
+
+            itemLayout.addView(textLayout);
 
             itemLayout.setOnClickListener(v -> {
                 playerManager.playFromCurrentPlaylist(index);
@@ -3393,6 +3531,71 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             // Reload lyrics for new song
             loadLyricsForOverlay(song, tvLyricsTimeRef);
         }
+        updateCoverBackground();
+    }
+
+    /**
+     * In MODE_COVER the background always follows the current song's album
+     * cover (kept in memory, never saved to disk). It is (re)loaded whenever
+     * the screen is shown, regardless of playback state; if the cover cannot
+     * be fetched the default background is used.
+     */
+    private void updateCoverBackground() {
+        if (!BackgroundUtil.MODE_COVER.equals(BackgroundUtil.getMode(this))) {
+            return;
+        }
+        final View root = getWindow().getDecorView().findViewById(android.R.id.content);
+        Song song = playerManager.getBackgroundSong();
+        final String cover = song != null && song.getCoverUrl() != null ? song.getCoverUrl() : "";
+        if (!cover.isEmpty()) {
+            if (BackgroundUtil.hasCoverBackground(cover)) {
+                BackgroundUtil.applyBackground(this, root);
+            } else {
+                BackgroundUtil.loadCoverBackground(this, cover,
+                        () -> BackgroundUtil.applyBackground(this, root));
+            }
+            return;
+        }
+        // No cover url yet: try to fetch it from the API by song id.
+        if (song != null && song.getId() > 0) {
+            fetchCoverForBackground(song);
+        } else {
+            BackgroundUtil.clearCoverBackground();
+            BackgroundUtil.applyBackground(this, root);
+        }
+    }
+
+    private void fetchCoverForBackground(final Song song) {
+        final long songId = song.getId();
+        if (coverFetchInFlightId == songId) {
+            return;
+        }
+        coverFetchInFlightId = songId;
+        final View root = getWindow().getDecorView().findViewById(android.R.id.content);
+        MusicApiHelper.fetchSongsDetails(java.util.Collections.singletonList(songId),
+                playerManager.getCookie(), new MusicApiHelper.BatchSongDetailsCallback() {
+                    @Override
+                    public void onResult(java.util.Map<Long, Song> songMap) {
+                        coverFetchInFlightId = -1;
+                        Song detail = songMap != null ? songMap.get(songId) : null;
+                        String fetched = detail != null ? detail.getCoverUrl() : null;
+                        if (fetched != null && !fetched.isEmpty()) {
+                            song.setCoverUrl(fetched);
+                            playerManager.savePlaybackState();
+                            updateCoverBackground();
+                        } else {
+                            BackgroundUtil.clearCoverBackground();
+                            BackgroundUtil.applyBackground(MainActivity.this, root);
+                        }
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        coverFetchInFlightId = -1;
+                        BackgroundUtil.clearCoverBackground();
+                        BackgroundUtil.applyBackground(MainActivity.this, root);
+                    }
+                });
     }
 
     @Override
@@ -3561,5 +3764,6 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         lyricsScrollHandler.removeCallbacksAndMessages(null);
         volumeHandler.removeCallbacksAndMessages(null);
         dismissVolumeIndicator();
+        NetworkImageLoader.cancelAll();
     }
 }

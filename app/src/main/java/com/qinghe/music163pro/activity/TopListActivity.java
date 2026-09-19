@@ -8,6 +8,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ScrollView;
@@ -19,6 +20,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.player.MusicPlayerManager;
+import com.qinghe.music163pro.util.NetworkImageLoader;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -40,11 +42,13 @@ public class TopListActivity extends AppCompatActivity {
         long id;
         String name;
         String updateFrequency;
+        String coverUrl;
 
-        TopListItem(long id, String name, String updateFrequency) {
+        TopListItem(long id, String name, String updateFrequency, String coverUrl) {
             this.id = id;
             this.name = name;
             this.updateFrequency = updateFrequency;
+            this.coverUrl = coverUrl;
         }
     }
 
@@ -89,13 +93,20 @@ public class TopListActivity extends AppCompatActivity {
                 if (item != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
+                    ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setText(item.name);
                     tvArtist.setText(item.updateFrequency != null ? item.updateFrequency : "");
+                    if (ivCover != null) {
+                        NetworkImageLoader.load(ivCover, item.coverUrl);
+                    }
                 }
                 return view;
             }
         };
         lvTopList.setAdapter(adapter);
+        NetworkImageLoader.attachListViewOptimization(lvTopList, adapter, position ->
+                position >= 0 && position < items.size()
+                        ? items.get(position).coverUrl : null);
 
         lvTopList.setOnItemClickListener((parent, view, position, id) -> {
             TopListItem item = items.get(position);
@@ -120,7 +131,8 @@ public class TopListActivity extends AppCompatActivity {
                         long id = obj.getLong("id");
                         String name = obj.optString("name", "未知榜单");
                         String updateFrequency = obj.optString("updateFrequency", "");
-                        items.add(new TopListItem(id, name, updateFrequency));
+                        String coverUrl = obj.optString("coverImgUrl", obj.optString("picUrl", ""));
+                        items.add(new TopListItem(id, name, updateFrequency, coverUrl));
                     } catch (Exception e) {
                         // skip invalid entry
                     }
@@ -141,5 +153,11 @@ public class TopListActivity extends AppCompatActivity {
     private int px(int baseValue) {
         int screenWidth = getResources().getDisplayMetrics().widthPixels;
         return (int) (baseValue * screenWidth / 320f + 0.5f);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        NetworkImageLoader.cancelAll();
     }
 }
