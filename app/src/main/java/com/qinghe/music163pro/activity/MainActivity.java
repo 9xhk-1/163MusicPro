@@ -146,9 +146,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private TextView tvLyricsTimeRef;
     // Translation lyrics
     private String currentTlyricText; // Raw translated LRC text for current song
-    private boolean translationEnabled; // Whether translation is currently showing
+    private String currentRomalrcText; // Raw romanization LRC text for current song
+    private int translateMode; // 0=off, 1=translation (意), 2=romanization (音)
     private TextView btnTranslationToggle; // Toggle button in lyrics overlay
     private final java.util.Map<Long, String> translationMap = new java.util.HashMap<>(); // timeMs -> translated text
+    private final java.util.Map<Long, String> romanizationMap = new java.util.HashMap<>(); // timeMs -> romanization text
     private long currentChorusSongId = -1L;
     private long currentChorusStartMs = -1L;
     private long currentChorusEndMs = -1L;
@@ -159,6 +161,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         long timeMs;
         String text;
         String translation; // Optional translated text
+        String romanization; // Optional romanization (音译) text
         LyricLine(long timeMs, String text) {
             this.timeMs = timeMs;
             this.text = text;
@@ -1742,16 +1745,19 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         // Translation toggle button (top-right), hidden by default until we know translation exists
         SharedPreferences transPrefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
-        translationEnabled = transPrefs.getBoolean("lyrics_translation", false);
+        if (transPrefs.contains("lyrics_translate_mode")) {
+            translateMode = transPrefs.getInt("lyrics_translate_mode", 0);
+        } else {
+            translateMode = transPrefs.getBoolean("lyrics_translation", false) ? 1 : 0;
+        }
         btnTranslationToggle = new TextView(this);
-        btnTranslationToggle.setText(translationEnabled ? "译✓" : "译");
-        btnTranslationToggle.setTextColor(translationEnabled ? 0xFFBB86FC : 0x80FFFFFF);
         btnTranslationToggle.setTextSize(12);
         btnTranslationToggle.setGravity(Gravity.CENTER);
         btnTranslationToggle.setPadding(dp(6), dp(4), dp(6), dp(4));
         btnTranslationToggle.setClickable(true);
         btnTranslationToggle.setFocusable(true);
         btnTranslationToggle.setVisibility(View.GONE); // Hidden until translation is available
+        updateTranslationButton();
         FrameLayout.LayoutParams toggleParams = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
         toggleParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
@@ -1810,15 +1816,25 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Try local .lrc file first
         String localLrc = loadLocalLrc(song);
         if (localLrc != null && !localLrc.isEmpty()) {
-            // Also try to load local translated lyrics
+            // Also try to load local translated / romanization lyrics
             String localTlyric = loadLocalTlyric(song);
             currentTlyricText = localTlyric;
+            String localRomalrc = loadLocalRomalrc(song);
+            currentRomalrcText = localRomalrc;
             parseLrc(localLrc);
-            if (localTlyric != null && !localTlyric.isEmpty()) {
+            boolean hasTl = localTlyric != null && !localTlyric.isEmpty();
+            boolean hasRo = localRomalrc != null && !localRomalrc.isEmpty();
+            if (hasTl) {
                 parseTranslationLrc(localTlyric);
+            }
+            if (hasRo) {
+                parseRomanizationLrc(localRomalrc);
+            }
+            if (hasTl || hasRo) {
                 applyTranslationsToLyrics();
                 if (btnTranslationToggle != null) {
                     btnTranslationToggle.setVisibility(View.VISIBLE);
+                    updateTranslationButton();
                 }
             }
             displayLyricsInOverlay();
@@ -1844,18 +1860,27 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         String cookie = playerManager.getCookie();
         MusicApiHelper.getLyricsWithTranslation(song.getId(), cookie, new MusicApiHelper.LyricsFullCallback() {
             @Override
-            public void onResult(String lrcText, String tlyricText) {
+            public void onResult(String lrcText, String tlyricText, String romalrcText) {
                 if (lrcText == null || lrcText.isEmpty()) {
                     showNoLyricsInOverlay();
                     return;
                 }
                 currentTlyricText = tlyricText;
+                currentRomalrcText = romalrcText;
                 parseLrc(lrcText);
-                if (tlyricText != null && !tlyricText.isEmpty()) {
+                boolean hasTl = tlyricText != null && !tlyricText.isEmpty();
+                boolean hasRo = romalrcText != null && !romalrcText.isEmpty();
+                if (hasTl) {
                     parseTranslationLrc(tlyricText);
+                }
+                if (hasRo) {
+                    parseRomanizationLrc(romalrcText);
+                }
+                if (hasTl || hasRo) {
                     applyTranslationsToLyrics();
                     if (btnTranslationToggle != null) {
                         btnTranslationToggle.setVisibility(View.VISIBLE);
+                        updateTranslationButton();
                     }
                 } else {
                     if (btnTranslationToggle != null) {
@@ -1928,27 +1953,64 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         }
     }
 
+    /**
+     * Load romanization lyrics from local download folder (rlyrics.lrc).
+     */
+    private String loadLocalRomalrc(Song song) {
+        try {
+            String safeName = song.getName().replaceAll("[\\\\/:*?\"<>|]", "_");
+            String safeArtist = song.getArtist().replaceAll("[\\\\/:*?\"<>|]", "_");
+            String folderName = safeName + " - " + safeArtist;
+            java.io.File romaFile = new java.io.File(
+                    android.os.Environment.getExternalStorageDirectory(),
+                    "163Music/Download/" + folderName + "/rlyrics.lrc"
+            );
+            if (!romaFile.exists()) return null;
+
+            try (java.io.FileInputStream fis = new java.io.FileInputStream(romaFile);
+                 java.io.InputStreamReader reader = new java.io.InputStreamReader(fis, "UTF-8")) {
+                StringBuilder sb = new StringBuilder();
+                char[] buf = new char[1024];
+                int len;
+                while ((len = reader.read(buf)) != -1) {
+                    sb.append(buf, 0, len);
+                }
+                return sb.toString();
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private static final java.util.regex.Pattern LRC_PATTERN =
             java.util.regex.Pattern.compile("\\[(\\d{1,3}):(\\d{2})\\.?(\\d{0,3})\\](.*)");
+
+    /**
+     * Parse an LRC timestamp match into milliseconds, or -1 if invalid.
+     */
+    private static long parseTimeMs(java.util.regex.Matcher matcher) {
+        int min = Integer.parseInt(matcher.group(1));
+        int sec = Integer.parseInt(matcher.group(2));
+        String msStr = matcher.group(3);
+        int ms = 0;
+        if (msStr != null && !msStr.isEmpty()) {
+            int parsed = Integer.parseInt(msStr.substring(0, Math.min(msStr.length(), 3)));
+            if (msStr.length() == 1) ms = parsed * 100;
+            else if (msStr.length() == 2) ms = parsed * 10;
+            else ms = parsed;
+        }
+        return (long) min * 60 * 1000 + (long) sec * 1000 + ms;
+    }
 
     private void parseLrc(String lrcText) {
         lyricLines.clear();
         translationMap.clear();
+        romanizationMap.clear();
         String[] lines = lrcText.split("\n");
         for (String line : lines) {
             java.util.regex.Matcher matcher = LRC_PATTERN.matcher(line.trim());
             if (matcher.matches()) {
-                int min = Integer.parseInt(matcher.group(1));
-                int sec = Integer.parseInt(matcher.group(2));
-                String msStr = matcher.group(3);
-                int ms = 0;
-                if (msStr != null && !msStr.isEmpty()) {
-                    int parsed = Integer.parseInt(msStr.substring(0, Math.min(msStr.length(), 3)));
-                    if (msStr.length() == 1) ms = parsed * 100;
-                    else if (msStr.length() == 2) ms = parsed * 10;
-                    else ms = parsed;
-                }
-                long timeMs = (long) min * 60 * 1000 + (long) sec * 1000 + ms;
+                long timeMs = parseTimeMs(matcher);
                 String text = matcher.group(4).trim();
                 if (!text.isEmpty()) {
                     lyricLines.add(new LyricLine(timeMs, text));
@@ -1967,17 +2029,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         for (String line : lines) {
             java.util.regex.Matcher matcher = LRC_PATTERN.matcher(line.trim());
             if (matcher.matches()) {
-                int min = Integer.parseInt(matcher.group(1));
-                int sec = Integer.parseInt(matcher.group(2));
-                String msStr = matcher.group(3);
-                int ms = 0;
-                if (msStr != null && !msStr.isEmpty()) {
-                    int parsed = Integer.parseInt(msStr.substring(0, Math.min(msStr.length(), 3)));
-                    if (msStr.length() == 1) ms = parsed * 100;
-                    else if (msStr.length() == 2) ms = parsed * 10;
-                    else ms = parsed;
-                }
-                long timeMs = (long) min * 60 * 1000 + (long) sec * 1000 + ms;
+                long timeMs = parseTimeMs(matcher);
                 String text = matcher.group(4).trim();
                 if (!text.isEmpty()) {
                     translationMap.put(timeMs, text);
@@ -1987,36 +2039,93 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     }
 
     /**
-     * Apply translations from translationMap to each lyricLine's translation field.
+     * Parse romanization (音译) lyrics LRC into the romanizationMap (timeMs -> text).
      */
-    private void applyTranslationsToLyrics() {
-        for (LyricLine line : lyricLines) {
-            String trans = translationMap.get(line.timeMs);
-            line.translation = trans; // may be null if no translation for this line
+    private void parseRomanizationLrc(String romalrcText) {
+        romanizationMap.clear();
+        if (romalrcText == null || romalrcText.isEmpty()) return;
+        String[] lines = romalrcText.split("\n");
+        for (String line : lines) {
+            java.util.regex.Matcher matcher = LRC_PATTERN.matcher(line.trim());
+            if (matcher.matches()) {
+                long timeMs = parseTimeMs(matcher);
+                String text = matcher.group(4).trim();
+                if (!text.isEmpty()) {
+                    romanizationMap.put(timeMs, text);
+                }
+            }
         }
     }
 
     /**
-     * Toggle lyrics translation display on/off.
+     * Apply translations / romanization from maps to each lyricLine.
+     */
+    private void applyTranslationsToLyrics() {
+        for (LyricLine line : lyricLines) {
+            line.translation = translationMap.get(line.timeMs); // may be null
+            line.romanization = romanizationMap.get(line.timeMs); // may be null
+        }
+    }
+
+    /**
+     * Cycle lyrics subtitle mode: off -> translation (意) -> romanization (音) -> off.
+     * When romanization is unavailable, behaves as the original on/off translation toggle.
      * Saves preference persistently.
      */
     private void toggleLyricsTranslation() {
-        translationEnabled = !translationEnabled;
+        boolean hasTrans = !translationMap.isEmpty();
+        boolean hasRoma = !romanizationMap.isEmpty();
+        if (!hasTrans && !hasRoma) return;
+        if (hasRoma) {
+            // off(0) -> 意(1) -> 音(2) -> off(0); skip 意 if unavailable
+            if (translateMode == 0) {
+                translateMode = hasTrans ? 1 : 2;
+            } else if (translateMode == 1) {
+                translateMode = 2;
+            } else {
+                translateMode = 0;
+            }
+        } else {
+            // Original on/off logic when no romanization exists
+            translateMode = (translateMode == 1) ? 0 : 1;
+        }
         // Save preference
         SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
-        prefs.edit().putBoolean("lyrics_translation", translationEnabled).apply();
+        prefs.edit().putInt("lyrics_translate_mode", translateMode).apply();
         // Update button appearance
-        if (btnTranslationToggle != null) {
-            btnTranslationToggle.setText(translationEnabled ? "译✓" : "译");
-            btnTranslationToggle.setTextColor(translationEnabled ? 0xFFBB86FC : 0x80FFFFFF);
-        }
-        // Re-display lyrics with or without translation
+        updateTranslationButton();
+        // Re-display lyrics with the new mode
         displayLyricsInOverlay();
         // Restart sync to update highlighting
         if (tvLyricsTimeRef != null) {
             lyricsScrollHandler.removeCallbacksAndMessages(null);
             currentHighlightIndex = -1;
             startLyricsScrollSync(tvLyricsTimeRef);
+        }
+    }
+
+    /**
+     * Refresh the toggle button label/color for the current mode.
+     * Without romanization: original "译" / "译✓". With romanization: cycle 关闭 -> 意✓ -> 音✓.
+     */
+    private void updateTranslationButton() {
+        if (btnTranslationToggle == null) return;
+        boolean hasRoma = !romanizationMap.isEmpty();
+        if (hasRoma) {
+            if (translateMode == 1) {
+                btnTranslationToggle.setText("意✓");
+                btnTranslationToggle.setTextColor(0xFFBB86FC);
+            } else if (translateMode == 2) {
+                btnTranslationToggle.setText("音✓");
+                btnTranslationToggle.setTextColor(0xFFBB86FC);
+            } else {
+                btnTranslationToggle.setText("译");
+                btnTranslationToggle.setTextColor(0x80FFFFFF);
+            }
+        } else {
+            boolean on = translateMode == 1;
+            btnTranslationToggle.setText(on ? "译✓" : "译");
+            btnTranslationToggle.setTextColor(on ? 0xFFBB86FC : 0x80FFFFFF);
         }
     }
 
@@ -2047,10 +2156,16 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             lineLayout.addView(tv);
             lyricViews.add(tv);
 
-            // Translation text (if available and enabled)
-            if (translationEnabled && line.translation != null && !line.translation.isEmpty()) {
+            // Subtitle text (translation or romanization, if available and enabled)
+            String subText = null;
+            if (translateMode == 1 && line.translation != null && !line.translation.isEmpty()) {
+                subText = line.translation;
+            } else if (translateMode == 2 && line.romanization != null && !line.romanization.isEmpty()) {
+                subText = line.romanization;
+            }
+            if (subText != null) {
                 TextView tvTrans = new TextView(this);
-                tvTrans.setText(line.translation);
+                tvTrans.setText(subText);
                 tvTrans.setTextColor(0x61FFFFFF);
                 tvTrans.setTextSize(11);
                 tvTrans.setGravity(Gravity.CENTER);
@@ -2130,7 +2245,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         lyricLines.clear();
         lyricViews.clear();
         translationMap.clear();
+        romanizationMap.clear();
         currentTlyricText = null;
+        currentRomalrcText = null;
+        translateMode = 0;
         btnTranslationToggle = null;
         currentHighlightIndex = -1;
         lyricsGestureDetector = null;
@@ -3518,7 +3636,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             lyricLines.clear();
             lyricViews.clear();
             translationMap.clear();
+            romanizationMap.clear();
             currentTlyricText = null;
+            currentRomalrcText = null;
+            translateMode = 0;
             currentHighlightIndex = -1;
             // Update song name label
             if (tvLyricsSongLabel != null) {

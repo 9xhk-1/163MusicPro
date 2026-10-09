@@ -272,7 +272,7 @@ public class MusicApiHelper {
     }
 
     public interface LyricsFullCallback {
-        void onResult(String lrcText, String tlyricText);
+        void onResult(String lrcText, String tlyricText, String romalrcText);
         void onError(String message);
     }
 
@@ -2688,9 +2688,15 @@ public class MusicApiHelper {
                 if (tlyricObj != null) {
                     tlyric = tlyricObj.optString("lyric", "");
                 }
+                String romalrc = "";
+                JSONObject romalrcObj = json.optJSONObject("romalrc");
+                if (romalrcObj != null) {
+                    romalrc = romalrcObj.optString("lyric", "");
+                }
                 final String finalLrc = lrc;
                 final String finalTlyric = tlyric;
-                mainHandler.post(() -> callback.onResult(finalLrc, finalTlyric));
+                final String finalRomalrc = romalrc;
+                mainHandler.post(() -> callback.onResult(finalLrc, finalTlyric, finalRomalrc));
             } catch (Exception e) {
                 MusicLog.w(TAG, "获取歌词(含翻译)失败: " + songId, e);
                 mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
