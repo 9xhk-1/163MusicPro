@@ -59,8 +59,16 @@ public class MusicCloudActivity extends BaseWatchActivity {
                     TextView detail = view.findViewById(R.id.tv_cloud_detail);
                     icon.setImageResource(item.isMusic() ? R.drawable.ic_music_note : R.drawable.ic_insert_drive_file);
                     icon.setColorFilter(item.isMusic() ? 0xFFBB86FC : 0x80FFFFFF);
-                    name.setText(item.getDisplayName());
-                    detail.setText(item.getSubtitle());
+                    name.setSelected(true);
+                    detail.setSelected(true);
+                    String display = item.getDisplayName();
+                    if (!android.text.TextUtils.equals(name.getText(), display)) {
+                        name.setText(display);
+                    }
+                    String subtitle = item.getSubtitle();
+                    if (!android.text.TextUtils.equals(detail.getText(), subtitle)) {
+                        detail.setText(subtitle);
+                    }
                 }
                 return view;
             }

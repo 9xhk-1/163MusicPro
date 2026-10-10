@@ -97,7 +97,9 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
         tvTitle.setGravity(Gravity.CENTER);
         tvTitle.setPadding(px(56), 0, px(56), px(4));
         tvTitle.setSingleLine(true);
-        tvTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        tvTitle.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
+        tvTitle.setMarqueeRepeatLimit(-1);
+        tvTitle.setSelected(true);
         android.widget.RelativeLayout.LayoutParams titleParams = new android.widget.RelativeLayout.LayoutParams(
                 android.widget.RelativeLayout.LayoutParams.MATCH_PARENT,
                 android.widget.RelativeLayout.LayoutParams.WRAP_CONTENT);

@@ -353,7 +353,9 @@ public class ProfileActivity extends AppCompatActivity {
         tvValue.setGravity(Gravity.END);
         tvValue.setPadding(px(8), 0, 0, 0);
         tvValue.setSingleLine(true);
-        tvValue.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        tvValue.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
+        tvValue.setMarqueeRepeatLimit(-1);
+        tvValue.setSelected(true);
         tvValue.setLayoutParams(new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(tvValue);

@@ -385,7 +385,9 @@ public class CommentFloorActivity extends BaseWatchActivity {
         nickTv.setTextColor(0xFF82B1FF);
         nickTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
         nickTv.setSingleLine(true);
-        nickTv.setEllipsize(TextUtils.TruncateAt.END);
+        nickTv.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+        nickTv.setMarqueeRepeatLimit(-1);
+        nickTv.setSelected(true);
         nameTimeCol.addView(nickTv);
 
         String timeAndIp = formatTime(time);
@@ -502,7 +504,9 @@ public class CommentFloorActivity extends BaseWatchActivity {
         nickTv.setTextColor(0xFF82B1FF);
         nickTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
         nickTv.setSingleLine(true);
-        nickTv.setEllipsize(TextUtils.TruncateAt.END);
+        nickTv.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+        nickTv.setMarqueeRepeatLimit(-1);
+        nickTv.setSelected(true);
         nameTimeCol.addView(nickTv);
 
         String timeAndIp = formatTime(time);
