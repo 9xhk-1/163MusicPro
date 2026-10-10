@@ -2200,38 +2200,43 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             @Override
             public void run() {
                 if (!lyricsOverlayShowing || overlayContainer == null) return;
-                if (playerManager.isPlaying() || playerManager.getCurrentPosition() > 0) {
-                    int currentPos = playerManager.getCurrentPosition();
-                    int duration = playerManager.getDuration();
+                int currentPos = playerManager.getCurrentPosition();
+                int duration = playerManager.getDuration();
 
-                    tvLyricsTime.setText(formatTime(currentPos) + " / " + formatTime(duration));
+                tvLyricsTime.setText(formatTime(currentPos) + " / " + formatTime(duration));
 
-                    if (lyricScrollMode == LYRIC_MODE_BLOCK && lyricsUserScrolled) {
-                        if (System.currentTimeMillis() - lyricsLastUserScrollTime >= lyricResumeIntervalMs) {
-                            lyricsUserScrolled = false;
-                        }
+                if (!playerManager.isPlaying()) {
+                    // Paused: drop the current-line highlight until playback resumes
+                    clearCurrentLyricHighlight();
+                    lyricsScrollHandler.postDelayed(this, 300);
+                    return;
+                }
+
+                if (lyricScrollMode == LYRIC_MODE_BLOCK && lyricsUserScrolled) {
+                    if (System.currentTimeMillis() - lyricsLastUserScrollTime >= lyricResumeIntervalMs) {
+                        lyricsUserScrolled = false;
                     }
+                }
 
-                    int newIndex = -1;
-                    for (int i = 0; i < lyricLines.size(); i++) {
-                        if (lyricLines.get(i).timeMs <= currentPos) {
-                            newIndex = i;
-                        } else {
-                            break;
-                        }
+                int newIndex = -1;
+                for (int i = 0; i < lyricLines.size(); i++) {
+                    if (lyricLines.get(i).timeMs <= currentPos) {
+                        newIndex = i;
+                    } else {
+                        break;
                     }
+                }
 
-                    if (newIndex != currentHighlightIndex && newIndex >= 0) {
-                        clearCurrentLyricHighlight();
-                        currentHighlightIndex = newIndex;
-                        if (currentHighlightIndex < lyricViews.size()) {
-                            TextView currentView = lyricViews.get(currentHighlightIndex);
-                            currentView.setTextColor(0xFFFFFFFF);
-                            currentView.setTextSize(14);
+                if (newIndex != currentHighlightIndex && newIndex >= 0) {
+                    clearCurrentLyricHighlight();
+                    currentHighlightIndex = newIndex;
+                    if (currentHighlightIndex < lyricViews.size()) {
+                        TextView currentView = lyricViews.get(currentHighlightIndex);
+                        currentView.setTextColor(0xFFFFFFFF);
+                        currentView.setTextSize(14);
 
-                            if (lyricScrollMode == LYRIC_MODE_FOLLOW || !lyricsUserScrolled) {
-                                scrollOverlayToLine(currentHighlightIndex);
-                            }
+                        if (lyricScrollMode == LYRIC_MODE_FOLLOW || !lyricsUserScrolled) {
+                            scrollOverlayToLine(currentHighlightIndex);
                         }
                     }
                 }
@@ -2372,12 +2377,14 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             textLayout.setLayoutParams(textLp);
 
             TextView tvName = new TextView(this);
-            String prefix = (i == currentIndex) ? "▶ " : (i + 1) + ". ";
+            String prefix = (i == currentIndex) ? "▶ " : "";
             tvName.setText(prefix + song.getName());
             tvName.setTextColor(i == currentIndex ? 0xFFBB86FC : 0xFFFFFFFF);
             tvName.setTextSize(13);
             tvName.setSingleLine(true);
-            tvName.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            tvName.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
+            tvName.setMarqueeRepeatLimit(-1);
+            tvName.setSelected(true);
             textLayout.addView(tvName);
 
             TextView tvArtist = new TextView(this);
@@ -2385,7 +2392,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             tvArtist.setTextColor(0x80FFFFFF);
             tvArtist.setTextSize(11);
             tvArtist.setSingleLine(true);
-            tvArtist.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            tvArtist.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
+            tvArtist.setMarqueeRepeatLimit(-1);
+            tvArtist.setSelected(true);
             textLayout.addView(tvArtist);
 
             itemLayout.addView(textLayout);

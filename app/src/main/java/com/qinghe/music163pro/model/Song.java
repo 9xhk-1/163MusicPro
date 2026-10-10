@@ -42,6 +42,9 @@ public class Song implements Serializable {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
+    @Override
+    public String toString() { return name != null ? name : ""; }
+
     public String getArtist() { return artist; }
     public void setArtist(String artist) { this.artist = artist; }
 

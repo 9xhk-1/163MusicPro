@@ -101,10 +101,17 @@ public class SearchActivity extends BaseWatchActivity {
         historyAdapter = new ArrayAdapter<String>(this, R.layout.item_history, R.id.tv_history_text, historyList) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
+                View view = convertView;
+                if (view == null) {
+                    view = getLayoutInflater().inflate(R.layout.item_history, parent, false);
+                }
                 TextView tvHistory = view.findViewById(R.id.tv_history_text);
                 if (tvHistory != null) {
                     tvHistory.setSelected(true);
+                    String text = getItem(position);
+                    if (text != null && !android.text.TextUtils.equals(tvHistory.getText(), text)) {
+                        tvHistory.setText(text);
+                    }
                 }
                 return view;
             }
@@ -118,7 +125,10 @@ public class SearchActivity extends BaseWatchActivity {
         songAdapter = new ArrayAdapter<Song>(this, R.layout.item_song, R.id.tv_item_name, songList) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
+                View view = convertView;
+                if (view == null) {
+                    view = getLayoutInflater().inflate(R.layout.item_song, parent, false);
+                }
                 Song song = getItem(position);
                 if (song != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
@@ -130,8 +140,12 @@ public class SearchActivity extends BaseWatchActivity {
                     if (vipBadge != null) {
                         vipBadge.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
                     }
-                    tvName.setText(song.getName());
-                    tvArtist.setText(song.getArtist());
+                    if (!android.text.TextUtils.equals(tvName.getText(), song.getName())) {
+                        tvName.setText(song.getName());
+                    }
+                    if (!android.text.TextUtils.equals(tvArtist.getText(), song.getArtist())) {
+                        tvArtist.setText(song.getArtist());
+                    }
                     if (ivCover != null) {
                         NetworkImageLoader.load(ivCover, song.getCoverUrl());
                     }
@@ -144,7 +158,10 @@ public class SearchActivity extends BaseWatchActivity {
         playlistAdapter = new ArrayAdapter<PlaylistInfo>(this, R.layout.item_playlist, R.id.tv_playlist_name, playlistList) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
+                View view = convertView;
+                if (view == null) {
+                    view = getLayoutInflater().inflate(R.layout.item_playlist, parent, false);
+                }
                 PlaylistInfo playlistInfo = getItem(position);
                 if (playlistInfo != null) {
                     TextView tvName = view.findViewById(R.id.tv_playlist_name);
@@ -152,12 +169,16 @@ public class SearchActivity extends BaseWatchActivity {
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setSelected(true);
                     tvInfo.setSelected(true);
-                    tvName.setText(playlistInfo.getName());
+                    if (!android.text.TextUtils.equals(tvName.getText(), playlistInfo.getName())) {
+                        tvName.setText(playlistInfo.getName());
+                    }
                     String info = playlistInfo.getTrackCount() + "首";
                     if (playlistInfo.getCreator() != null && !playlistInfo.getCreator().isEmpty()) {
                         info += " · " + playlistInfo.getCreator();
                     }
-                    tvInfo.setText(info);
+                    if (!android.text.TextUtils.equals(tvInfo.getText(), info)) {
+                        tvInfo.setText(info);
+                    }
                     if (ivCover != null) {
                         NetworkImageLoader.load(ivCover, playlistInfo.getCoverUrl());
                     }
@@ -170,7 +191,10 @@ public class SearchActivity extends BaseWatchActivity {
         mvAdapter = new ArrayAdapter<MvInfo>(this, R.layout.item_mv, R.id.tv_mv_name, mvList) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
+                View view = convertView;
+                if (view == null) {
+                    view = getLayoutInflater().inflate(R.layout.item_mv, parent, false);
+                }
                 MvInfo mvInfo = getItem(position);
                 if (mvInfo != null) {
                     TextView tvName = view.findViewById(R.id.tv_mv_name);
@@ -178,7 +202,9 @@ public class SearchActivity extends BaseWatchActivity {
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setSelected(true);
                     tvInfo.setSelected(true);
-                    tvName.setText(mvInfo.getName());
+                    if (!android.text.TextUtils.equals(tvName.getText(), mvInfo.getName())) {
+                        tvName.setText(mvInfo.getName());
+                    }
                     StringBuilder info = new StringBuilder();
                     if (mvInfo.getArtist() != null && !mvInfo.getArtist().isEmpty()) {
                         info.append(mvInfo.getArtist());
@@ -189,7 +215,10 @@ public class SearchActivity extends BaseWatchActivity {
                         }
                         info.append(formatDuration(mvInfo.getDurationMs()));
                     }
-                    tvInfo.setText(info.length() > 0 ? info.toString() : getString(R.string.tap_to_view_detail));
+                    String infoText = info.length() > 0 ? info.toString() : getString(R.string.tap_to_view_detail);
+                    if (!android.text.TextUtils.equals(tvInfo.getText(), infoText)) {
+                        tvInfo.setText(infoText);
+                    }
                     if (ivCover != null) {
                         NetworkImageLoader.load(ivCover, mvInfo.getCoverUrl());
                     }

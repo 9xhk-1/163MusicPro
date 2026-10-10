@@ -54,7 +54,10 @@ public class DownloadListActivity extends BaseWatchActivity {
         adapter = new ArrayAdapter<Song>(this, R.layout.item_song, R.id.tv_item_name, downloadedSongs) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
+                View view = convertView;
+                if (view == null) {
+                    view = getLayoutInflater().inflate(R.layout.item_song, parent, false);
+                }
                 Song song = getItem(position);
                 if (song != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
@@ -62,8 +65,12 @@ public class DownloadListActivity extends BaseWatchActivity {
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setSelected(true);
                     tvArtist.setSelected(true);
-                    tvName.setText(song.getName());
-                    tvArtist.setText(song.getArtist());
+                    if (!android.text.TextUtils.equals(tvName.getText(), song.getName())) {
+                        tvName.setText(song.getName());
+                    }
+                    if (!android.text.TextUtils.equals(tvArtist.getText(), song.getArtist())) {
+                        tvArtist.setText(song.getArtist());
+                    }
                     if (ivCover != null) {
                         // coverUrl may be local file:// path or remote URL
                         NetworkImageLoader.load(ivCover, song.getCoverUrl());
