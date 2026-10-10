@@ -1245,6 +1245,9 @@ public class MusicPlayerManager {
                 if (current.getAlbumId() > 0) {
                     songJson.put("albumId", current.getAlbumId());
                 }
+                if (current.getFee() != 0) {
+                    songJson.put("fee", current.getFee());
+                }
                 if (current.isForceLocalPlayback()) {
                     songJson.put(KEY_FORCE_LOCAL_PLAYBACK, true);
                 }
@@ -1269,6 +1272,9 @@ public class MusicPlayerManager {
                 }
                 if (s.getAlbumId() > 0) {
                     obj.put("albumId", s.getAlbumId());
+                }
+                if (s.getFee() != 0) {
+                    obj.put("fee", s.getFee());
                 }
                 if (s.isForceLocalPlayback()) obj.put(KEY_FORCE_LOCAL_PLAYBACK, true);
                 playlistArr.put(obj);
@@ -1339,6 +1345,7 @@ public class MusicPlayerManager {
                 if (albumId > 0) {
                     song.setAlbumId(albumId);
                 }
+                song.setFee(obj.optInt("fee", 0));
                 song.setForceLocalPlayback(obj.optBoolean(KEY_FORCE_LOCAL_PLAYBACK, false));
                 restoredList.add(song);
             }

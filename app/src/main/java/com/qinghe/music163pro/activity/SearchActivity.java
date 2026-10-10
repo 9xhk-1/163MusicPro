@@ -98,7 +98,17 @@ public class SearchActivity extends BaseWatchActivity {
         initListeners(btnSearch);
         loadSearchHistory();
 
-        historyAdapter = new ArrayAdapter<>(this, R.layout.item_history, R.id.tv_history_text, historyList);
+        historyAdapter = new ArrayAdapter<String>(this, R.layout.item_history, R.id.tv_history_text, historyList) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                TextView tvHistory = view.findViewById(R.id.tv_history_text);
+                if (tvHistory != null) {
+                    tvHistory.setSelected(true);
+                }
+                return view;
+            }
+        };
         lvHistory.setAdapter(historyAdapter);
         updateHistoryVisibility();
         updateTabAppearance();
@@ -114,6 +124,12 @@ public class SearchActivity extends BaseWatchActivity {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
+                    tvName.setSelected(true);
+                    tvArtist.setSelected(true);
+                    View vipBadge = view.findViewById(R.id.tv_vip_badge);
+                    if (vipBadge != null) {
+                        vipBadge.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
+                    }
                     tvName.setText(song.getName());
                     tvArtist.setText(song.getArtist());
                     if (ivCover != null) {
@@ -134,6 +150,8 @@ public class SearchActivity extends BaseWatchActivity {
                     TextView tvName = view.findViewById(R.id.tv_playlist_name);
                     TextView tvInfo = view.findViewById(R.id.tv_playlist_info);
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
+                    tvName.setSelected(true);
+                    tvInfo.setSelected(true);
                     tvName.setText(playlistInfo.getName());
                     String info = playlistInfo.getTrackCount() + "首";
                     if (playlistInfo.getCreator() != null && !playlistInfo.getCreator().isEmpty()) {
@@ -158,6 +176,8 @@ public class SearchActivity extends BaseWatchActivity {
                     TextView tvName = view.findViewById(R.id.tv_mv_name);
                     TextView tvInfo = view.findViewById(R.id.tv_mv_info);
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
+                    tvName.setSelected(true);
+                    tvInfo.setSelected(true);
                     tvName.setText(mvInfo.getName());
                     StringBuilder info = new StringBuilder();
                     if (mvInfo.getArtist() != null && !mvInfo.getArtist().isEmpty()) {

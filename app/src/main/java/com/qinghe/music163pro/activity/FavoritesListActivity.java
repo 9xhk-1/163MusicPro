@@ -76,6 +76,12 @@ public class FavoritesListActivity extends BaseWatchActivity {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
+                    tvName.setSelected(true);
+                    tvArtist.setSelected(true);
+                    View vipBadge = view.findViewById(R.id.tv_vip_badge);
+                    if (vipBadge != null) {
+                        vipBadge.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
+                    }
                     tvName.setText(song.getName());
                     tvArtist.setText(song.getArtist());
                     if (ivCover != null) {
@@ -100,6 +106,8 @@ public class FavoritesListActivity extends BaseWatchActivity {
                     TextView tvName = view.findViewById(R.id.tv_playlist_name);
                     TextView tvInfo = view.findViewById(R.id.tv_playlist_info);
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
+                    tvName.setSelected(true);
+                    tvInfo.setSelected(true);
                     tvName.setText(pl.getName());
                     String info = pl.getTrackCount() + "\u9996";
                     if (pl.getCreator() != null && !pl.getCreator().isEmpty()) {

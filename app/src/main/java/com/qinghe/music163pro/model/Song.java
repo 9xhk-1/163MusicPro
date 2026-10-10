@@ -24,6 +24,8 @@ public class Song implements Serializable {
     private String coverUrl;
     /** Album ID (al.id from NetEase API). 0 if unknown. */
     private long albumId;
+    /** NetEase fee flag: 1 = VIP song, 0 = free, etc. */
+    private int fee;
 
     public Song() {}
 
@@ -71,6 +73,12 @@ public class Song implements Serializable {
 
     public long getAlbumId() { return albumId; }
     public void setAlbumId(long albumId) { this.albumId = albumId; }
+
+    public int getFee() { return fee; }
+    public void setFee(int fee) { this.fee = fee; }
+
+    /** Whether this is a VIP song (NetEase fee == 1). */
+    public boolean isVip() { return fee == 1; }
 
     /** Check if this song is from Bilibili */
     public boolean isBilibili() {

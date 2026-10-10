@@ -140,6 +140,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
                     }
 
                     tvName.setText(pl.getName());
+                    tvName.setSelected(true);
                     tvName.setTextColor(0xFFFFFFFF);
                     tvName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
 
@@ -148,6 +149,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
                         detail += " · " + pl.getCreator();
                     }
                     tvDetail.setText(detail);
+                    tvDetail.setSelected(true);
                     tvDetail.setTextColor(0xB3FFFFFF);
                     tvDetail.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(11));
                 }

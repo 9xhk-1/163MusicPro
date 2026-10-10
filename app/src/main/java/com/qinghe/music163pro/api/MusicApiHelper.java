@@ -429,6 +429,7 @@ public class MusicApiHelper {
                         coverUrl = al.optString("picUrl", "");
                     }
                     Song song = new Song(id, name, artist, album);
+                    song.setFee(s.optInt("fee", 0));
                     if (!coverUrl.isEmpty()) {
                         song.setCoverUrl(coverUrl);
                     }
@@ -2171,7 +2172,9 @@ public class MusicApiHelper {
                         if (albumObj != null) {
                             album = albumObj.optString("name", "");
                         }
-                        songs.add(new Song(id, name, artist, album));
+                        Song fmSong = new Song(id, name, artist, album);
+                        fmSong.setFee(s.optInt("fee", 0));
+                        songs.add(fmSong);
                     }
                 }
 
@@ -2221,7 +2224,9 @@ public class MusicApiHelper {
                         if (albumObj != null) {
                             album = albumObj.optString("name", "");
                         }
-                        songs.add(new Song(id, name, artist, album));
+                        Song fmSong = new Song(id, name, artist, album);
+                        fmSong.setFee(s.optInt("fee", 0));
+                        songs.add(fmSong);
                     }
                 }
 
@@ -3298,6 +3303,7 @@ public class MusicApiHelper {
             return null;
         }
         Song parsedSong = new Song(songId, songName, artist, album);
+        parsedSong.setFee(songObj.optInt("fee", 0));
         if (!coverUrl.isEmpty()) {
             parsedSong.setCoverUrl(coverUrl);
         }
@@ -3550,7 +3556,9 @@ public class MusicApiHelper {
         if (songName.isEmpty()) {
             return null;
         }
-        return new Song(songId, songName, artist, album);
+        Song recogSong = new Song(songId, songName, artist, album);
+        recogSong.setFee(songObj.optInt("fee", 0));
+        return recogSong;
     }
 
     // ==================== Playlist Subscribe / Unsubscribe ====================

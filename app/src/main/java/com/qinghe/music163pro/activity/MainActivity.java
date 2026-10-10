@@ -79,6 +79,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
     private TextView tvSongName;
     private TextView tvArtist;
+    private TextView tvPlayerVipBadge;
     private ImageView btnPlay;
     private ImageView btnFuncMore;
     private SeekBar seekBar;
@@ -181,6 +182,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         tvSongName = findViewById(R.id.tv_song_name);
         tvArtist = findViewById(R.id.tv_artist);
+        tvPlayerVipBadge = findViewById(R.id.tv_player_vip_badge);
         btnPlay = findViewById(R.id.btn_play);
         btnFuncMore = findViewById(R.id.btn_favorite);
         seekBar = findViewById(R.id.seek_bar);
@@ -230,6 +232,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         // Enable marquee
         tvSongName.setSelected(true);
+        tvArtist.setSelected(true);
 
         btnPlay.setOnClickListener(v -> {
             if (playerManager.isPlaying()) {
@@ -3595,10 +3598,16 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         if (song != null) {
             tvSongName.setText(song.getName());
             tvArtist.setText(song.getArtist());
+            if (tvPlayerVipBadge != null) {
+                tvPlayerVipBadge.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
+            }
             ensureChorusLoaded(song);
         } else {
             tvSongName.setText(R.string.no_song);
             tvArtist.setText("");
+            if (tvPlayerVipBadge != null) {
+                tvPlayerVipBadge.setVisibility(View.GONE);
+            }
             clearChorusInfo();
         }
         btnPlay.setImageResource(playerManager.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play_arrow);
@@ -3624,6 +3633,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     public void onSongChanged(Song song) {
         tvSongName.setText(song.getName());
         tvArtist.setText(song.getArtist());
+        if (tvPlayerVipBadge != null) {
+            tvPlayerVipBadge.setVisibility(song != null && song.isVip() ? View.VISIBLE : View.GONE);
+        }
         ensureChorusLoaded(song);
         startPlaybackService(song.getName(), song.getArtist(), song.getCoverUrl(), true);
         // Save to play history
