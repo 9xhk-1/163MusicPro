@@ -96,6 +96,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     // Playlist indicator (top-left)
     private ImageView btnPlaylistIndicator;
 
+    // Song ids whose fee detail lookup was already requested this session
+    private final java.util.Set<Long> feeEnrichRequested = new java.util.HashSet<>();
+
     // Functions overlay
     private FrameLayout overlayContainer;
     private Handler overlayTimerHandler;
@@ -2419,7 +2422,19 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             tvName.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
             tvName.setMarqueeRepeatLimit(-1);
             tvName.setSelected(true);
-            textLayout.addView(tvName);
+
+            LinearLayout nameRow = new LinearLayout(this);
+            nameRow.setOrientation(LinearLayout.HORIZONTAL);
+            nameRow.setGravity(Gravity.CENTER_VERTICAL);
+            nameRow.addView(tvName, new LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            TextView tvVip = createVipBadge();
+            tvVip.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
+            LinearLayout.LayoutParams vipLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            vipLp.setMarginStart(dp(4));
+            nameRow.addView(tvVip, vipLp);
+            textLayout.addView(nameRow);
 
             TextView tvArtist = new TextView(this);
             tvArtist.setText(song.getArtist());
@@ -3672,12 +3687,56 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         }
     }
 
+    private TextView createVipBadge() {
+        TextView badge = new TextView(this);
+        badge.setText(R.string.vip_badge);
+        badge.setTextColor(0xFFF44336);
+        badge.setTextSize(9);
+        badge.setTypeface(badge.getTypeface(), android.graphics.Typeface.BOLD);
+        badge.setBackgroundResource(R.drawable.bg_vip_badge);
+        badge.setPadding(dp(3), dp(1), dp(3), dp(1));
+        badge.setVisibility(View.GONE);
+        return badge;
+    }
+
+    /**
+     * Songs created without fee info (e.g. from the music-info page) cannot
+     * show the VIP badge until their fee is fetched. Look it up once per song
+     * and refresh the player badge if this song is still current.
+     */
+    private void enrichSongFee(final Song song) {
+        if (!feeEnrichRequested.add(song.getId())) {
+            return;
+        }
+        MusicApiHelper.fetchSongsDetails(java.util.Collections.singletonList(song.getId()),
+                playerManager.getCookie(), new MusicApiHelper.BatchSongDetailsCallback() {
+                    @Override
+                    public void onResult(java.util.Map<Long, Song> songMap) {
+                        Song detail = songMap != null ? songMap.get(song.getId()) : null;
+                        if (detail == null || detail.getFee() == 0 || song.getFee() != 0) {
+                            return;
+                        }
+                        song.setFee(detail.getFee());
+                        if (tvPlayerVipBadge != null && isCurrentSong(song.getId())) {
+                            tvPlayerVipBadge.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
+                        }
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                    }
+                });
+    }
+
     @Override
     public void onSongChanged(Song song) {
         tvSongName.setText(song.getDisplayName());
         tvArtist.setText(song.getArtist());
         if (tvPlayerVipBadge != null) {
             tvPlayerVipBadge.setVisibility(song != null && song.isVip() ? View.VISIBLE : View.GONE);
+        }
+        if (song != null && song.getId() > 0 && song.getFee() == 0 && !song.isBilibili()) {
+            enrichSongFee(song);
         }
         ensureChorusLoaded(song);
         startPlaybackService(song.getDisplayName(), song.getArtist(), song.getCoverUrl(), true);

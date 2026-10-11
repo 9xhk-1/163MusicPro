@@ -66,6 +66,9 @@ public class SongInfoActivity extends AppCompatActivity {
     private String currentBlockCode = "";
     // Collected similar songs from the current block for playlist filling
     private final List<Song> currentBlockSongs = new ArrayList<>();
+    // VIP badge views paired with their song (fee may arrive asynchronously)
+    private final java.util.LinkedHashMap<Song, TextView> feeBadges = new java.util.LinkedHashMap<>();
+    private final java.util.Set<Long> feeRequested = new java.util.HashSet<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -498,7 +501,10 @@ public class SongInfoActivity extends AppCompatActivity {
                     }
                     long sId = song.optLong("id", 0);
                     if (!sName.isEmpty() && sId > 0) {
-                        blockSongList.add(new Song(sId, sName, sArtist, ""));
+                        Song blockSong = new Song(sId, sName, sArtist, "");
+                        int fee = song.optInt("fee", -1);
+                        if (fee >= 0) blockSong.setFee(fee);
+                        blockSongList.add(blockSong);
                     }
                 }
                 if (isSongBlock) {
@@ -510,14 +516,30 @@ public class SongInfoActivity extends AppCompatActivity {
                     String display = s.getArtist().isEmpty() ? s.getDisplayName() : s.getDisplayName() + " - " + s.getArtist();
                     if (isSongBlock) {
                         final int idx = currentBlockSongs.size() - blockSongList.size() + i;
+                        LinearLayout row = new LinearLayout(this);
+                        row.setOrientation(LinearLayout.HORIZONTAL);
                         TextView tv = makeText("▶ " + display, COLOR_ACCENT, px(14), false, Gravity.START);
                         tv.setPadding(0, px(2), 0, px(2));
-                        tv.setOnClickListener(v -> playSimilarSongs(currentBlockSongs, idx));
-                        contentLayout.addView(tv);
+                        tv.setLayoutParams(new LinearLayout.LayoutParams(0,
+                                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+                        TextView badge = createVipBadge();
+                        row.addView(tv);
+                        LinearLayout.LayoutParams badgeLp = new LinearLayout.LayoutParams(
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                                LinearLayout.LayoutParams.WRAP_CONTENT);
+                        badgeLp.gravity = Gravity.CENTER_VERTICAL;
+                        badgeLp.setMarginStart(px(4));
+                        row.addView(badge, badgeLp);
+                        feeBadges.put(s, badge);
+                        row.setOnClickListener(v -> playSimilarSongs(currentBlockSongs, idx));
+                        contentLayout.addView(row);
                     } else {
                         contentLayout.addView(makeText("• " + display, COLOR_TEXT_DESC, px(14), false, Gravity.START));
                     }
                     contentLayout.addView(makeSpacer(px(2)));
+                }
+                if (isSongBlock) {
+                    requestFeeEnrichment();
                 }
                 return;
             }
@@ -588,6 +610,9 @@ public class SongInfoActivity extends AppCompatActivity {
 
         // If neither exists, nothing to show
         if (resInfo == null && resUiElement == null) return;
+
+        // VIP badge for song cards (paired with the Song once parsed below)
+        TextView cardFeeBadge = null;
 
         // Extract cover URL for card thumbnail
         String coverUrlRes = "";
@@ -662,7 +687,26 @@ public class SongInfoActivity extends AppCompatActivity {
             if (mainTitle != null) {
                 String title = mainTitle.optString("title", "");
                 if (!title.isEmpty()) {
-                    rightLayout.addView(makeText(title, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
+                    TextView titleView = makeText(title, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START);
+                    boolean songCard = currentBlockCode.contains("SIMILAR_SONG")
+                            || currentBlockCode.contains("REC_SONG");
+                    if (songCard) {
+                        cardFeeBadge = createVipBadge();
+                        LinearLayout titleRow = new LinearLayout(this);
+                        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+                        titleView.setLayoutParams(new LinearLayout.LayoutParams(0,
+                                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+                        titleRow.addView(titleView);
+                        LinearLayout.LayoutParams titleBadgeLp = new LinearLayout.LayoutParams(
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                                LinearLayout.LayoutParams.WRAP_CONTENT);
+                        titleBadgeLp.gravity = Gravity.CENTER_VERTICAL;
+                        titleBadgeLp.setMarginStart(px(4));
+                        titleRow.addView(cardFeeBadge, titleBadgeLp);
+                        rightLayout.addView(titleRow);
+                    } else {
+                        rightLayout.addView(titleView);
+                    }
                 }
             }
             // subTitles is an array in the API response
@@ -827,7 +871,13 @@ public class SongInfoActivity extends AppCompatActivity {
                     }
                 }
                 if (resId > 0) {
-                    currentBlockSongs.add(new Song(resId, resName, resArtist, ""));
+                    Song cardSong = new Song(resId, resName, resArtist, "");
+                    int cardFee = resInfo != null ? resInfo.optInt("fee", -1) : -1;
+                    if (cardFee >= 0) cardSong.setFee(cardFee);
+                    currentBlockSongs.add(cardSong);
+                    if (cardFeeBadge != null) {
+                        feeBadges.put(cardSong, cardFeeBadge);
+                    }
                 }
                 // Artist is already shown above via uiElement.subTitles or resInfo.ar rendering
                 final int songIdx = currentBlockSongs.size() - 1;
@@ -859,6 +909,7 @@ public class SongInfoActivity extends AppCompatActivity {
             }
             contentLayout.addView(card);
         }
+        requestFeeEnrichment();
     }
 
     private String formatCount(int count) {
@@ -979,6 +1030,57 @@ public class SongInfoActivity extends AppCompatActivity {
     }
 
     // ── Playback helpers ────────────────────────────────────────────────
+
+    private TextView createVipBadge() {
+        TextView badge = new TextView(this);
+        badge.setText(R.string.vip_badge);
+        badge.setTextColor(0xFFF44336);
+        badge.setTextSize(9);
+        badge.setTypeface(badge.getTypeface(), Typeface.BOLD);
+        badge.setBackgroundResource(R.drawable.bg_vip_badge);
+        badge.setPadding(px(3), px(1), px(3), px(1));
+        badge.setVisibility(View.GONE);
+        return badge;
+    }
+
+    private void requestFeeEnrichment() {
+        refreshFeeBadges();
+        List<Long> ids = new ArrayList<>();
+        for (Song s : currentBlockSongs) {
+            if (s.getFee() == 0 && s.getId() > 0 && feeRequested.add(s.getId())) {
+                ids.add(s.getId());
+            }
+        }
+        if (ids.isEmpty()) {
+            return;
+        }
+        MusicApiHelper.fetchSongsDetails(ids, cookie, new MusicApiHelper.BatchSongDetailsCallback() {
+            @Override
+            public void onResult(java.util.Map<Long, Song> songMap) {
+                if (songMap != null) {
+                    for (Song done : songMap.values()) {
+                        if (done.getFee() == 0) continue;
+                        for (Song s : currentBlockSongs) {
+                            if (s.getId() == done.getId()) s.setFee(done.getFee());
+                        }
+                    }
+                }
+                refreshFeeBadges();
+                requestFeeEnrichment();
+            }
+
+            @Override
+            public void onError(String message) {
+                refreshFeeBadges();
+            }
+        });
+    }
+
+    private void refreshFeeBadges() {
+        for (java.util.Map.Entry<Song, TextView> e : feeBadges.entrySet()) {
+            e.getValue().setVisibility(e.getKey().isVip() ? View.VISIBLE : View.GONE);
+        }
+    }
 
     /**
      * Play a song from a captured similar songs list, filling the playlist with all similar songs.
