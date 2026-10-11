@@ -56,6 +56,7 @@ public class MvPlayerActivity extends BaseWatchActivity {
         playerView.setKeepScreenOn(true);
         btnBack.setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
         tvTitle.setText(mvName != null && !mvName.isEmpty() ? mvName : "MV播放");
+        tvTitle.setSelected(true);
 
         if (mvId <= 0) {
             Toast.makeText(this, "MV地址无效", Toast.LENGTH_SHORT).show();

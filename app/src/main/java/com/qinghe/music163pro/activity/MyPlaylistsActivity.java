@@ -139,7 +139,10 @@ public class MyPlaylistsActivity extends AppCompatActivity {
                         icon.setColorFilter(0x80FFFFFF);
                     }
 
-                    tvName.setText(pl.getName());
+                    if (!android.text.TextUtils.equals(tvName.getText(), pl.getName())) {
+                        tvName.setText(pl.getName());
+                    }
+                    tvName.setSelected(true);
                     tvName.setTextColor(0xFFFFFFFF);
                     tvName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
 
@@ -147,7 +150,10 @@ public class MyPlaylistsActivity extends AppCompatActivity {
                     if (pl.getCreator() != null && !pl.getCreator().isEmpty()) {
                         detail += " · " + pl.getCreator();
                     }
-                    tvDetail.setText(detail);
+                    if (!android.text.TextUtils.equals(tvDetail.getText(), detail)) {
+                        tvDetail.setText(detail);
+                    }
+                    tvDetail.setSelected(true);
                     tvDetail.setTextColor(0xB3FFFFFF);
                     tvDetail.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(11));
                 }

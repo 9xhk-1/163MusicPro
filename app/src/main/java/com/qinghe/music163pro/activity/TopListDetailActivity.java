@@ -63,7 +63,9 @@ public class TopListDetailActivity extends AppCompatActivity {
         title.setGravity(Gravity.CENTER);
         title.setPadding(0, 0, 0, px(6));
         title.setSingleLine(true);
-        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
+        title.setMarqueeRepeatLimit(-1);
+        title.setSelected(true);
         root.addView(title);
 
         lvSongs = new ListView(this);
@@ -79,14 +81,27 @@ public class TopListDetailActivity extends AppCompatActivity {
         adapter = new ArrayAdapter<Song>(this, R.layout.item_song, R.id.tv_item_name, displayList) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
+                View view = convertView;
+                if (view == null) {
+                    view = getLayoutInflater().inflate(R.layout.item_song, parent, false);
+                }
                 Song song = getItem(position);
                 if (song != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
-                    tvName.setText((position + 1) + ". " + song.getName());
-                    tvArtist.setText(song.getArtist());
+                    tvName.setSelected(true);
+                    tvArtist.setSelected(true);
+                    View vipBadge = view.findViewById(R.id.tv_vip_badge);
+                    if (vipBadge != null) {
+                        vipBadge.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
+                    }
+                    if (!android.text.TextUtils.equals(tvName.getText(), song.getDisplayName())) {
+                        tvName.setText(song.getDisplayName());
+                    }
+                    if (!android.text.TextUtils.equals(tvArtist.getText(), song.getArtist())) {
+                        tvArtist.setText(song.getArtist());
+                    }
                     if (ivCover != null) {
                         NetworkImageLoader.load(ivCover, song.getCoverUrl());
                     }

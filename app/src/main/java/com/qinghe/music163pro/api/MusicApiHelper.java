@@ -272,7 +272,7 @@ public class MusicApiHelper {
     }
 
     public interface LyricsFullCallback {
-        void onResult(String lrcText, String tlyricText);
+        void onResult(String lrcText, String tlyricText, String romalrcText);
         void onError(String message);
     }
 
@@ -349,6 +349,11 @@ public class MusicApiHelper {
         void onError(String message);
     }
 
+    public interface CloudHistoryCallback {
+        void onResult(List<Song> songs);
+        void onError(String message);
+    }
+
     public interface CloudItemsCallback {
         void onResult(List<CloudItem> items);
         void onError(String message);
@@ -416,10 +421,7 @@ public class MusicApiHelper {
                     String name = s.getString("name");
                     String artist = "";
                     // cloudsearch uses "ar" for artists
-                    JSONArray ar = s.optJSONArray("ar");
-                    if (ar != null && ar.length() > 0) {
-                        artist = ar.getJSONObject(0).optString("name", "");
-                    }
+                    artist = joinArtistNames(s.optJSONArray("ar"));
                     String album = "";
                     String coverUrl = "";
                     // cloudsearch uses "al" for album
@@ -429,6 +431,8 @@ public class MusicApiHelper {
                         coverUrl = al.optString("picUrl", "");
                     }
                     Song song = new Song(id, name, artist, album);
+                    song.setFee(s.optInt("fee", 0));
+                    song.setAlias(firstAlias(s));
                     if (!coverUrl.isEmpty()) {
                         song.setCoverUrl(coverUrl);
                     }
@@ -711,16 +715,47 @@ public class MusicApiHelper {
      */
     public static void getSongUrlWithQuality(long songId, String cookie,
                                              String preferredLevel, UrlCallback callback) {
+        getSongUrlInfo(songId, cookie, preferredLevel, new SongUrlInfoCallback() {
+            @Override
+            public void onResult(String url, boolean trialOnly) {
+                callback.onResult(url);
+            }
+
+            @Override
+            public void onError(String message) {
+                callback.onError(message);
+            }
+        });
+    }
+
+    public interface SongUrlInfoCallback {
+        void onResult(String url, boolean trialOnly);
+        void onError(String message);
+    }
+
+    /**
+     * Fetch song URL with quality, also reporting whether the returned link is a
+     * free-trial clip (freeTrialInfo present in the player/url response). Songs
+     * unlocked by watching ads on the phone return a full link with no freeTrialInfo.
+     */
+    public static void getSongUrlInfo(long songId, String cookie,
+                                      String preferredLevel, SongUrlInfoCallback callback) {
         executor.execute(() -> {
             try {
                 String url = null;
+                boolean trialOnly = false;
                 MusicLog.op(TAG, "获取歌曲URL", "songId=" + songId + " level=" + preferredLevel);
 
                 // Try preferred level first (may need VIP/SVIP for higher tiers)
                 if (cookie != null && !cookie.isEmpty()) {
                     try {
-                        url = fetchSongUrl(songId, cookie, preferredLevel);
-                        if (url != null) MusicLog.d(TAG, "获取" + preferredLevel + " URL成功: " + songId);
+                        JSONObject item = fetchSongUrlData(songId, cookie, preferredLevel);
+                        url = extractUrlFromItem(item);
+                        trialOnly = url != null && isTrialUrlItem(item);
+                        if (url != null) {
+                            MusicLog.d(TAG, "获取" + preferredLevel + " URL成功: " + songId
+                                    + (trialOnly ? " (试听)" : ""));
+                        }
                     } catch (Exception e) {
                         MusicLog.w(TAG, "eapi " + preferredLevel + " 失败: " + songId, e);
                     }
@@ -731,9 +766,12 @@ public class MusicApiHelper {
                     for (String level : FREE_FALLBACK_LEVELS) {
                         if (level.equals(preferredLevel)) continue; // already tried
                         try {
-                            url = fetchSongUrl(songId, cookie, level);
+                            JSONObject item = fetchSongUrlData(songId, cookie, level);
+                            url = extractUrlFromItem(item);
                             if (url != null) {
-                                MusicLog.d(TAG, "回落到" + level + " URL成功: " + songId);
+                                trialOnly = isTrialUrlItem(item);
+                                MusicLog.d(TAG, "回落到" + level + " URL成功: " + songId
+                                        + (trialOnly ? " (试听)" : ""));
                                 break;
                             }
                         } catch (Exception e) {
@@ -745,11 +783,13 @@ public class MusicApiHelper {
                 // Last resort: direct link
                 if (url == null) {
                     url = "https://music.163.com/song/media/outer/url?id=" + songId + ".mp3";
+                    trialOnly = false;
                     MusicLog.w(TAG, "使用直连兜底URL: " + songId);
                 }
 
                 String finalUrl = url;
-                mainHandler.post(() -> callback.onResult(finalUrl));
+                boolean finalTrial = trialOnly;
+                mainHandler.post(() -> callback.onResult(finalUrl, finalTrial));
             } catch (Exception e) {
                 MusicLog.e(TAG, "getSongUrl 异常: " + songId, e);
                 mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
@@ -807,7 +847,7 @@ public class MusicApiHelper {
      * Fetch song URL using eapi crypto, which is required by /api/song/enhance/player/url/v1
      * for lossless and higher quality tiers (matches NeteaseCloudMusicApiBackup song_url_v1.js).
      */
-    private static String fetchSongUrl(long songId, String cookie, String level)
+    private static JSONObject fetchSongUrlData(long songId, String cookie, String level)
             throws Exception {
         JSONObject data = new JSONObject();
         data.put("ids", "[" + songId + "]");
@@ -821,23 +861,163 @@ public class MusicApiHelper {
         data.put("csrf_token", csrfToken);
 
         String response = eapiPost("/api/song/enhance/player/url/v1", data.toString(), cookie);
-        return extractSongUrlFromResponse(response);
-    }
-
-    private static String extractSongUrlFromResponse(String response) throws Exception {
         JSONObject json = new JSONObject(response);
-        JSONArray data = json.optJSONArray("data");
-        if (data != null && data.length() > 0) {
-            JSONObject first = data.getJSONObject(0);
-            int code = first.optInt("code", -1);
-            if (code == 200) {
-                String url = first.optString("url", null);
-                if (url != null && !"null".equals(url) && !url.isEmpty()) {
-                    return url;
-                }
-            }
+        JSONArray dataArray = json.optJSONArray("data");
+        if (dataArray != null && dataArray.length() > 0) {
+            return dataArray.getJSONObject(0);
         }
         return null;
+    }
+
+    private static String extractUrlFromItem(JSONObject item) {
+        if (item == null) {
+            return null;
+        }
+        if (item.optInt("code", -1) != 200) {
+            return null;
+        }
+        String url = item.optString("url", null);
+        if (url != null && !"null".equals(url) && !url.isEmpty()) {
+            return url;
+        }
+        return null;
+    }
+
+    /** freeTrialInfo present means the URL only contains the free trial clip. */
+    private static boolean isTrialUrlItem(JSONObject item) {
+        return item != null && item.optJSONObject("freeTrialInfo") != null;
+    }
+
+    /**
+     * 听歌打卡：上报播放历史（matches NeteaseCloudMusicApiEnhanced module/scrobble.js，
+     * POST https://clientlog.music.163.com/eapi/feedback/weblog，两段式）。
+     * start=true 表示播放刚开始 → action=startplay（实时写入「最近播放」）；
+     * start=false 表示播放结束 → action=play，time 为已听秒数（更新「听歌排行」）。
+     * 两段缺一不可：只有 play 进不了最近播放，只有 startplay 不涨听歌排行。
+     * 身份必须是 os=osx 桌面样式 + 原始登录态 cookie：实验验证富化成移动端
+     * （os=iPhone OS 等）会被服务端返回 200 但静默丢弃。downloadPlay=true 表示
+     * 本次播放来自已下载的本地歌曲。
+     */
+    public static void scrobble(long songId, long sourceId, int seconds,
+                                boolean downloadPlay, boolean start, String cookie) {
+        executor.execute(() -> {
+            try {
+                JSONObject json = new JSONObject();
+                if (start) {
+                    json.put("id", songId);
+                    json.put("type", "song");
+                    json.put("mainsite", "1");
+                    json.put("mainsiteWeb", "1");
+                    json.put("content", "id=" + sourceId);
+                } else {
+                    json.put("download", downloadPlay ? 1 : 0);
+                    json.put("end", "playend");
+                    json.put("id", songId);
+                    json.put("sourceId", sourceId);
+                    json.put("time", Math.max(0, seconds));
+                    json.put("type", "song");
+                    json.put("wifi", 0);
+                    json.put("source", "list");
+                    json.put("mainsite", "1");
+                    json.put("mainsiteWeb", "1");
+                    json.put("content", "id=" + sourceId);
+                }
+
+                JSONObject entry = new JSONObject();
+                entry.put("action", start ? "startplay" : "play");
+                entry.put("json", json);
+
+                JSONArray logs = new JSONArray();
+                logs.put(entry);
+
+                scrobbleWeblog(logs.toString(), cookie);
+                MusicLog.d(TAG, "听歌打卡上报成功: id=" + songId + " time=" + seconds
+                        + "s download=" + downloadPlay + (start ? " start" : ""));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "听歌打卡上报失败: " + songId, e);
+            }
+        });
+    }
+
+    /**
+     * scrobble 专用 eapi POST：clientlog 域名 + os=osx 桌面身份。
+     * 与其它接口通用的 eapiPost（interface 域名 + iPhone 身份）不同，实测该组合
+     * 才会实时写入最近播放/听歌排行。
+     */
+    private static String scrobbleWeblog(String logsJson, String cookie) throws Exception {
+        JSONObject cookieMap = parseCookieString(cookie);
+
+        JSONObject data = new JSONObject();
+        data.put("logs", logsJson);
+
+        JSONObject header = new JSONObject();
+        header.put("osver", "");
+        header.put("deviceId", deviceId);
+        header.put("os", "osx");
+        header.put("appver", "2.10.2");
+        header.put("versioncode", "");
+        header.put("mobilename", "");
+        header.put("buildver", String.valueOf(System.currentTimeMillis() / 1000L));
+        header.put("resolution", "");
+        header.put("__csrf", extractCsrfToken(cookie));
+        header.put("channel", "");
+        header.put("requestId", buildRequestId());
+        String musicU = cookieMap.optString("MUSIC_U", "");
+        if (!musicU.isEmpty()) {
+            header.put("MUSIC_U", musicU);
+        }
+        data.put("header", header);
+        data.put("e_r", false);
+
+        String path = "/api/feedback/weblog";
+        String params = NeteaseApiCrypto.eapi(path, data.toString());
+        String postBody = "params=" + URLEncoder.encode(params, "UTF-8");
+        String urlStr = "https://clientlog.music.163.com" + path.replaceFirst("^/api/", "/eapi/");
+        MusicLog.i(TAG, "[REQ] POST(scrobble eapi) " + urlStr + "\n  请求体(原文): " + logsJson);
+
+        StringBuilder cookieHeader = new StringBuilder("__remember_me=true; os=osx; appver=2.10.2; deviceId=");
+        cookieHeader.append(deviceId).append("; __csrf=").append(extractCsrfToken(cookie));
+        if (!musicU.isEmpty()) {
+            cookieHeader.append("; MUSIC_U=").append(musicU);
+        }
+
+        URL url = new URL(urlStr);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("User-Agent",
+                "NeteaseMusic/2.10.2.703006 (Macintosh; Mac OS X 10_15_7)");
+        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+        conn.setRequestProperty("Cookie", cookieHeader.toString());
+        conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        conn.setReadTimeout(READ_TIMEOUT_MS);
+        conn.setDoOutput(true);
+
+        try {
+            OutputStream os = conn.getOutputStream();
+            os.write(postBody.getBytes("UTF-8"));
+            os.close();
+
+            int responseCode = conn.getResponseCode();
+            BufferedReader reader;
+            if (responseCode >= 200 && responseCode < 400) {
+                reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+            } else {
+                InputStream errStream = conn.getErrorStream();
+                reader = new BufferedReader(new InputStreamReader(
+                        errStream != null ? errStream : conn.getInputStream(), "UTF-8"));
+            }
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+            }
+            reader.close();
+            String responseBody = sb.toString();
+            MusicLog.api(TAG, "POST(scrobble)", urlStr, responseCode, responseBody);
+            return responseBody;
+        } finally {
+            conn.disconnect();
+        }
     }
 
     // ==================== QR Login ====================
@@ -2161,17 +2341,21 @@ public class MusicApiHelper {
                         if (seenIds.contains(id)) continue;
                         seenIds.add(id);
                         String name = s.getString("name");
-                        String artist = "";
-                        JSONArray artists = s.optJSONArray("artists");
-                        if (artists != null && artists.length() > 0) {
-                            artist = artists.getJSONObject(0).optString("name", "");
-                        }
+                        String artist = joinArtistNames(s.optJSONArray("artists"));
                         String album = "";
+                        String cover = "";
                         JSONObject albumObj = s.optJSONObject("album");
                         if (albumObj != null) {
                             album = albumObj.optString("name", "");
+                            cover = albumObj.optString("picUrl", "");
                         }
-                        songs.add(new Song(id, name, artist, album));
+                        Song fmSong = new Song(id, name, artist, album);
+                        fmSong.setFee(s.optInt("fee", 0));
+                        fmSong.setAlias(firstAlias(s));
+                        if (!cover.isEmpty()) {
+                            fmSong.setCoverUrl(cover);
+                        }
+                        songs.add(fmSong);
                     }
                 }
 
@@ -2211,17 +2395,21 @@ public class MusicApiHelper {
                         if (seenIds.contains(id)) continue;
                         seenIds.add(id);
                         String name = s.getString("name");
-                        String artist = "";
-                        JSONArray artists = s.optJSONArray("artists");
-                        if (artists != null && artists.length() > 0) {
-                            artist = artists.getJSONObject(0).optString("name", "");
-                        }
+                        String artist = joinArtistNames(s.optJSONArray("artists"));
                         String album = "";
+                        String cover = "";
                         JSONObject albumObj = s.optJSONObject("album");
                         if (albumObj != null) {
                             album = albumObj.optString("name", "");
+                            cover = albumObj.optString("picUrl", "");
                         }
-                        songs.add(new Song(id, name, artist, album));
+                        Song fmSong = new Song(id, name, artist, album);
+                        fmSong.setFee(s.optInt("fee", 0));
+                        fmSong.setAlias(firstAlias(s));
+                        if (!cover.isEmpty()) {
+                            fmSong.setCoverUrl(cover);
+                        }
+                        songs.add(fmSong);
                     }
                 }
 
@@ -2688,9 +2876,15 @@ public class MusicApiHelper {
                 if (tlyricObj != null) {
                     tlyric = tlyricObj.optString("lyric", "");
                 }
+                String romalrc = "";
+                JSONObject romalrcObj = json.optJSONObject("romalrc");
+                if (romalrcObj != null) {
+                    romalrc = romalrcObj.optString("lyric", "");
+                }
                 final String finalLrc = lrc;
                 final String finalTlyric = tlyric;
-                mainHandler.post(() -> callback.onResult(finalLrc, finalTlyric));
+                final String finalRomalrc = romalrc;
+                mainHandler.post(() -> callback.onResult(finalLrc, finalTlyric, finalRomalrc));
             } catch (Exception e) {
                 MusicLog.w(TAG, "获取歌词(含翻译)失败: " + songId, e);
                 mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
@@ -3092,6 +3286,23 @@ public class MusicApiHelper {
         return "";
     }
 
+    /**
+     * First non-empty entry of the NetEase "alia" array (歌曲别名),
+     * or null when the song has no alias.
+     */
+    private static String firstAlias(JSONObject songObj) {
+        JSONArray alia = songObj.optJSONArray("alia");
+        if (alia != null) {
+            for (int i = 0; i < alia.length(); i++) {
+                String a = alia.optString(i, "");
+                if (!a.isEmpty()) {
+                    return a;
+                }
+            }
+        }
+        return null;
+    }
+
     private static String joinArtistNames(JSONArray artists) {
         if (artists == null || artists.length() == 0) {
             return "";
@@ -3292,6 +3503,8 @@ public class MusicApiHelper {
             return null;
         }
         Song parsedSong = new Song(songId, songName, artist, album);
+        parsedSong.setFee(songObj.optInt("fee", 0));
+        parsedSong.setAlias(firstAlias(songObj));
         if (!coverUrl.isEmpty()) {
             parsedSong.setCoverUrl(coverUrl);
         }
@@ -3346,6 +3559,7 @@ public class MusicApiHelper {
         if (parsedSong != null && hasSimpleSong) {
             item.setSongId(parsedSong.getId());
             item.setSongName(parsedSong.getName());
+            item.setAlias(parsedSong.getAlias());
             item.setArtist(parsedSong.getArtist());
             item.setAlbum(parsedSong.getAlbum());
         }
@@ -3529,9 +3743,9 @@ public class MusicApiHelper {
         }
         String artist = "未知歌手";
         if (artists != null && artists.length() > 0) {
-            JSONObject artistObj = artists.optJSONObject(0);
-            if (artistObj != null) {
-                artist = artistObj.optString("name", artist);
+            String joined = joinArtistNames(artists);
+            if (!joined.isEmpty()) {
+                artist = joined;
             }
         } else if (!songObj.optString("artistName").isEmpty()) {
             artist = songObj.optString("artistName");
@@ -3544,7 +3758,10 @@ public class MusicApiHelper {
         if (songName.isEmpty()) {
             return null;
         }
-        return new Song(songId, songName, artist, album);
+        Song recogSong = new Song(songId, songName, artist, album);
+        recogSong.setFee(songObj.optInt("fee", 0));
+        recogSong.setAlias(firstAlias(songObj));
+        return recogSong;
     }
 
     // ==================== Playlist Subscribe / Unsubscribe ====================
@@ -3843,6 +4060,41 @@ public class MusicApiHelper {
                 mainHandler.post(() -> callback.onResult(resultMap));
             } catch (Exception e) {
                 MusicLog.w(TAG, "批量获取歌曲详情失败", e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    /**
+     * Fetch play history from cloud recent-play records (record_recent_song).
+     * weapi POST /api/play-record/song/list {limit}, entries sorted newest first.
+     */
+    public static void fetchCloudHistory(String cookie, CloudHistoryCallback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject data = new JSONObject();
+                data.put("limit", 100);
+                data.put("csrf_token", extractCsrfToken(cookie));
+                String response = weapiPost("/api/play-record/song/list", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                JSONObject dataObj = json.optJSONObject("data");
+                JSONArray list = dataObj != null ? dataObj.optJSONArray("list") : null;
+                List<Song> songs = new ArrayList<>();
+                if (list != null) {
+                    java.util.Set<Long> seen = new java.util.HashSet<>();
+                    for (int i = 0; i < list.length(); i++) {
+                        JSONObject entry = list.optJSONObject(i);
+                        if (entry == null) continue;
+                        Song song = parseSongFromJson(entry.optJSONObject("data"));
+                        if (song != null && song.getId() > 0 && seen.add(song.getId())) {
+                            songs.add(song);
+                        }
+                    }
+                }
+                MusicLog.i(TAG, "获取云端历史成功: " + songs.size() + " 条");
+                mainHandler.post(() -> callback.onResult(songs));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "获取云端历史失败", e);
                 mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
             }
         });

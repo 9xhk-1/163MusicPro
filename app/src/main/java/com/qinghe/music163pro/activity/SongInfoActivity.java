@@ -66,6 +66,9 @@ public class SongInfoActivity extends AppCompatActivity {
     private String currentBlockCode = "";
     // Collected similar songs from the current block for playlist filling
     private final List<Song> currentBlockSongs = new ArrayList<>();
+    // VIP badge views paired with their song (fee may arrive asynchronously)
+    private final java.util.LinkedHashMap<Song, TextView> feeBadges = new java.util.LinkedHashMap<>();
+    private final java.util.Set<Long> feeRequested = new java.util.HashSet<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -498,7 +501,10 @@ public class SongInfoActivity extends AppCompatActivity {
                     }
                     long sId = song.optLong("id", 0);
                     if (!sName.isEmpty() && sId > 0) {
-                        blockSongList.add(new Song(sId, sName, sArtist, ""));
+                        Song blockSong = new Song(sId, sName, sArtist, "");
+                        int fee = song.optInt("fee", -1);
+                        if (fee >= 0) blockSong.setFee(fee);
+                        blockSongList.add(blockSong);
                     }
                 }
                 if (isSongBlock) {
@@ -507,17 +513,33 @@ public class SongInfoActivity extends AppCompatActivity {
                 // Second pass: display
                 for (int i = 0; i < blockSongList.size(); i++) {
                     Song s = blockSongList.get(i);
-                    String display = s.getArtist().isEmpty() ? s.getName() : s.getName() + " - " + s.getArtist();
+                    String display = s.getArtist().isEmpty() ? s.getDisplayName() : s.getDisplayName() + " - " + s.getArtist();
                     if (isSongBlock) {
                         final int idx = currentBlockSongs.size() - blockSongList.size() + i;
+                        LinearLayout row = new LinearLayout(this);
+                        row.setOrientation(LinearLayout.HORIZONTAL);
                         TextView tv = makeText("▶ " + display, COLOR_ACCENT, px(14), false, Gravity.START);
                         tv.setPadding(0, px(2), 0, px(2));
-                        tv.setOnClickListener(v -> playSimilarSongs(currentBlockSongs, idx));
-                        contentLayout.addView(tv);
+                        tv.setLayoutParams(new LinearLayout.LayoutParams(0,
+                                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+                        row.setGravity(Gravity.CENTER_VERTICAL);
+                        TextView badge = createVipBadge();
+                        LinearLayout.LayoutParams badgeLp = new LinearLayout.LayoutParams(
+                                LinearLayout.LayoutParams.WRAP_CONTENT,
+                                LinearLayout.LayoutParams.WRAP_CONTENT);
+                        badgeLp.setMarginEnd(px(4));
+                        row.addView(badge, badgeLp);
+                        row.addView(tv);
+                        feeBadges.put(s, badge);
+                        row.setOnClickListener(v -> playSimilarSongs(currentBlockSongs, idx));
+                        contentLayout.addView(row);
                     } else {
                         contentLayout.addView(makeText("• " + display, COLOR_TEXT_DESC, px(14), false, Gravity.START));
                     }
                     contentLayout.addView(makeSpacer(px(2)));
+                }
+                if (isSongBlock) {
+                    requestFeeEnrichment();
                 }
                 return;
             }
@@ -616,6 +638,14 @@ public class SongInfoActivity extends AppCompatActivity {
             if (coverUrlRes.isEmpty()) {
                 coverUrlRes = resInfo.optString("picUrl", resInfo.optString("coverImgUrl", ""));
             }
+        }
+
+        // Song cards use the standard list row format (like other song lists)
+        boolean songCard = currentBlockCode.contains("SIMILAR_SONG")
+                || currentBlockCode.contains("REC_SONG");
+        if (songCard) {
+            displaySongCard(resource, resInfo, resUiElement, coverUrlRes);
+            return;
         }
 
         // Create a horizontal card: [cover thumbnail] + [content column]
@@ -788,54 +818,10 @@ public class SongInfoActivity extends AppCompatActivity {
 
         // Only add card if the content column has children
         if (rightLayout.getChildCount() > 0) {
-            // Add click handler for song blocks
-            boolean isSongBlock = currentBlockCode.contains("SIMILAR_SONG")
-                    || currentBlockCode.contains("REC_SONG");
             boolean isPlaylistBlock = currentBlockCode.contains("PLAYLIST");
 
-            if (isSongBlock) {
-                long resId = resInfo != null ? resInfo.optLong("id", 0) : 0;
-                if (resId <= 0) resId = parseResourceId(resource);
-                String resName = resInfo != null ? resInfo.optString("name", "") : "";
-                if (resName.isEmpty() && resUiElement != null) {
-                    JSONObject mt = resUiElement.optJSONObject("mainTitle");
-                    if (mt != null) resName = mt.optString("title", "");
-                }
-                String resArtist = "";
-                if (resInfo != null) {
-                    JSONArray ars = resInfo.optJSONArray("ar");
-                    if (ars == null) ars = resInfo.optJSONArray("artist");
-                    if (ars == null) ars = resInfo.optJSONArray("artists");
-                    if (ars != null && ars.length() > 0) {
-                        JSONObject a0 = ars.optJSONObject(0);
-                        if (a0 != null) resArtist = a0.optString("name", "");
-                    }
-                    if (resArtist.isEmpty()) {
-                        resArtist = resInfo.optString("artistName", "");
-                    }
-                }
-                // Fall back to uiElement subTitles[] array if artist not found in resInfo
-                if (resArtist.isEmpty() && resUiElement != null) {
-                    JSONArray sts = resUiElement.optJSONArray("subTitles");
-                    if (sts != null && sts.length() > 0) {
-                        JSONObject st0 = sts.optJSONObject(0);
-                        if (st0 != null) resArtist = st0.optString("title", "");
-                    }
-                    if (resArtist.isEmpty()) {
-                        JSONObject st = resUiElement.optJSONObject("subTitle");
-                        if (st != null) resArtist = st.optString("title", "");
-                    }
-                }
-                if (resId > 0) {
-                    currentBlockSongs.add(new Song(resId, resName, resArtist, ""));
-                }
-                // Artist is already shown above via uiElement.subTitles or resInfo.ar rendering
-                final int songIdx = currentBlockSongs.size() - 1;
-                if (resId > 0) {
-                    card.setClickable(true);
-                    card.setOnClickListener(v -> playSimilarSongs(currentBlockSongs, songIdx));
-                }
-            } else if (isPlaylistBlock) {
+            if (isPlaylistBlock) {
+
                 long plId = resInfo != null ? resInfo.optLong("id", 0) : 0;
                 if (plId <= 0 && extInfo != null) plId = extInfo.optLong("id", 0);
                 if (plId <= 0) plId = parseResourceId(resource);
@@ -859,6 +845,67 @@ public class SongInfoActivity extends AppCompatActivity {
             }
             contentLayout.addView(card);
         }
+    }
+
+    /**
+     * Render a song resource card as a standard item_song list row
+     * (cover + VIP badge before name + artist), matching other song lists.
+     */
+    private void displaySongCard(JSONObject resource, JSONObject resInfo,
+                                  JSONObject resUiElement, String coverUrlRes) {
+        long resId = resInfo != null ? resInfo.optLong("id", 0) : 0;
+        if (resId <= 0) resId = parseResourceId(resource);
+        String resName = resInfo != null ? resInfo.optString("name", "") : "";
+        if (resName.isEmpty() && resUiElement != null) {
+            JSONObject mt = resUiElement.optJSONObject("mainTitle");
+            if (mt != null) resName = mt.optString("title", "");
+        }
+        String resArtist = "";
+        if (resInfo != null) {
+            JSONArray ars = resInfo.optJSONArray("ar");
+            if (ars == null) ars = resInfo.optJSONArray("artist");
+            if (ars == null) ars = resInfo.optJSONArray("artists");
+            if (ars != null && ars.length() > 0) {
+                JSONObject a0 = ars.optJSONObject(0);
+                if (a0 != null) resArtist = a0.optString("name", "");
+            }
+            if (resArtist.isEmpty()) {
+                resArtist = resInfo.optString("artistName", "");
+            }
+        }
+        if (resArtist.isEmpty() && resUiElement != null) {
+            JSONArray sts = resUiElement.optJSONArray("subTitles");
+            if (sts != null && sts.length() > 0) {
+                JSONObject st0 = sts.optJSONObject(0);
+                if (st0 != null) resArtist = st0.optString("title", "");
+            }
+            if (resArtist.isEmpty()) {
+                JSONObject st = resUiElement.optJSONObject("subTitle");
+                if (st != null) resArtist = st.optString("title", "");
+            }
+        }
+
+        View row = getLayoutInflater().inflate(R.layout.item_song, contentLayout, false);
+        ImageView ivCover = row.findViewById(R.id.iv_cover);
+        if (!coverUrlRes.isEmpty()) {
+            NetworkImageLoader.load(ivCover, coverUrlRes);
+        }
+        TextView tvItemName = row.findViewById(R.id.tv_item_name);
+        tvItemName.setText(resName);
+        TextView tvItemArtist = row.findViewById(R.id.tv_item_artist);
+        tvItemArtist.setText(resArtist);
+
+        if (resId > 0 && !resName.isEmpty()) {
+            Song cardSong = new Song(resId, resName, resArtist, "");
+            int cardFee = resInfo != null ? resInfo.optInt("fee", -1) : -1;
+            if (cardFee >= 0) cardSong.setFee(cardFee);
+            currentBlockSongs.add(cardSong);
+            final int songIdx = currentBlockSongs.size() - 1;
+            feeBadges.put(cardSong, row.findViewById(R.id.tv_vip_badge));
+            row.setOnClickListener(v -> playSimilarSongs(currentBlockSongs, songIdx));
+        }
+        contentLayout.addView(row);
+        requestFeeEnrichment();
     }
 
     private String formatCount(int count) {
@@ -979,6 +1026,57 @@ public class SongInfoActivity extends AppCompatActivity {
     }
 
     // ── Playback helpers ────────────────────────────────────────────────
+
+    private TextView createVipBadge() {
+        TextView badge = new TextView(this);
+        badge.setText(R.string.vip_badge);
+        badge.setTextColor(0xFFF44336);
+        badge.setTextSize(9);
+        badge.setTypeface(badge.getTypeface(), Typeface.BOLD);
+        badge.setBackgroundResource(R.drawable.bg_vip_badge);
+        badge.setPadding(px(3), px(1), px(3), px(1));
+        badge.setVisibility(View.GONE);
+        return badge;
+    }
+
+    private void requestFeeEnrichment() {
+        refreshFeeBadges();
+        List<Long> ids = new ArrayList<>();
+        for (Song s : currentBlockSongs) {
+            if (s.getFee() == 0 && s.getId() > 0 && feeRequested.add(s.getId())) {
+                ids.add(s.getId());
+            }
+        }
+        if (ids.isEmpty()) {
+            return;
+        }
+        MusicApiHelper.fetchSongsDetails(ids, cookie, new MusicApiHelper.BatchSongDetailsCallback() {
+            @Override
+            public void onResult(java.util.Map<Long, Song> songMap) {
+                if (songMap != null) {
+                    for (Song done : songMap.values()) {
+                        if (done.getFee() == 0) continue;
+                        for (Song s : currentBlockSongs) {
+                            if (s.getId() == done.getId()) s.setFee(done.getFee());
+                        }
+                    }
+                }
+                refreshFeeBadges();
+                requestFeeEnrichment();
+            }
+
+            @Override
+            public void onError(String message) {
+                refreshFeeBadges();
+            }
+        });
+    }
+
+    private void refreshFeeBadges() {
+        for (java.util.Map.Entry<Song, TextView> e : feeBadges.entrySet()) {
+            e.getValue().setVisibility(e.getKey().isVip() ? View.VISIBLE : View.GONE);
+        }
+    }
 
     /**
      * Play a song from a captured similar songs list, filling the playlist with all similar songs.

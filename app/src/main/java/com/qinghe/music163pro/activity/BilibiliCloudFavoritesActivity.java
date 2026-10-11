@@ -128,7 +128,9 @@ public class BilibiliCloudFavoritesActivity extends BaseWatchActivity {
         title.setTextColor(getResources().getColor(R.color.text_primary));
         title.setTextSize(13);
         title.setSingleLine(true);
-        title.setEllipsize(TextUtils.TruncateAt.END);
+        title.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+        title.setMarqueeRepeatLimit(-1);
+        title.setSelected(true);
         item.addView(title);
 
         TextView sub = new TextView(this);

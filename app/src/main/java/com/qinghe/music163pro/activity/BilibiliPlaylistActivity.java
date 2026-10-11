@@ -114,7 +114,9 @@ public class BilibiliPlaylistActivity extends BaseWatchActivity {
         title.setTextSize(14);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         title.setSingleLine(true);
-        title.setEllipsize(TextUtils.TruncateAt.END);
+        title.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+        title.setMarqueeRepeatLimit(-1);
+        title.setSelected(true);
         bar.addView(title);
 
         btnFavorite = new ImageView(this);
@@ -188,7 +190,9 @@ public class BilibiliPlaylistActivity extends BaseWatchActivity {
             title.setTextColor(getResources().getColor(R.color.text_primary));
             title.setTextSize(14);
             title.setSingleLine(true);
-            title.setEllipsize(TextUtils.TruncateAt.END);
+            title.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+            title.setMarqueeRepeatLimit(-1);
+            title.setSelected(true);
             item.addView(title);
 
             TextView sub = new TextView(this);
@@ -196,7 +200,9 @@ public class BilibiliPlaylistActivity extends BaseWatchActivity {
             sub.setTextColor(getResources().getColor(R.color.text_secondary));
             sub.setTextSize(11);
             sub.setSingleLine(true);
-            sub.setEllipsize(TextUtils.TruncateAt.END);
+            sub.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+            sub.setMarqueeRepeatLimit(-1);
+            sub.setSelected(true);
             sub.setPadding(0, px(2), 0, 0);
             item.addView(sub);
 

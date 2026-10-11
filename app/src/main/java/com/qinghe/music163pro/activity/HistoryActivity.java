@@ -13,12 +13,11 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.qinghe.music163pro.R;
-import com.qinghe.music163pro.util.WatchConfirmDialog;
+import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.manager.HistoryManager;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
@@ -28,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * History activity - shows play history sorted by time (newest first).
+ * History activity - shows cloud play history (recent records), newest first.
  * Designed for watch screen (320x360 dpi).
  */
 public class HistoryActivity extends BaseWatchActivity {
@@ -38,6 +37,7 @@ public class HistoryActivity extends BaseWatchActivity {
     private ArrayAdapter<Song> adapter;
     private MusicPlayerManager playerManager;
     private TextView tvEmpty;
+    private int loadSeq = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,27 +50,10 @@ public class HistoryActivity extends BaseWatchActivity {
         root.setBackgroundColor(0xFF212121);
         root.setPadding(px(6), px(6), px(6), px(6));
 
-        // Title bar with clear button - use RelativeLayout for true centering
+        // Title bar
         android.widget.RelativeLayout titleBar = new android.widget.RelativeLayout(this);
         titleBar.setPadding(0, 0, 0, px(6));
         root.addView(titleBar);
-
-        TextView btnClear = new TextView(this);
-        btnClear.setText("清空");
-        btnClear.setTextColor(0xFFBB86FC);
-        btnClear.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
-        btnClear.setPadding(px(8), px(4), px(8), px(4));
-        btnClear.setClickable(true);
-        btnClear.setFocusable(true);
-        btnClear.setId(View.generateViewId());
-        btnClear.setOnClickListener(v -> showClearConfirmDialog());
-        android.widget.RelativeLayout.LayoutParams clearParams = new android.widget.RelativeLayout.LayoutParams(
-                android.widget.RelativeLayout.LayoutParams.WRAP_CONTENT,
-                android.widget.RelativeLayout.LayoutParams.WRAP_CONTENT);
-        clearParams.addRule(android.widget.RelativeLayout.ALIGN_PARENT_END);
-        clearParams.addRule(android.widget.RelativeLayout.CENTER_VERTICAL);
-        btnClear.setLayoutParams(clearParams);
-        titleBar.addView(btnClear);
 
         TextView title = new TextView(this);
         title.setText("历史记录");
@@ -106,14 +89,27 @@ public class HistoryActivity extends BaseWatchActivity {
         adapter = new ArrayAdapter<Song>(this, R.layout.item_song, R.id.tv_item_name, displayList) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
+                View view = convertView;
+                if (view == null) {
+                    view = getLayoutInflater().inflate(R.layout.item_song, parent, false);
+                }
                 Song song = getItem(position);
                 if (song != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
-                    tvName.setText(song.getName());
-                    tvArtist.setText(song.getArtist());
+                    tvName.setSelected(true);
+                    tvArtist.setSelected(true);
+                    View vipBadge = view.findViewById(R.id.tv_vip_badge);
+                    if (vipBadge != null) {
+                        vipBadge.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
+                    }
+                    if (!android.text.TextUtils.equals(tvName.getText(), song.getDisplayName())) {
+                        tvName.setText(song.getDisplayName());
+                    }
+                    if (!android.text.TextUtils.equals(tvArtist.getText(), song.getArtist())) {
+                        tvArtist.setText(song.getArtist());
+                    }
                     if (ivCover != null) {
                         NetworkImageLoader.load(ivCover, song.getCoverUrl());
                     }
@@ -137,16 +133,6 @@ public class HistoryActivity extends BaseWatchActivity {
             finish();
         });
 
-        lvHistory.setOnItemLongClickListener((parent, view, position, id) -> {
-            Song song = displayList.get(position);
-            showConfirmDialog("确认删除", "确定删除「" + song.getName() + "」的播放记录？", () -> {
-                HistoryManager.getInstance().removeFromHistory(song.getId());
-                loadHistory();
-                Toast.makeText(this, "已删除", Toast.LENGTH_SHORT).show();
-            });
-            return true;
-        });
-
         loadHistory();
     }
 
@@ -157,9 +143,35 @@ public class HistoryActivity extends BaseWatchActivity {
     }
 
     private void loadHistory() {
+        final int seq = ++loadSeq;
+        String cookie = playerManager.getCookie();
+        if (cookie == null || cookie.isEmpty()) {
+            applyHistory(HistoryManager.getInstance().getHistory(), false);
+            return;
+        }
+        tvEmpty.setText("加载中...");
+        tvEmpty.setVisibility(View.VISIBLE);
+        lvHistory.setVisibility(View.GONE);
+        MusicApiHelper.fetchCloudHistory(cookie, new MusicApiHelper.CloudHistoryCallback() {
+            @Override
+            public void onResult(List<Song> songs) {
+                if (seq != loadSeq) return;
+                applyHistory(songs, true);
+            }
+
+            @Override
+            public void onError(String message) {
+                if (seq != loadSeq) return;
+                applyHistory(HistoryManager.getInstance().getHistory(), false);
+            }
+        });
+    }
+
+    private void applyHistory(List<Song> songs, boolean fromCloud) {
         displayList.clear();
-        displayList.addAll(HistoryManager.getInstance().getHistory());
+        displayList.addAll(songs);
         adapter.notifyDataSetChanged();
+        tvEmpty.setText("暂无播放记录");
 
         if (displayList.isEmpty()) {
             tvEmpty.setVisibility(View.VISIBLE);
@@ -169,16 +181,16 @@ public class HistoryActivity extends BaseWatchActivity {
             lvHistory.setVisibility(View.VISIBLE);
         }
 
-        // Fetch coverUrls from API in background
-        if (!displayList.isEmpty()) {
+        // Local fallback entries lack covers; refresh them in background
+        if (!fromCloud && !displayList.isEmpty()) {
             String cookie = playerManager.getCookie();
             if (cookie != null && !cookie.isEmpty()) {
                 List<Long> ids = new ArrayList<>();
                 for (Song s : displayList) {
                     ids.add(s.getId());
                 }
-                com.qinghe.music163pro.api.MusicApiHelper.fetchSongsDetails(ids, cookie,
-                        new com.qinghe.music163pro.api.MusicApiHelper.BatchSongDetailsCallback() {
+                MusicApiHelper.fetchSongsDetails(ids, cookie,
+                        new MusicApiHelper.BatchSongDetailsCallback() {
                     @Override
                     public void onResult(java.util.Map<Long, Song> songMap) {
                         if (songMap.isEmpty()) return;
@@ -199,21 +211,6 @@ public class HistoryActivity extends BaseWatchActivity {
                 });
             }
         }
-    }
-
-    private void showClearConfirmDialog() {
-        showConfirmDialog("确认清空", "确定清空所有播放记录？", () -> {
-            HistoryManager.getInstance().clearHistory();
-            loadHistory();
-            Toast.makeText(this, "已清空", Toast.LENGTH_SHORT).show();
-        });
-    }
-    /**
-     * Show a confirmation dialog adapted for watch (360x320 px screen).
-     */
-    private void showConfirmDialog(String title, String message, Runnable onConfirm) {
-        WatchConfirmDialog.show(this, title, message, onConfirm,
-                new WatchConfirmDialog.Options(0xFF424242, 0xFFBB86FC, true));
     }
 
     @Override

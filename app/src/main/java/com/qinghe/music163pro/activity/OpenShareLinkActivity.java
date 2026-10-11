@@ -212,7 +212,10 @@ public class OpenShareLinkActivity extends BaseWatchActivity {
         if (id <= 0 || TextUtils.isEmpty(name)) {
             return null;
         }
-        return new Song(id, name, artistBuilder.toString(), album);
+        Song song = new Song(id, name, artistBuilder.toString(), album);
+        song.setFee(songJson.optInt("fee", 0));
+        song.setAlias(songJson.optString("alias", ""));
+        return song;
     }
 
     private String dumpIntent(Intent intent) {

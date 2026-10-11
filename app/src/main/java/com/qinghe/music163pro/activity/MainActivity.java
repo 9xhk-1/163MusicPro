@@ -79,6 +79,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
     private TextView tvSongName;
     private TextView tvArtist;
+    private TextView tvPlayerVipBadge;
     private ImageView btnPlay;
     private ImageView btnFuncMore;
     private SeekBar seekBar;
@@ -94,6 +95,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
     // Playlist indicator (top-left)
     private ImageView btnPlaylistIndicator;
+
+    // Song ids whose fee detail lookup was already requested this session
+    private final java.util.Set<Long> feeEnrichRequested = new java.util.HashSet<>();
 
     // Functions overlay
     private FrameLayout overlayContainer;
@@ -126,6 +130,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
     // Lyrics overlay state
     private boolean lyricsOverlayShowing = false;
+    // Song id whose lyrics are currently parsed in memory; lyrics reload only
+    // when this does not match the song being shown (-1 = no cache).
+    private long lyricsCacheSongId = -1;
     private final java.util.List<LyricLine> lyricLines = new java.util.ArrayList<>();
     private final java.util.List<TextView> lyricViews = new java.util.ArrayList<>();
     private int currentHighlightIndex = -1;
@@ -146,9 +153,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private TextView tvLyricsTimeRef;
     // Translation lyrics
     private String currentTlyricText; // Raw translated LRC text for current song
-    private boolean translationEnabled; // Whether translation is currently showing
+    private String currentRomalrcText; // Raw romanization LRC text for current song
+    private int translateMode; // 0=off, 1=translation (意), 2=romanization (音)
     private TextView btnTranslationToggle; // Toggle button in lyrics overlay
     private final java.util.Map<Long, String> translationMap = new java.util.HashMap<>(); // timeMs -> translated text
+    private final java.util.Map<Long, String> romanizationMap = new java.util.HashMap<>(); // timeMs -> romanization text
     private long currentChorusSongId = -1L;
     private long currentChorusStartMs = -1L;
     private long currentChorusEndMs = -1L;
@@ -159,6 +168,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         long timeMs;
         String text;
         String translation; // Optional translated text
+        String romanization; // Optional romanization (音译) text
         LyricLine(long timeMs, String text) {
             this.timeMs = timeMs;
             this.text = text;
@@ -178,6 +188,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         tvSongName = findViewById(R.id.tv_song_name);
         tvArtist = findViewById(R.id.tv_artist);
+        tvPlayerVipBadge = findViewById(R.id.tv_player_vip_badge);
         btnPlay = findViewById(R.id.btn_play);
         btnFuncMore = findViewById(R.id.btn_favorite);
         seekBar = findViewById(R.id.seek_bar);
@@ -206,6 +217,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
 
+        // Song alias display switch (default on)
+        Song.setAliasDisplayEnabled(prefs.getBoolean("display_song_alias", true));
+
         // Load or generate persistent device ID
         String savedDeviceId = prefs.getString("device_id", "");
         if (savedDeviceId.isEmpty()) {
@@ -227,6 +241,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         // Enable marquee
         tvSongName.setSelected(true);
+        tvArtist.setSelected(true);
 
         btnPlay.setOnClickListener(v -> {
             if (playerManager.isPlaying()) {
@@ -1003,6 +1018,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         if (lyricsOverlayShowing && overlayContainer != null) {
             // Animate lyrics overlay sliding out to the right, player sliding back from left
             stopLyricsScrollSync();
+            refreshChorusMarkerVisibility();
             updatePageIndicator(false);
             final FrameLayout container = overlayContainer;
             overlayContainer = null;
@@ -1019,6 +1035,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         } else {
             if (lyricsOverlayShowing) {
                 stopLyricsScrollSync();
+                refreshChorusMarkerVisibility();
                 updatePageIndicator(false);
                 if (mainPlayerContentView != null) {
                     mainPlayerContentView.animate().translationX(0).setDuration(250).start();
@@ -1260,7 +1277,20 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         float markerCenterY = seekLocation[1] - rootLocation[1] + seekHeight / 2f;
         chorusMarkerDot.setX(markerCenterX - chorusMarkerDot.getWidth() / 2f);
         chorusMarkerDot.setY(markerCenterY - chorusMarkerDot.getHeight() / 2f);
-        chorusMarkerDot.setVisibility(View.VISIBLE);
+        refreshChorusMarkerVisibility();
+    }
+
+    /**
+     * The chorus marker dot belongs to the player progress bar. It only hides
+     * while the lyrics page (transparent overlay) covers the player — pausing
+     * playback keeps it visible.
+     */
+    private void refreshChorusMarkerVisibility() {
+        if (chorusMarkerDot == null) {
+            return;
+        }
+        boolean show = hasChorusRange() && !lyricsOverlayShowing;
+        chorusMarkerDot.setVisibility(show ? View.VISIBLE : View.GONE);
     }
 
     private boolean hasChorusRange() {
@@ -1472,7 +1502,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         dismissOverlay();
         Intent intent = new Intent(this, SongInfoActivity.class);
         intent.putExtra("song_id", song.getId());
-        intent.putExtra("song_name", song.getName());
+        intent.putExtra("song_name", song.getDisplayName());
         intent.putExtra("artist_name", song.getArtist());
         intent.putExtra("artist_id", 0L); // Will be extracted from wiki API
         intent.putExtra("cookie", playerManager.getCookie());
@@ -1528,7 +1558,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         dismissOverlay();
         Intent intent = new Intent(this, CommentActivity.class);
         intent.putExtra("song_id", song.getId());
-        intent.putExtra("song_name", song.getName());
+        intent.putExtra("song_name", song.getDisplayName());
         intent.putExtra("cookie", playerManager.getCookie());
         startActivity(intent);
     }
@@ -1727,7 +1757,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         // Song name at top (leave right padding for the toggle button)
         tvLyricsSongLabel = new TextView(this);
-        tvLyricsSongLabel.setText(song.getName() + " - " + song.getArtist());
+        tvLyricsSongLabel.setText(song.getDisplayName() + " - " + song.getArtist());
         tvLyricsSongLabel.setTextColor(0xFFFFFFFF);
         tvLyricsSongLabel.setTextSize(13);
         tvLyricsSongLabel.setGravity(Gravity.CENTER);
@@ -1742,16 +1772,19 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         // Translation toggle button (top-right), hidden by default until we know translation exists
         SharedPreferences transPrefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
-        translationEnabled = transPrefs.getBoolean("lyrics_translation", false);
+        if (transPrefs.contains("lyrics_translate_mode")) {
+            translateMode = transPrefs.getInt("lyrics_translate_mode", 0);
+        } else {
+            translateMode = transPrefs.getBoolean("lyrics_translation", false) ? 1 : 0;
+        }
         btnTranslationToggle = new TextView(this);
-        btnTranslationToggle.setText(translationEnabled ? "译✓" : "译");
-        btnTranslationToggle.setTextColor(translationEnabled ? 0xFFBB86FC : 0x80FFFFFF);
         btnTranslationToggle.setTextSize(12);
         btnTranslationToggle.setGravity(Gravity.CENTER);
         btnTranslationToggle.setPadding(dp(6), dp(4), dp(6), dp(4));
         btnTranslationToggle.setClickable(true);
         btnTranslationToggle.setFocusable(true);
         btnTranslationToggle.setVisibility(View.GONE); // Hidden until translation is available
+        updateTranslationButton();
         FrameLayout.LayoutParams toggleParams = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
         toggleParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
@@ -1796,38 +1829,67 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             mainPlayerContentView.animate().translationX(-screenWidth).setDuration(250).start();
         }
         lyricsOverlayShowing = true;
+        refreshChorusMarkerVisibility();
         // Bring indicator on top and switch to lyrics page
         if (pageIndicatorLayout != null) {
             pageIndicatorLayout.bringToFront();
             updatePageIndicator(true);
         }
 
-        // Load lyrics
-        loadLyricsForOverlay(song, tvLyricsTimeRef);
+        // Load lyrics only the first time this song's overlay is opened (or
+        // after a song switch); otherwise rebuild the view from cached parse.
+        if (lyricsCacheSongId == song.getId()) {
+            displayLyricsInOverlay();
+            if (btnTranslationToggle != null) {
+                boolean hasTl = currentTlyricText != null && !currentTlyricText.isEmpty();
+                boolean hasRo = currentRomalrcText != null && !currentRomalrcText.isEmpty();
+                if (hasTl || hasRo) {
+                    btnTranslationToggle.setVisibility(View.VISIBLE);
+                } else {
+                    btnTranslationToggle.setVisibility(View.GONE);
+                }
+                updateTranslationButton();
+            }
+            startLyricsScrollSync(tvLyricsTimeRef);
+        } else {
+            loadLyricsForOverlay(song, tvLyricsTimeRef);
+        }
     }
 
     private void loadLyricsForOverlay(Song song, TextView tvLyricsTime) {
         // Try local .lrc file first
         String localLrc = loadLocalLrc(song);
         if (localLrc != null && !localLrc.isEmpty()) {
-            // Also try to load local translated lyrics
+            // Also try to load local translated / romanization lyrics
             String localTlyric = loadLocalTlyric(song);
             currentTlyricText = localTlyric;
+            String localRomalrc = loadLocalRomalrc(song);
+            currentRomalrcText = localRomalrc;
             parseLrc(localLrc);
-            if (localTlyric != null && !localTlyric.isEmpty()) {
+            boolean hasTl = localTlyric != null && !localTlyric.isEmpty();
+            boolean hasRo = localRomalrc != null && !localRomalrc.isEmpty();
+            if (hasTl) {
                 parseTranslationLrc(localTlyric);
+            }
+            if (hasRo) {
+                parseRomanizationLrc(localRomalrc);
+            }
+            if (hasTl || hasRo) {
                 applyTranslationsToLyrics();
                 if (btnTranslationToggle != null) {
                     btnTranslationToggle.setVisibility(View.VISIBLE);
+                    updateTranslationButton();
                 }
             }
             displayLyricsInOverlay();
             startLyricsScrollSync(tvLyricsTime);
+            lyricsCacheSongId = song.getId();
             return;
         }
 
         // Fetch from API (with translation)
         if (song.getId() <= 0) {
+            lyricsCacheSongId = song.getId();
             showNoLyricsInOverlay();
             return;
         }
@@ -1844,18 +1906,28 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         String cookie = playerManager.getCookie();
         MusicApiHelper.getLyricsWithTranslation(song.getId(), cookie, new MusicApiHelper.LyricsFullCallback() {
             @Override
-            public void onResult(String lrcText, String tlyricText) {
+            public void onResult(String lrcText, String tlyricText, String romalrcText) {
                 if (lrcText == null || lrcText.isEmpty()) {
+                    lyricsCacheSongId = song.getId();
                     showNoLyricsInOverlay();
                     return;
                 }
                 currentTlyricText = tlyricText;
+                currentRomalrcText = romalrcText;
                 parseLrc(lrcText);
-                if (tlyricText != null && !tlyricText.isEmpty()) {
+                boolean hasTl = tlyricText != null && !tlyricText.isEmpty();
+                boolean hasRo = romalrcText != null && !romalrcText.isEmpty();
+                if (hasTl) {
                     parseTranslationLrc(tlyricText);
+                }
+                if (hasRo) {
+                    parseRomanizationLrc(romalrcText);
+                }
+                if (hasTl || hasRo) {
                     applyTranslationsToLyrics();
                     if (btnTranslationToggle != null) {
                         btnTranslationToggle.setVisibility(View.VISIBLE);
+                        updateTranslationButton();
                     }
                 } else {
                     if (btnTranslationToggle != null) {
@@ -1864,6 +1936,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 }
                 displayLyricsInOverlay();
                 startLyricsScrollSync(tvLyricsTime);
+                lyricsCacheSongId = song.getId();
             }
 
             @Override
@@ -1928,27 +2001,64 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         }
     }
 
+    /**
+     * Load romanization lyrics from local download folder (rlyrics.lrc).
+     */
+    private String loadLocalRomalrc(Song song) {
+        try {
+            String safeName = song.getName().replaceAll("[\\\\/:*?\"<>|]", "_");
+            String safeArtist = song.getArtist().replaceAll("[\\\\/:*?\"<>|]", "_");
+            String folderName = safeName + " - " + safeArtist;
+            java.io.File romaFile = new java.io.File(
+                    android.os.Environment.getExternalStorageDirectory(),
+                    "163Music/Download/" + folderName + "/rlyrics.lrc"
+            );
+            if (!romaFile.exists()) return null;
+
+            try (java.io.FileInputStream fis = new java.io.FileInputStream(romaFile);
+                 java.io.InputStreamReader reader = new java.io.InputStreamReader(fis, "UTF-8")) {
+                StringBuilder sb = new StringBuilder();
+                char[] buf = new char[1024];
+                int len;
+                while ((len = reader.read(buf)) != -1) {
+                    sb.append(buf, 0, len);
+                }
+                return sb.toString();
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private static final java.util.regex.Pattern LRC_PATTERN =
             java.util.regex.Pattern.compile("\\[(\\d{1,3}):(\\d{2})\\.?(\\d{0,3})\\](.*)");
+
+    /**
+     * Parse an LRC timestamp match into milliseconds, or -1 if invalid.
+     */
+    private static long parseTimeMs(java.util.regex.Matcher matcher) {
+        int min = Integer.parseInt(matcher.group(1));
+        int sec = Integer.parseInt(matcher.group(2));
+        String msStr = matcher.group(3);
+        int ms = 0;
+        if (msStr != null && !msStr.isEmpty()) {
+            int parsed = Integer.parseInt(msStr.substring(0, Math.min(msStr.length(), 3)));
+            if (msStr.length() == 1) ms = parsed * 100;
+            else if (msStr.length() == 2) ms = parsed * 10;
+            else ms = parsed;
+        }
+        return (long) min * 60 * 1000 + (long) sec * 1000 + ms;
+    }
 
     private void parseLrc(String lrcText) {
         lyricLines.clear();
         translationMap.clear();
+        romanizationMap.clear();
         String[] lines = lrcText.split("\n");
         for (String line : lines) {
             java.util.regex.Matcher matcher = LRC_PATTERN.matcher(line.trim());
             if (matcher.matches()) {
-                int min = Integer.parseInt(matcher.group(1));
-                int sec = Integer.parseInt(matcher.group(2));
-                String msStr = matcher.group(3);
-                int ms = 0;
-                if (msStr != null && !msStr.isEmpty()) {
-                    int parsed = Integer.parseInt(msStr.substring(0, Math.min(msStr.length(), 3)));
-                    if (msStr.length() == 1) ms = parsed * 100;
-                    else if (msStr.length() == 2) ms = parsed * 10;
-                    else ms = parsed;
-                }
-                long timeMs = (long) min * 60 * 1000 + (long) sec * 1000 + ms;
+                long timeMs = parseTimeMs(matcher);
                 String text = matcher.group(4).trim();
                 if (!text.isEmpty()) {
                     lyricLines.add(new LyricLine(timeMs, text));
@@ -1967,17 +2077,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         for (String line : lines) {
             java.util.regex.Matcher matcher = LRC_PATTERN.matcher(line.trim());
             if (matcher.matches()) {
-                int min = Integer.parseInt(matcher.group(1));
-                int sec = Integer.parseInt(matcher.group(2));
-                String msStr = matcher.group(3);
-                int ms = 0;
-                if (msStr != null && !msStr.isEmpty()) {
-                    int parsed = Integer.parseInt(msStr.substring(0, Math.min(msStr.length(), 3)));
-                    if (msStr.length() == 1) ms = parsed * 100;
-                    else if (msStr.length() == 2) ms = parsed * 10;
-                    else ms = parsed;
-                }
-                long timeMs = (long) min * 60 * 1000 + (long) sec * 1000 + ms;
+                long timeMs = parseTimeMs(matcher);
                 String text = matcher.group(4).trim();
                 if (!text.isEmpty()) {
                     translationMap.put(timeMs, text);
@@ -1987,36 +2087,93 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     }
 
     /**
-     * Apply translations from translationMap to each lyricLine's translation field.
+     * Parse romanization (音译) lyrics LRC into the romanizationMap (timeMs -> text).
      */
-    private void applyTranslationsToLyrics() {
-        for (LyricLine line : lyricLines) {
-            String trans = translationMap.get(line.timeMs);
-            line.translation = trans; // may be null if no translation for this line
+    private void parseRomanizationLrc(String romalrcText) {
+        romanizationMap.clear();
+        if (romalrcText == null || romalrcText.isEmpty()) return;
+        String[] lines = romalrcText.split("\n");
+        for (String line : lines) {
+            java.util.regex.Matcher matcher = LRC_PATTERN.matcher(line.trim());
+            if (matcher.matches()) {
+                long timeMs = parseTimeMs(matcher);
+                String text = matcher.group(4).trim();
+                if (!text.isEmpty()) {
+                    romanizationMap.put(timeMs, text);
+                }
+            }
         }
     }
 
     /**
-     * Toggle lyrics translation display on/off.
+     * Apply translations / romanization from maps to each lyricLine.
+     */
+    private void applyTranslationsToLyrics() {
+        for (LyricLine line : lyricLines) {
+            line.translation = translationMap.get(line.timeMs); // may be null
+            line.romanization = romanizationMap.get(line.timeMs); // may be null
+        }
+    }
+
+    /**
+     * Cycle lyrics subtitle mode: off -> translation (意) -> romanization (音) -> off.
+     * When romanization is unavailable, behaves as the original on/off translation toggle.
      * Saves preference persistently.
      */
     private void toggleLyricsTranslation() {
-        translationEnabled = !translationEnabled;
+        boolean hasTrans = !translationMap.isEmpty();
+        boolean hasRoma = !romanizationMap.isEmpty();
+        if (!hasTrans && !hasRoma) return;
+        if (hasRoma) {
+            // off(0) -> 意(1) -> 音(2) -> off(0); skip 意 if unavailable
+            if (translateMode == 0) {
+                translateMode = hasTrans ? 1 : 2;
+            } else if (translateMode == 1) {
+                translateMode = 2;
+            } else {
+                translateMode = 0;
+            }
+        } else {
+            // Original on/off logic when no romanization exists
+            translateMode = (translateMode == 1) ? 0 : 1;
+        }
         // Save preference
         SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
-        prefs.edit().putBoolean("lyrics_translation", translationEnabled).apply();
+        prefs.edit().putInt("lyrics_translate_mode", translateMode).apply();
         // Update button appearance
-        if (btnTranslationToggle != null) {
-            btnTranslationToggle.setText(translationEnabled ? "译✓" : "译");
-            btnTranslationToggle.setTextColor(translationEnabled ? 0xFFBB86FC : 0x80FFFFFF);
-        }
-        // Re-display lyrics with or without translation
+        updateTranslationButton();
+        // Re-display lyrics with the new mode
         displayLyricsInOverlay();
         // Restart sync to update highlighting
         if (tvLyricsTimeRef != null) {
             lyricsScrollHandler.removeCallbacksAndMessages(null);
             currentHighlightIndex = -1;
             startLyricsScrollSync(tvLyricsTimeRef);
+        }
+    }
+
+    /**
+     * Refresh the toggle button label/color for the current mode.
+     * Without romanization: original "译" / "译✓". With romanization: cycle 关闭 -> 意✓ -> 音✓.
+     */
+    private void updateTranslationButton() {
+        if (btnTranslationToggle == null) return;
+        boolean hasRoma = !romanizationMap.isEmpty();
+        if (hasRoma) {
+            if (translateMode == 1) {
+                btnTranslationToggle.setText("意✓");
+                btnTranslationToggle.setTextColor(0xFFBB86FC);
+            } else if (translateMode == 2) {
+                btnTranslationToggle.setText("音✓");
+                btnTranslationToggle.setTextColor(0xFFBB86FC);
+            } else {
+                btnTranslationToggle.setText("译");
+                btnTranslationToggle.setTextColor(0x80FFFFFF);
+            }
+        } else {
+            boolean on = translateMode == 1;
+            btnTranslationToggle.setText(on ? "译✓" : "译");
+            btnTranslationToggle.setTextColor(on ? 0xFFBB86FC : 0x80FFFFFF);
         }
     }
 
@@ -2047,10 +2204,16 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             lineLayout.addView(tv);
             lyricViews.add(tv);
 
-            // Translation text (if available and enabled)
-            if (translationEnabled && line.translation != null && !line.translation.isEmpty()) {
+            // Subtitle text (translation or romanization, if available and enabled)
+            String subText = null;
+            if (translateMode == 1 && line.translation != null && !line.translation.isEmpty()) {
+                subText = line.translation;
+            } else if (translateMode == 2 && line.romanization != null && !line.romanization.isEmpty()) {
+                subText = line.romanization;
+            }
+            if (subText != null) {
                 TextView tvTrans = new TextView(this);
-                tvTrans.setText(line.translation);
+                tvTrans.setText(subText);
                 tvTrans.setTextColor(0x61FFFFFF);
                 tvTrans.setTextSize(11);
                 tvTrans.setGravity(Gravity.CENTER);
@@ -2127,10 +2290,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         lyricsScrollHandler.removeCallbacksAndMessages(null);
         lyricsScrollRunnable = null;
         lyricsOverlayShowing = false;
-        lyricLines.clear();
+        // Keep parsed lyrics (lyricLines / translationMap / romanizationMap /
+        // currentTlyricText / currentRomalrcText) so reopening the overlay for
+        // the same song rebuilds instantly without reloading from disk/network.
         lyricViews.clear();
-        translationMap.clear();
-        currentTlyricText = null;
         btnTranslationToggle = null;
         currentHighlightIndex = -1;
         lyricsGestureDetector = null;
@@ -2251,20 +2414,36 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             textLayout.setLayoutParams(textLp);
 
             TextView tvName = new TextView(this);
-            String prefix = (i == currentIndex) ? "▶ " : (i + 1) + ". ";
-            tvName.setText(prefix + song.getName());
+            String prefix = (i == currentIndex) ? "▶ " : "";
+            tvName.setText(prefix + song.getDisplayName());
             tvName.setTextColor(i == currentIndex ? 0xFFBB86FC : 0xFFFFFFFF);
             tvName.setTextSize(13);
             tvName.setSingleLine(true);
-            tvName.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            textLayout.addView(tvName);
+            tvName.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
+            tvName.setMarqueeRepeatLimit(-1);
+            tvName.setSelected(true);
+
+            LinearLayout nameRow = new LinearLayout(this);
+            nameRow.setOrientation(LinearLayout.HORIZONTAL);
+            nameRow.setGravity(Gravity.CENTER_VERTICAL);
+            TextView tvVip = createVipBadge();
+            tvVip.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
+            LinearLayout.LayoutParams vipLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            vipLp.setMarginEnd(dp(4));
+            nameRow.addView(tvVip, vipLp);
+            nameRow.addView(tvName, new LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            textLayout.addView(nameRow);
 
             TextView tvArtist = new TextView(this);
             tvArtist.setText(song.getArtist());
             tvArtist.setTextColor(0x80FFFFFF);
             tvArtist.setTextSize(11);
             tvArtist.setSingleLine(true);
-            tvArtist.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            tvArtist.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
+            tvArtist.setMarqueeRepeatLimit(-1);
+            tvArtist.setSelected(true);
             textLayout.addView(tvArtist);
 
             itemLayout.addView(textLayout);
@@ -3475,12 +3654,18 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private void updateUI() {
         Song song = playerManager.getCurrentSong();
         if (song != null) {
-            tvSongName.setText(song.getName());
+            tvSongName.setText(song.getDisplayName());
             tvArtist.setText(song.getArtist());
+            if (tvPlayerVipBadge != null) {
+                tvPlayerVipBadge.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
+            }
             ensureChorusLoaded(song);
         } else {
             tvSongName.setText(R.string.no_song);
             tvArtist.setText("");
+            if (tvPlayerVipBadge != null) {
+                tvPlayerVipBadge.setVisibility(View.GONE);
+            }
             clearChorusInfo();
         }
         btnPlay.setImageResource(playerManager.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play_arrow);
@@ -3502,12 +3687,59 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         }
     }
 
+    private TextView createVipBadge() {
+        TextView badge = new TextView(this);
+        badge.setText(R.string.vip_badge);
+        badge.setTextColor(0xFFF44336);
+        badge.setTextSize(9);
+        badge.setTypeface(badge.getTypeface(), android.graphics.Typeface.BOLD);
+        badge.setBackgroundResource(R.drawable.bg_vip_badge);
+        badge.setPadding(dp(3), dp(1), dp(3), dp(1));
+        badge.setVisibility(View.GONE);
+        return badge;
+    }
+
+    /**
+     * Songs created without fee info (e.g. from the music-info page) cannot
+     * show the VIP badge until their fee is fetched. Look it up once per song
+     * and refresh the player badge if this song is still current.
+     */
+    private void enrichSongFee(final Song song) {
+        if (!feeEnrichRequested.add(song.getId())) {
+            return;
+        }
+        MusicApiHelper.fetchSongsDetails(java.util.Collections.singletonList(song.getId()),
+                playerManager.getCookie(), new MusicApiHelper.BatchSongDetailsCallback() {
+                    @Override
+                    public void onResult(java.util.Map<Long, Song> songMap) {
+                        Song detail = songMap != null ? songMap.get(song.getId()) : null;
+                        if (detail == null || detail.getFee() == 0 || song.getFee() != 0) {
+                            return;
+                        }
+                        song.setFee(detail.getFee());
+                        if (tvPlayerVipBadge != null && isCurrentSong(song.getId())) {
+                            tvPlayerVipBadge.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
+                        }
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                    }
+                });
+    }
+
     @Override
     public void onSongChanged(Song song) {
-        tvSongName.setText(song.getName());
+        tvSongName.setText(song.getDisplayName());
         tvArtist.setText(song.getArtist());
+        if (tvPlayerVipBadge != null) {
+            tvPlayerVipBadge.setVisibility(song != null && song.isVip() ? View.VISIBLE : View.GONE);
+        }
+        if (song != null && song.getId() > 0 && song.getFee() == 0 && !song.isBilibili()) {
+            enrichSongFee(song);
+        }
         ensureChorusLoaded(song);
-        startPlaybackService(song.getName(), song.getArtist(), song.getCoverUrl(), true);
+        startPlaybackService(song.getDisplayName(), song.getArtist(), song.getCoverUrl(), true);
         // Save to play history
         HistoryManager.getInstance().addToHistory(song);
         // Refresh lyrics overlay if it is currently showing
@@ -3518,11 +3750,15 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             lyricLines.clear();
             lyricViews.clear();
             translationMap.clear();
+            romanizationMap.clear();
             currentTlyricText = null;
+            currentRomalrcText = null;
+            translateMode = 0;
+            lyricsCacheSongId = -1;
             currentHighlightIndex = -1;
             // Update song name label
             if (tvLyricsSongLabel != null) {
-                tvLyricsSongLabel.setText(song.getName() + " - " + song.getArtist());
+                tvLyricsSongLabel.setText(song.getDisplayName() + " - " + song.getArtist());
             }
             // Hide translation button until we know if new song has translation
             if (btnTranslationToggle != null) {
@@ -3544,8 +3780,13 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         if (!BackgroundUtil.MODE_COVER.equals(BackgroundUtil.getMode(this))) {
             return;
         }
+        // Whatever path we take below, any cover download still in flight for
+        // a previously current song must no longer be allowed to commit.
+        BackgroundUtil.invalidateCoverLoads();
         final View root = getWindow().getDecorView().findViewById(android.R.id.content);
-        Song song = playerManager.getBackgroundSong();
+        // Always follow the current song (not another playlist entry) so modes
+        // like 私人漫游 switch the background on every song change.
+        Song song = playerManager.getCurrentSong();
         final String cover = song != null && song.getCoverUrl() != null ? song.getCoverUrl() : "";
         if (!cover.isEmpty()) {
             if (BackgroundUtil.hasCoverBackground(cover)) {
@@ -3576,14 +3817,18 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 playerManager.getCookie(), new MusicApiHelper.BatchSongDetailsCallback() {
                     @Override
                     public void onResult(java.util.Map<Long, Song> songMap) {
-                        coverFetchInFlightId = -1;
+                        if (coverFetchInFlightId == songId) {
+                            coverFetchInFlightId = -1;
+                        }
                         Song detail = songMap != null ? songMap.get(songId) : null;
                         String fetched = detail != null ? detail.getCoverUrl() : null;
                         if (fetched != null && !fetched.isEmpty()) {
                             song.setCoverUrl(fetched);
                             playerManager.savePlaybackState();
-                            updateCoverBackground();
-                        } else {
+                            if (isCurrentSong(songId)) {
+                                updateCoverBackground();
+                            }
+                        } else if (isCurrentSong(songId)) {
                             BackgroundUtil.clearCoverBackground();
                             BackgroundUtil.applyBackground(MainActivity.this, root);
                         }
@@ -3591,11 +3836,20 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
                     @Override
                     public void onError(String message) {
-                        coverFetchInFlightId = -1;
-                        BackgroundUtil.clearCoverBackground();
-                        BackgroundUtil.applyBackground(MainActivity.this, root);
+                        if (coverFetchInFlightId == songId) {
+                            coverFetchInFlightId = -1;
+                        }
+                        if (isCurrentSong(songId)) {
+                            BackgroundUtil.clearCoverBackground();
+                            BackgroundUtil.applyBackground(MainActivity.this, root);
+                        }
                     }
                 });
+    }
+
+    private boolean isCurrentSong(long songId) {
+        Song current = playerManager.getCurrentSong();
+        return current != null && current.getId() == songId;
     }
 
     @Override
@@ -3606,9 +3860,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         } else {
             stopSeekBarUpdate();
         }
+        refreshChorusMarkerVisibility();
         // Always update notification with current play state
         Song song = playerManager.getCurrentSong();
-        String name = song != null ? song.getName() : "";
+        String name = song != null ? song.getDisplayName() : "";
         String artist = song != null ? song.getArtist() : "";
         String coverUrl = song != null ? song.getCoverUrl() : "";
         startPlaybackService(name, artist, coverUrl, isPlaying);

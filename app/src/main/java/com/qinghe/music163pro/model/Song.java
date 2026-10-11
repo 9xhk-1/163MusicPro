@@ -24,6 +24,13 @@ public class Song implements Serializable {
     private String coverUrl;
     /** Album ID (al.id from NetEase API). 0 if unknown. */
     private long albumId;
+    /** NetEase fee flag: 1 = VIP song, 0 = free, etc. */
+    private int fee;
+    /** NetEase song alias (alia[0]); null/empty when the song has none. */
+    private String alias;
+
+    /** Global switch: show alias after the name in UI (default on). */
+    private static volatile boolean aliasDisplayEnabled = true;
 
     public Song() {}
 
@@ -39,6 +46,33 @@ public class Song implements Serializable {
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+
+    public String getAlias() { return alias; }
+    public void setAlias(String alias) { this.alias = alias; }
+
+    public static void setAliasDisplayEnabled(boolean enabled) {
+        aliasDisplayEnabled = enabled;
+    }
+
+    public static boolean isAliasDisplayEnabled() {
+        return aliasDisplayEnabled;
+    }
+
+    /**
+     * UI text for the song name. When the "show alias" switch is on and the
+     * song has a NetEase alias (alia), it renders as 名称（别名）.
+     * File paths / persistence must keep using {@link #getName()}.
+     */
+    public String getDisplayName() {
+        if (aliasDisplayEnabled && alias != null && !alias.isEmpty()
+                && name != null && !name.isEmpty()) {
+            return name + "（" + alias + "）";
+        }
+        return name;
+    }
+
+    @Override
+    public String toString() { return name != null ? name : ""; }
 
     public String getArtist() { return artist; }
     public void setArtist(String artist) { this.artist = artist; }
@@ -71,6 +105,12 @@ public class Song implements Serializable {
 
     public long getAlbumId() { return albumId; }
     public void setAlbumId(long albumId) { this.albumId = albumId; }
+
+    public int getFee() { return fee; }
+    public void setFee(int fee) { this.fee = fee; }
+
+    /** Whether this is a VIP song (NetEase fee == 1). */
+    public boolean isVip() { return fee == 1; }
 
     /** Check if this song is from Bilibili */
     public boolean isBilibili() {

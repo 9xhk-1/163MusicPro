@@ -88,14 +88,24 @@ public class TopListActivity extends AppCompatActivity {
         adapter = new ArrayAdapter<TopListItem>(this, R.layout.item_song, R.id.tv_item_name, items) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
+                View view = convertView;
+                if (view == null) {
+                    view = getLayoutInflater().inflate(R.layout.item_song, parent, false);
+                }
                 TopListItem item = getItem(position);
                 if (item != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
-                    tvName.setText(item.name);
-                    tvArtist.setText(item.updateFrequency != null ? item.updateFrequency : "");
+                    tvName.setSelected(true);
+                    tvArtist.setSelected(true);
+                    if (!android.text.TextUtils.equals(tvName.getText(), item.name)) {
+                        tvName.setText(item.name);
+                    }
+                    String freq = item.updateFrequency != null ? item.updateFrequency : "";
+                    if (!android.text.TextUtils.equals(tvArtist.getText(), freq)) {
+                        tvArtist.setText(freq);
+                    }
                     if (ivCover != null) {
                         NetworkImageLoader.load(ivCover, item.coverUrl);
                     }

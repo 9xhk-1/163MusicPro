@@ -48,18 +48,31 @@ public class SongRecognitionResultActivity extends BaseWatchActivity {
                 R.id.tv_item_name, resultSongs) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
+                View view = convertView;
+                if (view == null) {
+                    view = getLayoutInflater().inflate(R.layout.item_song, parent, false);
+                }
                 Song song = getItem(position);
                 if (song != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
-                    tvName.setText(song.getName());
+                    tvName.setSelected(true);
+                    tvArtist.setSelected(true);
+                    View vipBadge = view.findViewById(R.id.tv_vip_badge);
+                    if (vipBadge != null) {
+                        vipBadge.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
+                    }
+                    if (!android.text.TextUtils.equals(tvName.getText(), song.getDisplayName())) {
+                        tvName.setText(song.getDisplayName());
+                    }
                     String artist = song.getArtist();
                     if (song.getAlbum() != null && !song.getAlbum().isEmpty()) {
                         artist += " · " + song.getAlbum();
                     }
-                    tvArtist.setText(artist);
+                    if (!android.text.TextUtils.equals(tvArtist.getText(), artist)) {
+                        tvArtist.setText(artist);
+                    }
                     if (ivCover != null) {
                         NetworkImageLoader.load(ivCover, song.getCoverUrl());
                     }

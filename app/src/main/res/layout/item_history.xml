@@ -21,7 +21,8 @@
         android:id="@+id/tv_history_text"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:ellipsize="end"
+        android:ellipsize="marquee"
+        android:marqueeRepeatLimit="marquee_forever"
         android:singleLine="true"
         android:textColor="@color/text_secondary"
         android:textSize="13sp" />

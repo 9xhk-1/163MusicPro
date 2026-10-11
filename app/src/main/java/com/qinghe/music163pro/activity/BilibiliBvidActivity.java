@@ -209,7 +209,9 @@ public class BilibiliBvidActivity extends BaseWatchActivity {
                     tvPart.setTextColor(getResources().getColor(R.color.text_primary));
                     tvPart.setTextSize(13);
                     tvPart.setSingleLine(true);
-                    tvPart.setEllipsize(TextUtils.TruncateAt.END);
+                    tvPart.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+                    tvPart.setMarqueeRepeatLimit(-1);
+                    tvPart.setSelected(true);
                     infoCol.addView(tvPart);
 
                     TextView tvDur = new TextView(BilibiliBvidActivity.this);

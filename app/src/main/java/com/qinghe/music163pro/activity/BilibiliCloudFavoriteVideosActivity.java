@@ -138,7 +138,9 @@ public class BilibiliCloudFavoriteVideosActivity extends BaseWatchActivity {
         title.setTextColor(getResources().getColor(R.color.text_primary));
         title.setTextSize(13);
         title.setSingleLine(true);
-        title.setEllipsize(TextUtils.TruncateAt.END);
+        title.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+        title.setMarqueeRepeatLimit(-1);
+        title.setSelected(true);
         item.addView(title);
 
         TextView sub = new TextView(this);
@@ -146,7 +148,9 @@ public class BilibiliCloudFavoriteVideosActivity extends BaseWatchActivity {
         sub.setTextColor(getResources().getColor(R.color.text_secondary));
         sub.setTextSize(11);
         sub.setSingleLine(true);
-        sub.setEllipsize(TextUtils.TruncateAt.END);
+        sub.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+        sub.setMarqueeRepeatLimit(-1);
+        sub.setSelected(true);
         sub.setPadding(0, px(3), 0, 0);
         item.addView(sub);
         return item;
@@ -175,7 +179,9 @@ public class BilibiliCloudFavoriteVideosActivity extends BaseWatchActivity {
         title.setTextSize(14);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         title.setSingleLine(true);
-        title.setEllipsize(TextUtils.TruncateAt.END);
+        title.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+        title.setMarqueeRepeatLimit(-1);
+        title.setSelected(true);
         bar.addView(title);
 
         ImageView placeholder = new ImageView(this);

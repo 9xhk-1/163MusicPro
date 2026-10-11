@@ -126,7 +126,9 @@ public class BilibiliFavoritesActivity extends BaseWatchActivity {
         title.setTextColor(getResources().getColor(R.color.text_primary));
         title.setTextSize(14);
         title.setSingleLine(true);
-        title.setEllipsize(TextUtils.TruncateAt.END);
+        title.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+        title.setMarqueeRepeatLimit(-1);
+        title.setSelected(true);
         item.addView(title);
 
         TextView bvid = new TextView(this);
@@ -138,7 +140,9 @@ public class BilibiliFavoritesActivity extends BaseWatchActivity {
         bvid.setTextColor(getResources().getColor(R.color.text_secondary));
         bvid.setTextSize(12);
         bvid.setSingleLine(true);
-        bvid.setEllipsize(TextUtils.TruncateAt.END);
+        bvid.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+        bvid.setMarqueeRepeatLimit(-1);
+        bvid.setSelected(true);
         bvid.setPadding(0, px(2), 0, 0);
         item.addView(bvid);
         return item;

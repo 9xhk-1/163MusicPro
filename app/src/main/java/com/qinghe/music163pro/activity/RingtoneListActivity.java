@@ -50,23 +50,25 @@ public class RingtoneListActivity extends BaseWatchActivity {
                 this, R.layout.item_song, R.id.tv_item_name, ringtoneList) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
+                View view = convertView;
+                if (view == null) {
+                    view = getLayoutInflater().inflate(R.layout.item_song, parent, false);
+                }
                 RingtoneManagerHelper.RingtoneInfo info = getItem(position);
                 if (info != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
                     if (ivCover != null) ivCover.setImageDrawable(null);
-                    tvName.setText(info.title);
-                    // Enable marquee scrolling for long names
-                    tvName.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
-                    tvName.setMarqueeRepeatLimit(-1);
-                    tvName.setSingleLine(true);
+                    String title = info.title != null ? info.title : "";
+                    if (!android.text.TextUtils.equals(tvName.getText(), title)) {
+                        tvName.setText(title);
+                    }
                     tvName.setSelected(true);
-                    tvArtist.setText(info.filePath);
-                    tvArtist.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
-                    tvArtist.setMarqueeRepeatLimit(-1);
-                    tvArtist.setSingleLine(true);
+                    String path = info.filePath != null ? info.filePath : "";
+                    if (!android.text.TextUtils.equals(tvArtist.getText(), path)) {
+                        tvArtist.setText(path);
+                    }
                     tvArtist.setSelected(true);
                 }
                 return view;

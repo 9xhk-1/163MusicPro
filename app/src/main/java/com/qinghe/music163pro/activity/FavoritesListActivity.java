@@ -70,14 +70,27 @@ public class FavoritesListActivity extends BaseWatchActivity {
         songAdapter = new ArrayAdapter<Song>(this, R.layout.item_song, R.id.tv_item_name, favoritesList) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
+                View view = convertView;
+                if (view == null) {
+                    view = getLayoutInflater().inflate(R.layout.item_song, parent, false);
+                }
                 Song song = getItem(position);
                 if (song != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
-                    tvName.setText(song.getName());
-                    tvArtist.setText(song.getArtist());
+                    tvName.setSelected(true);
+                    tvArtist.setSelected(true);
+                    View vipBadge = view.findViewById(R.id.tv_vip_badge);
+                    if (vipBadge != null) {
+                        vipBadge.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
+                    }
+                    if (!android.text.TextUtils.equals(tvName.getText(), song.getDisplayName())) {
+                        tvName.setText(song.getDisplayName());
+                    }
+                    if (!android.text.TextUtils.equals(tvArtist.getText(), song.getArtist())) {
+                        tvArtist.setText(song.getArtist());
+                    }
                     if (ivCover != null) {
                         NetworkImageLoader.load(ivCover, song.getCoverUrl());
                     }
@@ -94,18 +107,27 @@ public class FavoritesListActivity extends BaseWatchActivity {
         playlistAdapter = new ArrayAdapter<PlaylistInfo>(this, R.layout.item_playlist, R.id.tv_playlist_name, playlistsList) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
+                View view = convertView;
+                if (view == null) {
+                    view = getLayoutInflater().inflate(R.layout.item_playlist, parent, false);
+                }
                 PlaylistInfo pl = getItem(position);
                 if (pl != null) {
                     TextView tvName = view.findViewById(R.id.tv_playlist_name);
                     TextView tvInfo = view.findViewById(R.id.tv_playlist_info);
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
-                    tvName.setText(pl.getName());
-                    String info = pl.getTrackCount() + "\u9996";
-                    if (pl.getCreator() != null && !pl.getCreator().isEmpty()) {
-                        info += " \u00b7 " + pl.getCreator();
+                    tvName.setSelected(true);
+                    tvInfo.setSelected(true);
+                    if (!android.text.TextUtils.equals(tvName.getText(), pl.getName())) {
+                        tvName.setText(pl.getName());
                     }
-                    tvInfo.setText(info);
+                    String info = pl.getTrackCount() + "首";
+                    if (pl.getCreator() != null && !pl.getCreator().isEmpty()) {
+                        info += " · " + pl.getCreator();
+                    }
+                    if (!android.text.TextUtils.equals(tvInfo.getText(), info)) {
+                        tvInfo.setText(info);
+                    }
                     if (ivCover != null) {
                         NetworkImageLoader.load(ivCover, pl.getCoverUrl());
                     }
@@ -399,7 +421,7 @@ public class FavoritesListActivity extends BaseWatchActivity {
         }
     }
     private void showUnfavoriteDialog(Song song, int position) {
-        showConfirmDialog("取消收藏", "确定取消收藏「" + song.getName() + "」？", () -> {
+        showConfirmDialog("取消收藏", "确定取消收藏「" + song.getDisplayName() + "」？", () -> {
             SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
             boolean isCloud = prefs.getBoolean("fav_mode_cloud", false);
             if (isCloud) {

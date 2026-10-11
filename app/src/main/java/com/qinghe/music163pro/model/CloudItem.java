@@ -11,6 +11,7 @@ public class CloudItem implements Serializable {
     private long cloudSongId;
     private long songId;
     private String songName;
+    private String alias;
     private String artist;
     private String album;
     private String fileName;
@@ -41,6 +42,14 @@ public class CloudItem implements Serializable {
 
     public void setSongName(String songName) {
         this.songName = songName;
+    }
+
+    public String getAlias() {
+        return alias;
+    }
+
+    public void setAlias(String alias) {
+        this.alias = alias;
     }
 
     public String getArtist() {
@@ -101,7 +110,10 @@ public class CloudItem implements Serializable {
 
     public Song toSong() {
         Song song = new Song(songId > 0 ? songId : cloudSongId,
-                getDisplayName(), artist != null ? artist : "", album != null ? album : "");
+                songName != null && !songName.isEmpty() ? songName
+                        : (fileName != null ? fileName : "未命名"),
+                artist != null ? artist : "", album != null ? album : "");
+        song.setAlias(alias);
         if (downloadUrl != null && !downloadUrl.isEmpty()) {
             song.setUrl(downloadUrl);
         }
@@ -110,6 +122,9 @@ public class CloudItem implements Serializable {
 
     public String getDisplayName() {
         if (songName != null && !songName.isEmpty()) {
+            if (Song.isAliasDisplayEnabled() && alias != null && !alias.isEmpty()) {
+                return songName + "（" + alias + "）";
+            }
             return songName;
         }
         if (fileName != null && !fileName.isEmpty()) {

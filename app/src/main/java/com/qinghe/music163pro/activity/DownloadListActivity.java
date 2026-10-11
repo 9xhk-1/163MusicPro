@@ -54,14 +54,23 @@ public class DownloadListActivity extends BaseWatchActivity {
         adapter = new ArrayAdapter<Song>(this, R.layout.item_song, R.id.tv_item_name, downloadedSongs) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
+                View view = convertView;
+                if (view == null) {
+                    view = getLayoutInflater().inflate(R.layout.item_song, parent, false);
+                }
                 Song song = getItem(position);
                 if (song != null) {
                     TextView tvName = view.findViewById(R.id.tv_item_name);
                     TextView tvArtist = view.findViewById(R.id.tv_item_artist);
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
-                    tvName.setText(song.getName());
-                    tvArtist.setText(song.getArtist());
+                    tvName.setSelected(true);
+                    tvArtist.setSelected(true);
+                    if (!android.text.TextUtils.equals(tvName.getText(), song.getDisplayName())) {
+                        tvName.setText(song.getDisplayName());
+                    }
+                    if (!android.text.TextUtils.equals(tvArtist.getText(), song.getArtist())) {
+                        tvArtist.setText(song.getArtist());
+                    }
                     if (ivCover != null) {
                         // coverUrl may be local file:// path or remote URL
                         NetworkImageLoader.load(ivCover, song.getCoverUrl());
@@ -81,7 +90,7 @@ public class DownloadListActivity extends BaseWatchActivity {
 
         lvDownloads.setOnItemLongClickListener((parent, view, position, id) -> {
             Song song = downloadedSongs.get(position);
-            showConfirmDialog("确认删除", "确定删除「" + song.getName() + "」？\n文件将被永久删除。", () -> {
+            showConfirmDialog("确认删除", "确定删除「" + song.getDisplayName() + "」？\n文件将被永久删除。", () -> {
                 boolean deleted = DownloadManager.deleteDownload(song);
                 if (deleted) {
                     Toast.makeText(this, "已删除", Toast.LENGTH_SHORT).show();

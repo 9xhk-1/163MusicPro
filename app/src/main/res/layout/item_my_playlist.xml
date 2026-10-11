@@ -28,7 +28,8 @@
             android:id="@+id/tv_name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
+            android:ellipsize="marquee"
+            android:marqueeRepeatLimit="marquee_forever"
             android:singleLine="true"
             android:textColor="@color/text_primary"
             android:textSize="13sp" />
@@ -37,7 +38,8 @@
             android:id="@+id/tv_detail"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
+            android:ellipsize="marquee"
+            android:marqueeRepeatLimit="marquee_forever"
             android:singleLine="true"
             android:textColor="@color/text_secondary"
             android:textSize="11sp" />

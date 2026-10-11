@@ -117,7 +117,7 @@ public class LyricsActivity extends AppCompatActivity {
             return;
         }
 
-        tvSongName.setText(song.getName() + " - " + song.getArtist());
+        tvSongName.setText(song.getDisplayName() + " - " + song.getArtist());
 
         if (lyricScrollMode == LYRIC_MODE_BLOCK) {
             setupBlockingModeDetection();

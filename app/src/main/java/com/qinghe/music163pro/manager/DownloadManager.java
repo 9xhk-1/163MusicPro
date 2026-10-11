@@ -282,6 +282,9 @@ public class DownloadManager {
             obj.put("source", song.getSource());
             obj.put("bvid", song.getBvid());
             obj.put("cid", song.getCid());
+            if (song.getAlias() != null && !song.getAlias().isEmpty()) {
+                obj.put("alias", song.getAlias());
+            }
             if (song.getCoverUrl() != null && !song.getCoverUrl().isEmpty()) {
                 obj.put("coverUrl", song.getCoverUrl());
             }
@@ -508,6 +511,7 @@ public class DownloadManager {
             song.setSource(obj.optString("source", null));
             song.setBvid(obj.optString("bvid", ""));
             song.setCid(obj.optLong("cid", 0));
+            song.setAlias(obj.optString("alias", ""));
             // Load cover URL: prefer local cover.jpg, then info.json stored URL
             File localCover = new File(songDir, COVER_FILE);
             if (localCover.exists()) {
