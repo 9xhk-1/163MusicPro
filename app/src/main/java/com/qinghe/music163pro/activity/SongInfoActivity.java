@@ -522,14 +522,14 @@ public class SongInfoActivity extends AppCompatActivity {
                         tv.setPadding(0, px(2), 0, px(2));
                         tv.setLayoutParams(new LinearLayout.LayoutParams(0,
                                 LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+                        row.setGravity(Gravity.CENTER_VERTICAL);
                         TextView badge = createVipBadge();
-                        row.addView(tv);
                         LinearLayout.LayoutParams badgeLp = new LinearLayout.LayoutParams(
                                 LinearLayout.LayoutParams.WRAP_CONTENT,
                                 LinearLayout.LayoutParams.WRAP_CONTENT);
-                        badgeLp.gravity = Gravity.CENTER_VERTICAL;
-                        badgeLp.setMarginStart(px(4));
+                        badgeLp.setMarginEnd(px(4));
                         row.addView(badge, badgeLp);
+                        row.addView(tv);
                         feeBadges.put(s, badge);
                         row.setOnClickListener(v -> playSimilarSongs(currentBlockSongs, idx));
                         contentLayout.addView(row);
@@ -611,9 +611,6 @@ public class SongInfoActivity extends AppCompatActivity {
         // If neither exists, nothing to show
         if (resInfo == null && resUiElement == null) return;
 
-        // VIP badge for song cards (paired with the Song once parsed below)
-        TextView cardFeeBadge = null;
-
         // Extract cover URL for card thumbnail
         String coverUrlRes = "";
         if (resUiElement != null) {
@@ -641,6 +638,14 @@ public class SongInfoActivity extends AppCompatActivity {
             if (coverUrlRes.isEmpty()) {
                 coverUrlRes = resInfo.optString("picUrl", resInfo.optString("coverImgUrl", ""));
             }
+        }
+
+        // Song cards use the standard list row format (like other song lists)
+        boolean songCard = currentBlockCode.contains("SIMILAR_SONG")
+                || currentBlockCode.contains("REC_SONG");
+        if (songCard) {
+            displaySongCard(resource, resInfo, resUiElement, coverUrlRes);
+            return;
         }
 
         // Create a horizontal card: [cover thumbnail] + [content column]
@@ -687,26 +692,7 @@ public class SongInfoActivity extends AppCompatActivity {
             if (mainTitle != null) {
                 String title = mainTitle.optString("title", "");
                 if (!title.isEmpty()) {
-                    TextView titleView = makeText(title, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START);
-                    boolean songCard = currentBlockCode.contains("SIMILAR_SONG")
-                            || currentBlockCode.contains("REC_SONG");
-                    if (songCard) {
-                        cardFeeBadge = createVipBadge();
-                        LinearLayout titleRow = new LinearLayout(this);
-                        titleRow.setOrientation(LinearLayout.HORIZONTAL);
-                        titleView.setLayoutParams(new LinearLayout.LayoutParams(0,
-                                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-                        titleRow.addView(titleView);
-                        LinearLayout.LayoutParams titleBadgeLp = new LinearLayout.LayoutParams(
-                                LinearLayout.LayoutParams.WRAP_CONTENT,
-                                LinearLayout.LayoutParams.WRAP_CONTENT);
-                        titleBadgeLp.gravity = Gravity.CENTER_VERTICAL;
-                        titleBadgeLp.setMarginStart(px(4));
-                        titleRow.addView(cardFeeBadge, titleBadgeLp);
-                        rightLayout.addView(titleRow);
-                    } else {
-                        rightLayout.addView(titleView);
-                    }
+                    rightLayout.addView(makeText(title, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
                 }
             }
             // subTitles is an array in the API response
@@ -832,60 +818,10 @@ public class SongInfoActivity extends AppCompatActivity {
 
         // Only add card if the content column has children
         if (rightLayout.getChildCount() > 0) {
-            // Add click handler for song blocks
-            boolean isSongBlock = currentBlockCode.contains("SIMILAR_SONG")
-                    || currentBlockCode.contains("REC_SONG");
             boolean isPlaylistBlock = currentBlockCode.contains("PLAYLIST");
 
-            if (isSongBlock) {
-                long resId = resInfo != null ? resInfo.optLong("id", 0) : 0;
-                if (resId <= 0) resId = parseResourceId(resource);
-                String resName = resInfo != null ? resInfo.optString("name", "") : "";
-                if (resName.isEmpty() && resUiElement != null) {
-                    JSONObject mt = resUiElement.optJSONObject("mainTitle");
-                    if (mt != null) resName = mt.optString("title", "");
-                }
-                String resArtist = "";
-                if (resInfo != null) {
-                    JSONArray ars = resInfo.optJSONArray("ar");
-                    if (ars == null) ars = resInfo.optJSONArray("artist");
-                    if (ars == null) ars = resInfo.optJSONArray("artists");
-                    if (ars != null && ars.length() > 0) {
-                        JSONObject a0 = ars.optJSONObject(0);
-                        if (a0 != null) resArtist = a0.optString("name", "");
-                    }
-                    if (resArtist.isEmpty()) {
-                        resArtist = resInfo.optString("artistName", "");
-                    }
-                }
-                // Fall back to uiElement subTitles[] array if artist not found in resInfo
-                if (resArtist.isEmpty() && resUiElement != null) {
-                    JSONArray sts = resUiElement.optJSONArray("subTitles");
-                    if (sts != null && sts.length() > 0) {
-                        JSONObject st0 = sts.optJSONObject(0);
-                        if (st0 != null) resArtist = st0.optString("title", "");
-                    }
-                    if (resArtist.isEmpty()) {
-                        JSONObject st = resUiElement.optJSONObject("subTitle");
-                        if (st != null) resArtist = st.optString("title", "");
-                    }
-                }
-                if (resId > 0) {
-                    Song cardSong = new Song(resId, resName, resArtist, "");
-                    int cardFee = resInfo != null ? resInfo.optInt("fee", -1) : -1;
-                    if (cardFee >= 0) cardSong.setFee(cardFee);
-                    currentBlockSongs.add(cardSong);
-                    if (cardFeeBadge != null) {
-                        feeBadges.put(cardSong, cardFeeBadge);
-                    }
-                }
-                // Artist is already shown above via uiElement.subTitles or resInfo.ar rendering
-                final int songIdx = currentBlockSongs.size() - 1;
-                if (resId > 0) {
-                    card.setClickable(true);
-                    card.setOnClickListener(v -> playSimilarSongs(currentBlockSongs, songIdx));
-                }
-            } else if (isPlaylistBlock) {
+            if (isPlaylistBlock) {
+
                 long plId = resInfo != null ? resInfo.optLong("id", 0) : 0;
                 if (plId <= 0 && extInfo != null) plId = extInfo.optLong("id", 0);
                 if (plId <= 0) plId = parseResourceId(resource);
@@ -909,6 +845,66 @@ public class SongInfoActivity extends AppCompatActivity {
             }
             contentLayout.addView(card);
         }
+    }
+
+    /**
+     * Render a song resource card as a standard item_song list row
+     * (cover + VIP badge before name + artist), matching other song lists.
+     */
+    private void displaySongCard(JSONObject resource, JSONObject resInfo,
+                                  JSONObject resUiElement, String coverUrlRes) {
+        long resId = resInfo != null ? resInfo.optLong("id", 0) : 0;
+        if (resId <= 0) resId = parseResourceId(resource);
+        String resName = resInfo != null ? resInfo.optString("name", "") : "";
+        if (resName.isEmpty() && resUiElement != null) {
+            JSONObject mt = resUiElement.optJSONObject("mainTitle");
+            if (mt != null) resName = mt.optString("title", "");
+        }
+        String resArtist = "";
+        if (resInfo != null) {
+            JSONArray ars = resInfo.optJSONArray("ar");
+            if (ars == null) ars = resInfo.optJSONArray("artist");
+            if (ars == null) ars = resInfo.optJSONArray("artists");
+            if (ars != null && ars.length() > 0) {
+                JSONObject a0 = ars.optJSONObject(0);
+                if (a0 != null) resArtist = a0.optString("name", "");
+            }
+            if (resArtist.isEmpty()) {
+                resArtist = resInfo.optString("artistName", "");
+            }
+        }
+        if (resArtist.isEmpty() && resUiElement != null) {
+            JSONArray sts = resUiElement.optJSONArray("subTitles");
+            if (sts != null && sts.length() > 0) {
+                JSONObject st0 = sts.optJSONObject(0);
+                if (st0 != null) resArtist = st0.optString("title", "");
+            }
+            if (resArtist.isEmpty()) {
+                JSONObject st = resUiElement.optJSONObject("subTitle");
+                if (st != null) resArtist = st.optString("title", "");
+            }
+        }
+
+        View row = getLayoutInflater().inflate(R.layout.item_song, contentLayout, false);
+        ImageView ivCover = row.findViewById(R.id.iv_cover);
+        if (!coverUrlRes.isEmpty()) {
+            NetworkImageLoader.load(ivCover, coverUrlRes);
+        }
+        TextView tvItemName = row.findViewById(R.id.tv_item_name);
+        tvItemName.setText(resName);
+        TextView tvItemArtist = row.findViewById(R.id.tv_item_artist);
+        tvItemArtist.setText(resArtist);
+
+        if (resId > 0 && !resName.isEmpty()) {
+            Song cardSong = new Song(resId, resName, resArtist, "");
+            int cardFee = resInfo != null ? resInfo.optInt("fee", -1) : -1;
+            if (cardFee >= 0) cardSong.setFee(cardFee);
+            currentBlockSongs.add(cardSong);
+            final int songIdx = currentBlockSongs.size() - 1;
+            feeBadges.put(cardSong, row.findViewById(R.id.tv_vip_badge));
+            row.setOnClickListener(v -> playSimilarSongs(currentBlockSongs, songIdx));
+        }
+        contentLayout.addView(row);
         requestFeeEnrichment();
     }
 

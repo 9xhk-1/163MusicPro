@@ -2426,14 +2426,14 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             LinearLayout nameRow = new LinearLayout(this);
             nameRow.setOrientation(LinearLayout.HORIZONTAL);
             nameRow.setGravity(Gravity.CENTER_VERTICAL);
-            nameRow.addView(tvName, new LinearLayout.LayoutParams(0,
-                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
             TextView tvVip = createVipBadge();
             tvVip.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
             LinearLayout.LayoutParams vipLp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            vipLp.setMarginStart(dp(4));
+            vipLp.setMarginEnd(dp(4));
             nameRow.addView(tvVip, vipLp);
+            nameRow.addView(tvName, new LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
             textLayout.addView(nameRow);
 
             TextView tvArtist = new TextView(this);
