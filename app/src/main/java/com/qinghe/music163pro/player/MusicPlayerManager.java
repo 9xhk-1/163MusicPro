@@ -572,6 +572,7 @@ public class MusicPlayerManager {
         isPlaying = false;
         notifyPlayStateChanged(false);
         if (playlist.isEmpty()) return;
+        reportScrobble(true);
         switch (playMode) {
             case SINGLE_REPEAT:
                 // Replay current song
@@ -597,17 +598,20 @@ public class MusicPlayerManager {
 
     public void next() {
         if (playlist.isEmpty()) return;
+        reportScrobble(false);
         playNextSequential();
     }
 
     public void previous() {
         if (playlist.isEmpty()) return;
+        reportScrobble(false);
         currentIndex = (currentIndex - 1 + playlist.size()) % playlist.size();
         playCurrent();
     }
 
     public void playFromCurrentPlaylist(int index) {
         if (index < 0 || index >= playlist.size()) return;
+        reportScrobble(false);
         currentIndex = index;
         playCurrent();
     }
@@ -647,10 +651,15 @@ public class MusicPlayerManager {
             preferredQuality = prefs.getString("preferred_quality", "exhigh");
         }
         String qualityForLambda = preferredQuality;
-        MusicApiHelper.getSongUrlWithQuality(song.getId(), cookie, qualityForLambda,
-                new MusicApiHelper.UrlCallback() {
+        MusicApiHelper.getSongUrlInfo(song.getId(), cookie, qualityForLambda,
+                new MusicApiHelper.SongUrlInfoCallback() {
             @Override
-            public void onResult(String freshUrl) {
+            public void onResult(String freshUrl, boolean trialOnly) {
+                if (trialOnly && isSkipTrialEnabled()) {
+                    onTrialOnlySong(song);
+                    return;
+                }
+                trialSkipStreak = 0;
                 song.setUrl(freshUrl);
                 currentlyPlayingSongId = song.getId();
                 play(freshUrl);
@@ -667,6 +676,88 @@ public class MusicPlayerManager {
                 }
             }
         });
+    }
+
+    private int trialSkipStreak = 0;
+
+    private boolean isSkipTrialEnabled() {
+        return appContext != null && appContext.getSharedPreferences("music163_settings",
+                Context.MODE_PRIVATE).getBoolean("skip_trial_songs", false);
+    }
+
+    /**
+     * The URL API returned a free-trial-only link and the user enabled
+     * "skip trial songs". Advance past it (ads-watched VIP songs return a
+     * full link and never reach this path).
+     */
+    private void onTrialOnlySong(Song song) {
+        trialSkipStreak++;
+        if (callback != null) {
+            final String songName = song.getName();
+            mainHandler.post(() -> callback.onError("已跳过试听歌曲: " + songName));
+        }
+        if (playlist.isEmpty()) {
+            return;
+        }
+        if (trialSkipStreak >= playlist.size()) {
+            // Full lap without any playable song: stop instead of looping forever
+            trialSkipStreak = 0;
+            if (callback != null) {
+                mainHandler.post(() -> callback.onError("列表歌曲仅可试听，已停止"));
+            }
+            stop();
+            notifyPlayStateChanged(false);
+            return;
+        }
+        if (personalFmMode && currentIndex == playlist.size() - 1) {
+            playNextSequential();
+            return;
+        }
+        if (playMode == PlayMode.RANDOM && playlist.size() > 1) {
+            int newIndex;
+            do {
+                newIndex = random.nextInt(playlist.size());
+            } while (newIndex == currentIndex);
+            currentIndex = newIndex;
+        } else {
+            currentIndex = (currentIndex + 1) % playlist.size();
+        }
+        playCurrent();
+    }
+
+    // ==================== Play History (scrobble) ====================
+
+    private boolean isCurrentLocalPlayback() {
+        Song song = getCurrentSong();
+        if (song == null) {
+            return false;
+        }
+        String url = song.getUrl();
+        return song.isForceLocalPlayback() || (url != null && url.startsWith("/"));
+    }
+
+    /**
+     * Report current song playback to NetEase (/scrobble). When naturalEnd is
+     * true the song played to the end (time = duration); otherwise the manual
+     * skip counts only if at least 30 seconds were listened to.
+     */
+    private void reportScrobble(boolean naturalEnd) {
+        Song song = getCurrentSong();
+        if (song == null || song.getId() <= 0 || song.isBilibili()) {
+            return;
+        }
+        int seconds;
+        if (naturalEnd) {
+            seconds = Math.max(1, getDuration() / 1000);
+        } else {
+            seconds = Math.max(0, getCurrentPosition() / 1000);
+            if (seconds < 30) {
+                return;
+            }
+        }
+        long sourceId = hasSourcePlaylist() ? sourcePlaylistId : 0L;
+        MusicApiHelper.scrobble(song.getId(), sourceId, seconds,
+                isCurrentLocalPlayback(), getCookie());
     }
 
     /**

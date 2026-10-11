@@ -1009,6 +1009,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         if (lyricsOverlayShowing && overlayContainer != null) {
             // Animate lyrics overlay sliding out to the right, player sliding back from left
             stopLyricsScrollSync();
+            refreshChorusMarkerVisibility();
             updatePageIndicator(false);
             final FrameLayout container = overlayContainer;
             overlayContainer = null;
@@ -1025,6 +1026,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         } else {
             if (lyricsOverlayShowing) {
                 stopLyricsScrollSync();
+                refreshChorusMarkerVisibility();
                 updatePageIndicator(false);
                 if (mainPlayerContentView != null) {
                     mainPlayerContentView.animate().translationX(0).setDuration(250).start();
@@ -1266,7 +1268,21 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         float markerCenterY = seekLocation[1] - rootLocation[1] + seekHeight / 2f;
         chorusMarkerDot.setX(markerCenterX - chorusMarkerDot.getWidth() / 2f);
         chorusMarkerDot.setY(markerCenterY - chorusMarkerDot.getHeight() / 2f);
-        chorusMarkerDot.setVisibility(View.VISIBLE);
+        refreshChorusMarkerVisibility();
+    }
+
+    /**
+     * The chorus marker dot belongs to the player progress bar. It must stay
+     * hidden while playback is paused or when the lyrics page (transparent
+     * overlay) covers the player.
+     */
+    private void refreshChorusMarkerVisibility() {
+        if (chorusMarkerDot == null) {
+            return;
+        }
+        boolean show = hasChorusRange() && playerManager != null && playerManager.isPlaying()
+                && !lyricsOverlayShowing;
+        chorusMarkerDot.setVisibility(show ? View.VISIBLE : View.GONE);
     }
 
     private boolean hasChorusRange() {
@@ -1805,6 +1821,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             mainPlayerContentView.animate().translationX(-screenWidth).setDuration(250).start();
         }
         lyricsOverlayShowing = true;
+        refreshChorusMarkerVisibility();
         // Bring indicator on top and switch to lyrics page
         if (pageIndicatorLayout != null) {
             pageIndicatorLayout.bringToFront();
@@ -3687,7 +3704,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             return;
         }
         final View root = getWindow().getDecorView().findViewById(android.R.id.content);
-        Song song = playerManager.getBackgroundSong();
+        // Always follow the current song (not another playlist entry) so modes
+        // like 私人漫游 switch the background on every song change.
+        Song song = playerManager.getCurrentSong();
         final String cover = song != null && song.getCoverUrl() != null ? song.getCoverUrl() : "";
         if (!cover.isEmpty()) {
             if (BackgroundUtil.hasCoverBackground(cover)) {
@@ -3748,6 +3767,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         } else {
             stopSeekBarUpdate();
         }
+        refreshChorusMarkerVisibility();
         // Always update notification with current play state
         Song song = playerManager.getCurrentSong();
         String name = song != null ? song.getName() : "";
