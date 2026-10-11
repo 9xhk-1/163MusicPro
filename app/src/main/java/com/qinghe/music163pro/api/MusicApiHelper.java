@@ -884,48 +884,135 @@ public class MusicApiHelper {
     }
 
     /**
-     * 听歌打卡：上报播放历史（matches NeteaseCloudMusicApiBackup module/scrobble.js，
-     * POST /api/feedback/weblog with action=play）。downloadPlay=true 表示本次播放
-     * 来自已下载的本地歌曲。start=true 表示播放刚开始（time=0，立即上报，保证
-     * 即便会话中断也会留下记录）；end 报告 time 为已听秒数。weapi 加密前会像
-     * util/request.js 一样注入顶层 csrf_token。
+     * 听歌打卡：上报播放历史（matches NeteaseCloudMusicApiEnhanced module/scrobble.js，
+     * POST https://clientlog.music.163.com/eapi/feedback/weblog，两段式）。
+     * start=true 表示播放刚开始 → action=startplay（实时写入「最近播放」）；
+     * start=false 表示播放结束 → action=play，time 为已听秒数（更新「听歌排行」）。
+     * 两段缺一不可：只有 play 进不了最近播放，只有 startplay 不涨听歌排行。
+     * 身份必须是 os=osx 桌面样式 + 原始登录态 cookie：实验验证富化成移动端
+     * （os=iPhone OS 等）会被服务端返回 200 但静默丢弃。downloadPlay=true 表示
+     * 本次播放来自已下载的本地歌曲。
      */
     public static void scrobble(long songId, long sourceId, int seconds,
                                 boolean downloadPlay, boolean start, String cookie) {
         executor.execute(() -> {
             try {
                 JSONObject json = new JSONObject();
-                json.put("download", downloadPlay ? 1 : 0);
-                json.put("end", "playend");
-                json.put("id", songId);
-                json.put("sourceId", sourceId);
-                json.put("time", Math.max(0, seconds));
-                json.put("type", "song");
-                json.put("wifi", 0);
-                json.put("source", "list");
-                json.put("mainsite", 1);
-                json.put("content", "");
+                if (start) {
+                    json.put("id", songId);
+                    json.put("type", "song");
+                    json.put("mainsite", "1");
+                    json.put("mainsiteWeb", "1");
+                    json.put("content", "id=" + sourceId);
+                } else {
+                    json.put("download", downloadPlay ? 1 : 0);
+                    json.put("end", "playend");
+                    json.put("id", songId);
+                    json.put("sourceId", sourceId);
+                    json.put("time", Math.max(0, seconds));
+                    json.put("type", "song");
+                    json.put("wifi", 0);
+                    json.put("source", "list");
+                    json.put("mainsite", "1");
+                    json.put("mainsiteWeb", "1");
+                    json.put("content", "id=" + sourceId);
+                }
 
                 JSONObject entry = new JSONObject();
-                entry.put("action", "play");
+                entry.put("action", start ? "startplay" : "play");
                 entry.put("json", json);
 
                 JSONArray logs = new JSONArray();
                 logs.put(entry);
-                JSONObject data = new JSONObject();
-                data.put("logs", logs.toString());
-                String csrfToken = extractCsrfToken(cookie);
-                if (csrfToken != null && !csrfToken.isEmpty()) {
-                    data.put("csrf_token", csrfToken);
-                }
 
-                weapiPost("/api/feedback/weblog", data.toString(), cookie);
+                scrobbleWeblog(logs.toString(), cookie);
                 MusicLog.d(TAG, "听歌打卡上报成功: id=" + songId + " time=" + seconds
                         + "s download=" + downloadPlay + (start ? " start" : ""));
             } catch (Exception e) {
                 MusicLog.w(TAG, "听歌打卡上报失败: " + songId, e);
             }
         });
+    }
+
+    /**
+     * scrobble 专用 eapi POST：clientlog 域名 + os=osx 桌面身份。
+     * 与其它接口通用的 eapiPost（interface 域名 + iPhone 身份）不同，实测该组合
+     * 才会实时写入最近播放/听歌排行。
+     */
+    private static String scrobbleWeblog(String logsJson, String cookie) throws Exception {
+        JSONObject cookieMap = parseCookieString(cookie);
+
+        JSONObject data = new JSONObject();
+        data.put("logs", logsJson);
+
+        JSONObject header = new JSONObject();
+        header.put("osver", "");
+        header.put("deviceId", deviceId);
+        header.put("os", "osx");
+        header.put("appver", "2.10.2");
+        header.put("versioncode", "");
+        header.put("mobilename", "");
+        header.put("buildver", String.valueOf(System.currentTimeMillis() / 1000L));
+        header.put("resolution", "");
+        header.put("__csrf", extractCsrfToken(cookie));
+        header.put("channel", "");
+        header.put("requestId", buildRequestId());
+        String musicU = cookieMap.optString("MUSIC_U", "");
+        if (!musicU.isEmpty()) {
+            header.put("MUSIC_U", musicU);
+        }
+        data.put("header", header);
+        data.put("e_r", false);
+
+        String path = "/api/feedback/weblog";
+        String params = NeteaseApiCrypto.eapi(path, data.toString());
+        String postBody = "params=" + URLEncoder.encode(params, "UTF-8");
+        String urlStr = "https://clientlog.music.163.com" + path.replaceFirst("^/api/", "/eapi/");
+        MusicLog.i(TAG, "[REQ] POST(scrobble eapi) " + urlStr + "\n  请求体(原文): " + logsJson);
+
+        StringBuilder cookieHeader = new StringBuilder("__remember_me=true; os=osx; appver=2.10.2; deviceId=");
+        cookieHeader.append(deviceId).append("; __csrf=").append(extractCsrfToken(cookie));
+        if (!musicU.isEmpty()) {
+            cookieHeader.append("; MUSIC_U=").append(musicU);
+        }
+
+        URL url = new URL(urlStr);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("User-Agent",
+                "NeteaseMusic/2.10.2.703006 (Macintosh; Mac OS X 10_15_7)");
+        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+        conn.setRequestProperty("Cookie", cookieHeader.toString());
+        conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        conn.setReadTimeout(READ_TIMEOUT_MS);
+        conn.setDoOutput(true);
+
+        try {
+            OutputStream os = conn.getOutputStream();
+            os.write(postBody.getBytes("UTF-8"));
+            os.close();
+
+            int responseCode = conn.getResponseCode();
+            BufferedReader reader;
+            if (responseCode >= 200 && responseCode < 400) {
+                reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), "UTF-8"));
+            } else {
+                InputStream errStream = conn.getErrorStream();
+                reader = new BufferedReader(new InputStreamReader(
+                        errStream != null ? errStream : conn.getInputStream(), "UTF-8"));
+            }
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+            }
+            reader.close();
+            String responseBody = sb.toString();
+            MusicLog.api(TAG, "POST(scrobble)", urlStr, responseCode, responseBody);
+            return responseBody;
+        } finally {
+            conn.disconnect();
+        }
     }
 
     // ==================== QR Login ====================
