@@ -349,6 +349,11 @@ public class MusicApiHelper {
         void onError(String message);
     }
 
+    public interface CloudHistoryCallback {
+        void onResult(List<Song> songs);
+        void onError(String message);
+    }
+
     public interface CloudItemsCallback {
         void onResult(List<CloudItem> items);
         void onError(String message);
@@ -4055,6 +4060,41 @@ public class MusicApiHelper {
                 mainHandler.post(() -> callback.onResult(resultMap));
             } catch (Exception e) {
                 MusicLog.w(TAG, "批量获取歌曲详情失败", e);
+                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
+    /**
+     * Fetch play history from cloud recent-play records (record_recent_song).
+     * weapi POST /api/play-record/song/list {limit}, entries sorted newest first.
+     */
+    public static void fetchCloudHistory(String cookie, CloudHistoryCallback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject data = new JSONObject();
+                data.put("limit", 100);
+                data.put("csrf_token", extractCsrfToken(cookie));
+                String response = weapiPost("/api/play-record/song/list", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                JSONObject dataObj = json.optJSONObject("data");
+                JSONArray list = dataObj != null ? dataObj.optJSONArray("list") : null;
+                List<Song> songs = new ArrayList<>();
+                if (list != null) {
+                    java.util.Set<Long> seen = new java.util.HashSet<>();
+                    for (int i = 0; i < list.length(); i++) {
+                        JSONObject entry = list.optJSONObject(i);
+                        if (entry == null) continue;
+                        Song song = parseSongFromJson(entry.optJSONObject("data"));
+                        if (song != null && song.getId() > 0 && seen.add(song.getId())) {
+                            songs.add(song);
+                        }
+                    }
+                }
+                MusicLog.i(TAG, "获取云端历史成功: " + songs.size() + " 条");
+                mainHandler.post(() -> callback.onResult(songs));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "获取云端历史失败", e);
                 mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
             }
         });
