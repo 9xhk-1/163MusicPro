@@ -127,6 +127,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
     // Lyrics overlay state
     private boolean lyricsOverlayShowing = false;
+    // Song id whose lyrics are currently parsed in memory; lyrics reload only
+    // when this does not match the song being shown (-1 = no cache).
+    private long lyricsCacheSongId = -1;
     private final java.util.List<LyricLine> lyricLines = new java.util.ArrayList<>();
     private final java.util.List<TextView> lyricViews = new java.util.ArrayList<>();
     private int currentHighlightIndex = -1;
@@ -1828,8 +1831,24 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             updatePageIndicator(true);
         }
 
-        // Load lyrics
-        loadLyricsForOverlay(song, tvLyricsTimeRef);
+        // Load lyrics only the first time this song's overlay is opened (or
+        // after a song switch); otherwise rebuild the view from cached parse.
+        if (lyricsCacheSongId == song.getId()) {
+            displayLyricsInOverlay();
+            if (btnTranslationToggle != null) {
+                boolean hasTl = currentTlyricText != null && !currentTlyricText.isEmpty();
+                boolean hasRo = currentRomalrcText != null && !currentRomalrcText.isEmpty();
+                if (hasTl || hasRo) {
+                    btnTranslationToggle.setVisibility(View.VISIBLE);
+                } else {
+                    btnTranslationToggle.setVisibility(View.GONE);
+                }
+                updateTranslationButton();
+            }
+            startLyricsScrollSync(tvLyricsTimeRef);
+        } else {
+            loadLyricsForOverlay(song, tvLyricsTimeRef);
+        }
     }
 
     private void loadLyricsForOverlay(Song song, TextView tvLyricsTime) {
@@ -1859,11 +1878,13 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             }
             displayLyricsInOverlay();
             startLyricsScrollSync(tvLyricsTime);
+            lyricsCacheSongId = song.getId();
             return;
         }
 
         // Fetch from API (with translation)
         if (song.getId() <= 0) {
+            lyricsCacheSongId = song.getId();
             showNoLyricsInOverlay();
             return;
         }
@@ -1882,6 +1903,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             @Override
             public void onResult(String lrcText, String tlyricText, String romalrcText) {
                 if (lrcText == null || lrcText.isEmpty()) {
+                    lyricsCacheSongId = song.getId();
                     showNoLyricsInOverlay();
                     return;
                 }
@@ -1909,6 +1931,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 }
                 displayLyricsInOverlay();
                 startLyricsScrollSync(tvLyricsTime);
+                lyricsCacheSongId = song.getId();
             }
 
             @Override
@@ -2217,43 +2240,38 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             @Override
             public void run() {
                 if (!lyricsOverlayShowing || overlayContainer == null) return;
-                int currentPos = playerManager.getCurrentPosition();
-                int duration = playerManager.getDuration();
+                if (playerManager.isPlaying() || playerManager.getCurrentPosition() > 0) {
+                    int currentPos = playerManager.getCurrentPosition();
+                    int duration = playerManager.getDuration();
 
-                tvLyricsTime.setText(formatTime(currentPos) + " / " + formatTime(duration));
+                    tvLyricsTime.setText(formatTime(currentPos) + " / " + formatTime(duration));
 
-                if (!playerManager.isPlaying()) {
-                    // Paused: drop the current-line highlight until playback resumes
-                    clearCurrentLyricHighlight();
-                    lyricsScrollHandler.postDelayed(this, 300);
-                    return;
-                }
-
-                if (lyricScrollMode == LYRIC_MODE_BLOCK && lyricsUserScrolled) {
-                    if (System.currentTimeMillis() - lyricsLastUserScrollTime >= lyricResumeIntervalMs) {
-                        lyricsUserScrolled = false;
+                    if (lyricScrollMode == LYRIC_MODE_BLOCK && lyricsUserScrolled) {
+                        if (System.currentTimeMillis() - lyricsLastUserScrollTime >= lyricResumeIntervalMs) {
+                            lyricsUserScrolled = false;
+                        }
                     }
-                }
 
-                int newIndex = -1;
-                for (int i = 0; i < lyricLines.size(); i++) {
-                    if (lyricLines.get(i).timeMs <= currentPos) {
-                        newIndex = i;
-                    } else {
-                        break;
+                    int newIndex = -1;
+                    for (int i = 0; i < lyricLines.size(); i++) {
+                        if (lyricLines.get(i).timeMs <= currentPos) {
+                            newIndex = i;
+                        } else {
+                            break;
+                        }
                     }
-                }
 
-                if (newIndex != currentHighlightIndex && newIndex >= 0) {
-                    clearCurrentLyricHighlight();
-                    currentHighlightIndex = newIndex;
-                    if (currentHighlightIndex < lyricViews.size()) {
-                        TextView currentView = lyricViews.get(currentHighlightIndex);
-                        currentView.setTextColor(0xFFFFFFFF);
-                        currentView.setTextSize(14);
+                    if (newIndex != currentHighlightIndex && newIndex >= 0) {
+                        clearCurrentLyricHighlight();
+                        currentHighlightIndex = newIndex;
+                        if (currentHighlightIndex < lyricViews.size()) {
+                            TextView currentView = lyricViews.get(currentHighlightIndex);
+                            currentView.setTextColor(0xFFFFFFFF);
+                            currentView.setTextSize(14);
 
-                        if (lyricScrollMode == LYRIC_MODE_FOLLOW || !lyricsUserScrolled) {
-                            scrollOverlayToLine(currentHighlightIndex);
+                            if (lyricScrollMode == LYRIC_MODE_FOLLOW || !lyricsUserScrolled) {
+                                scrollOverlayToLine(currentHighlightIndex);
+                            }
                         }
                     }
                 }
@@ -2267,13 +2285,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         lyricsScrollHandler.removeCallbacksAndMessages(null);
         lyricsScrollRunnable = null;
         lyricsOverlayShowing = false;
-        lyricLines.clear();
+        // Keep parsed lyrics (lyricLines / translationMap / romanizationMap /
+        // currentTlyricText / currentRomalrcText) so reopening the overlay for
+        // the same song rebuilds instantly without reloading from disk/network.
         lyricViews.clear();
-        translationMap.clear();
-        romanizationMap.clear();
-        currentTlyricText = null;
-        currentRomalrcText = null;
-        translateMode = 0;
         btnTranslationToggle = null;
         currentHighlightIndex = -1;
         lyricsGestureDetector = null;
@@ -3678,6 +3693,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             currentTlyricText = null;
             currentRomalrcText = null;
             translateMode = 0;
+            lyricsCacheSongId = -1;
             currentHighlightIndex = -1;
             // Update song name label
             if (tvLyricsSongLabel != null) {
