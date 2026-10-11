@@ -152,6 +152,9 @@ public class HistoryManager {
             if (song.getFee() != 0) {
                 entry.put("fee", song.getFee());
             }
+            if (song.getAlias() != null && !song.getAlias().isEmpty()) {
+                entry.put("alias", song.getAlias());
+            }
             entry.put("timestamp", timestamp);
 
             // Add at position 0 (newest first)
@@ -205,6 +208,7 @@ public class HistoryManager {
                         entry.optString("album", "")
                 );
                 song.setFee(entry.optInt("fee", 0));
+                song.setAlias(entry.optString("alias", ""));
                 songs.add(song);
             }
         } catch (Exception e) {

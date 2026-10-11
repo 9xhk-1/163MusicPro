@@ -185,8 +185,8 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
                     if (vipBadge != null) {
                         vipBadge.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
                     }
-                    if (!android.text.TextUtils.equals(tvName.getText(), song.getName())) {
-                        tvName.setText(song.getName());
+                    if (!android.text.TextUtils.equals(tvName.getText(), song.getDisplayName())) {
+                        tvName.setText(song.getDisplayName());
                     }
                     if (!android.text.TextUtils.equals(tvArtist.getText(), song.getArtist())) {
                         tvArtist.setText(song.getArtist());
@@ -222,7 +222,7 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
             if (creatorUserId <= 0 || creatorUserId != currentUserId) return false;
 
             Song song = displayList.get(position);
-            showConfirmDialog("确认删除", "确定从歌单中删除「" + song.getName() + "」？", () -> {
+            showConfirmDialog("确认删除", "确定从歌单中删除「" + song.getDisplayName() + "」？", () -> {
                 String cookie = playerManager.getCookie();
                 if (cookie == null || cookie.isEmpty()) {
                     Toast.makeText(this, "请先登录", Toast.LENGTH_SHORT).show();

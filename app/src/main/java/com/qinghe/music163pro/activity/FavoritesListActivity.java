@@ -85,8 +85,8 @@ public class FavoritesListActivity extends BaseWatchActivity {
                     if (vipBadge != null) {
                         vipBadge.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
                     }
-                    if (!android.text.TextUtils.equals(tvName.getText(), song.getName())) {
-                        tvName.setText(song.getName());
+                    if (!android.text.TextUtils.equals(tvName.getText(), song.getDisplayName())) {
+                        tvName.setText(song.getDisplayName());
                     }
                     if (!android.text.TextUtils.equals(tvArtist.getText(), song.getArtist())) {
                         tvArtist.setText(song.getArtist());
@@ -421,7 +421,7 @@ public class FavoritesListActivity extends BaseWatchActivity {
         }
     }
     private void showUnfavoriteDialog(Song song, int position) {
-        showConfirmDialog("取消收藏", "确定取消收藏「" + song.getName() + "」？", () -> {
+        showConfirmDialog("取消收藏", "确定取消收藏「" + song.getDisplayName() + "」？", () -> {
             SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
             boolean isCloud = prefs.getBoolean("fav_mode_cloud", false);
             if (isCloud) {

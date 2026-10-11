@@ -213,6 +213,7 @@ public class FavoritesManager {
                 String url = obj.has("url") && !obj.isNull("url") ? obj.getString("url") : null;
                 song.setUrl(url);
                 song.setFee(obj.optInt("fee", 0));
+                song.setAlias(obj.optString("alias", ""));
                 list.add(song);
             }
         } catch (Exception e) {
@@ -257,6 +258,9 @@ public class FavoritesManager {
             }
             if (s.getFee() != 0) {
                 obj.put("fee", s.getFee());
+            }
+            if (s.getAlias() != null && !s.getAlias().isEmpty()) {
+                obj.put("alias", s.getAlias());
             }
             arr.put(obj);
         }
@@ -322,6 +326,7 @@ public class FavoritesManager {
                 String url = obj.has("url") && !obj.isNull("url") ? obj.getString("url") : null;
                 song.setUrl(url);
                 song.setFee(obj.optInt("fee", 0));
+                song.setAlias(obj.optString("alias", ""));
                 list.add(song);
             }
         } catch (Exception e) {

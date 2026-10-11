@@ -214,6 +214,7 @@ public class OpenShareLinkActivity extends BaseWatchActivity {
         }
         Song song = new Song(id, name, artistBuilder.toString(), album);
         song.setFee(songJson.optInt("fee", 0));
+        song.setAlias(songJson.optString("alias", ""));
         return song;
     }
 

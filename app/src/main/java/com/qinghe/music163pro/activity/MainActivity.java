@@ -214,6 +214,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
 
+        // Song alias display switch (default on)
+        Song.setAliasDisplayEnabled(prefs.getBoolean("display_song_alias", true));
+
         // Load or generate persistent device ID
         String savedDeviceId = prefs.getString("device_id", "");
         if (savedDeviceId.isEmpty()) {
@@ -1275,16 +1278,15 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     }
 
     /**
-     * The chorus marker dot belongs to the player progress bar. It must stay
-     * hidden while playback is paused or when the lyrics page (transparent
-     * overlay) covers the player.
+     * The chorus marker dot belongs to the player progress bar. It only hides
+     * while the lyrics page (transparent overlay) covers the player — pausing
+     * playback keeps it visible.
      */
     private void refreshChorusMarkerVisibility() {
         if (chorusMarkerDot == null) {
             return;
         }
-        boolean show = hasChorusRange() && playerManager != null && playerManager.isPlaying()
-                && !lyricsOverlayShowing;
+        boolean show = hasChorusRange() && !lyricsOverlayShowing;
         chorusMarkerDot.setVisibility(show ? View.VISIBLE : View.GONE);
     }
 
@@ -1497,7 +1499,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         dismissOverlay();
         Intent intent = new Intent(this, SongInfoActivity.class);
         intent.putExtra("song_id", song.getId());
-        intent.putExtra("song_name", song.getName());
+        intent.putExtra("song_name", song.getDisplayName());
         intent.putExtra("artist_name", song.getArtist());
         intent.putExtra("artist_id", 0L); // Will be extracted from wiki API
         intent.putExtra("cookie", playerManager.getCookie());
@@ -1553,7 +1555,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         dismissOverlay();
         Intent intent = new Intent(this, CommentActivity.class);
         intent.putExtra("song_id", song.getId());
-        intent.putExtra("song_name", song.getName());
+        intent.putExtra("song_name", song.getDisplayName());
         intent.putExtra("cookie", playerManager.getCookie());
         startActivity(intent);
     }
@@ -1752,7 +1754,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         // Song name at top (leave right padding for the toggle button)
         tvLyricsSongLabel = new TextView(this);
-        tvLyricsSongLabel.setText(song.getName() + " - " + song.getArtist());
+        tvLyricsSongLabel.setText(song.getDisplayName() + " - " + song.getArtist());
         tvLyricsSongLabel.setTextColor(0xFFFFFFFF);
         tvLyricsSongLabel.setTextSize(13);
         tvLyricsSongLabel.setGravity(Gravity.CENTER);
@@ -2410,7 +2412,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
             TextView tvName = new TextView(this);
             String prefix = (i == currentIndex) ? "▶ " : "";
-            tvName.setText(prefix + song.getName());
+            tvName.setText(prefix + song.getDisplayName());
             tvName.setTextColor(i == currentIndex ? 0xFFBB86FC : 0xFFFFFFFF);
             tvName.setTextSize(13);
             tvName.setSingleLine(true);
@@ -3637,7 +3639,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private void updateUI() {
         Song song = playerManager.getCurrentSong();
         if (song != null) {
-            tvSongName.setText(song.getName());
+            tvSongName.setText(song.getDisplayName());
             tvArtist.setText(song.getArtist());
             if (tvPlayerVipBadge != null) {
                 tvPlayerVipBadge.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
@@ -3672,13 +3674,13 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
     @Override
     public void onSongChanged(Song song) {
-        tvSongName.setText(song.getName());
+        tvSongName.setText(song.getDisplayName());
         tvArtist.setText(song.getArtist());
         if (tvPlayerVipBadge != null) {
             tvPlayerVipBadge.setVisibility(song != null && song.isVip() ? View.VISIBLE : View.GONE);
         }
         ensureChorusLoaded(song);
-        startPlaybackService(song.getName(), song.getArtist(), song.getCoverUrl(), true);
+        startPlaybackService(song.getDisplayName(), song.getArtist(), song.getCoverUrl(), true);
         // Save to play history
         HistoryManager.getInstance().addToHistory(song);
         // Refresh lyrics overlay if it is currently showing
@@ -3697,7 +3699,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             currentHighlightIndex = -1;
             // Update song name label
             if (tvLyricsSongLabel != null) {
-                tvLyricsSongLabel.setText(song.getName() + " - " + song.getArtist());
+                tvLyricsSongLabel.setText(song.getDisplayName() + " - " + song.getArtist());
             }
             // Hide translation button until we know if new song has translation
             if (btnTranslationToggle != null) {
@@ -3719,6 +3721,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         if (!BackgroundUtil.MODE_COVER.equals(BackgroundUtil.getMode(this))) {
             return;
         }
+        // Whatever path we take below, any cover download still in flight for
+        // a previously current song must no longer be allowed to commit.
+        BackgroundUtil.invalidateCoverLoads();
         final View root = getWindow().getDecorView().findViewById(android.R.id.content);
         // Always follow the current song (not another playlist entry) so modes
         // like 私人漫游 switch the background on every song change.
@@ -3753,14 +3758,18 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 playerManager.getCookie(), new MusicApiHelper.BatchSongDetailsCallback() {
                     @Override
                     public void onResult(java.util.Map<Long, Song> songMap) {
-                        coverFetchInFlightId = -1;
+                        if (coverFetchInFlightId == songId) {
+                            coverFetchInFlightId = -1;
+                        }
                         Song detail = songMap != null ? songMap.get(songId) : null;
                         String fetched = detail != null ? detail.getCoverUrl() : null;
                         if (fetched != null && !fetched.isEmpty()) {
                             song.setCoverUrl(fetched);
                             playerManager.savePlaybackState();
-                            updateCoverBackground();
-                        } else {
+                            if (isCurrentSong(songId)) {
+                                updateCoverBackground();
+                            }
+                        } else if (isCurrentSong(songId)) {
                             BackgroundUtil.clearCoverBackground();
                             BackgroundUtil.applyBackground(MainActivity.this, root);
                         }
@@ -3768,11 +3777,20 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
                     @Override
                     public void onError(String message) {
-                        coverFetchInFlightId = -1;
-                        BackgroundUtil.clearCoverBackground();
-                        BackgroundUtil.applyBackground(MainActivity.this, root);
+                        if (coverFetchInFlightId == songId) {
+                            coverFetchInFlightId = -1;
+                        }
+                        if (isCurrentSong(songId)) {
+                            BackgroundUtil.clearCoverBackground();
+                            BackgroundUtil.applyBackground(MainActivity.this, root);
+                        }
                     }
                 });
+    }
+
+    private boolean isCurrentSong(long songId) {
+        Song current = playerManager.getCurrentSong();
+        return current != null && current.getId() == songId;
     }
 
     @Override
@@ -3786,7 +3804,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         refreshChorusMarkerVisibility();
         // Always update notification with current play state
         Song song = playerManager.getCurrentSong();
-        String name = song != null ? song.getName() : "";
+        String name = song != null ? song.getDisplayName() : "";
         String artist = song != null ? song.getArtist() : "";
         String coverUrl = song != null ? song.getCoverUrl() : "";
         startPlaybackService(name, artist, coverUrl, isPlaying);

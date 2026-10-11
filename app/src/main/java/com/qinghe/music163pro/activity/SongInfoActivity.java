@@ -507,7 +507,7 @@ public class SongInfoActivity extends AppCompatActivity {
                 // Second pass: display
                 for (int i = 0; i < blockSongList.size(); i++) {
                     Song s = blockSongList.get(i);
-                    String display = s.getArtist().isEmpty() ? s.getName() : s.getName() + " - " + s.getArtist();
+                    String display = s.getArtist().isEmpty() ? s.getDisplayName() : s.getDisplayName() + " - " + s.getArtist();
                     if (isSongBlock) {
                         final int idx = currentBlockSongs.size() - blockSongList.size() + i;
                         TextView tv = makeText("▶ " + display, COLOR_ACCENT, px(14), false, Gravity.START);

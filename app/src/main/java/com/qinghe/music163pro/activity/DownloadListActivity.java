@@ -65,8 +65,8 @@ public class DownloadListActivity extends BaseWatchActivity {
                     ImageView ivCover = view.findViewById(R.id.iv_cover);
                     tvName.setSelected(true);
                     tvArtist.setSelected(true);
-                    if (!android.text.TextUtils.equals(tvName.getText(), song.getName())) {
-                        tvName.setText(song.getName());
+                    if (!android.text.TextUtils.equals(tvName.getText(), song.getDisplayName())) {
+                        tvName.setText(song.getDisplayName());
                     }
                     if (!android.text.TextUtils.equals(tvArtist.getText(), song.getArtist())) {
                         tvArtist.setText(song.getArtist());
@@ -90,7 +90,7 @@ public class DownloadListActivity extends BaseWatchActivity {
 
         lvDownloads.setOnItemLongClickListener((parent, view, position, id) -> {
             Song song = downloadedSongs.get(position);
-            showConfirmDialog("确认删除", "确定删除「" + song.getName() + "」？\n文件将被永久删除。", () -> {
+            showConfirmDialog("确认删除", "确定删除「" + song.getDisplayName() + "」？\n文件将被永久删除。", () -> {
                 boolean deleted = DownloadManager.deleteDownload(song);
                 if (deleted) {
                     Toast.makeText(this, "已删除", Toast.LENGTH_SHORT).show();

@@ -46,6 +46,9 @@ public final class BackgroundUtil {
     // Album-cover background, kept in memory only.
     private static Bitmap sCoverBg;
     private static String sCoverBgUrl;
+    // Monotonic load token: only the newest in-flight load may commit its
+    // result, so rapid song switches can't apply a stale cover afterwards.
+    private static int sCoverLoadSeq = 0;
 
     private BackgroundUtil() {
     }
@@ -103,11 +106,21 @@ public final class BackgroundUtil {
     }
 
     /**
+     * Invalidate any in-flight cover download so its (now stale) result will
+     * be discarded instead of being committed after a rapid song switch.
+     */
+    public static void invalidateCoverLoads() {
+        sCoverLoadSeq++;
+    }
+
+    /**
      * Download the cover and keep a darkened copy in memory (no disk write).
      * onReady runs on the main thread whether it succeeded or failed.
      */
     public static void loadCoverBackground(final Context context, final String url,
                                            final Runnable onReady) {
+        sCoverLoadSeq++; // supersede older in-flight loads
+        final int seq = sCoverLoadSeq;
         if (url == null || url.isEmpty()) {
             clearCoverBackground();
             if (onReady != null) MAIN.post(onReady);
@@ -123,6 +136,11 @@ public final class BackgroundUtil {
             Bitmap raw = downloadBitmap(appContext, targetUrl);
             final Bitmap dimmed = raw != null ? dimBitmap(raw, appContext) : null;
             MAIN.post(() -> {
+                if (seq != sCoverLoadSeq) {
+                    // A newer load started while this one was downloading.
+                    if (dimmed != null) dimmed.recycle();
+                    return;
+                }
                 if (dimmed != null) {
                     sCoverBg = dimmed;
                     sCoverBgUrl = targetUrl;

@@ -121,8 +121,8 @@ public class HistoryActivity extends BaseWatchActivity {
                     if (vipBadge != null) {
                         vipBadge.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
                     }
-                    if (!android.text.TextUtils.equals(tvName.getText(), song.getName())) {
-                        tvName.setText(song.getName());
+                    if (!android.text.TextUtils.equals(tvName.getText(), song.getDisplayName())) {
+                        tvName.setText(song.getDisplayName());
                     }
                     if (!android.text.TextUtils.equals(tvArtist.getText(), song.getArtist())) {
                         tvArtist.setText(song.getArtist());
@@ -152,7 +152,7 @@ public class HistoryActivity extends BaseWatchActivity {
 
         lvHistory.setOnItemLongClickListener((parent, view, position, id) -> {
             Song song = displayList.get(position);
-            showConfirmDialog("确认删除", "确定删除「" + song.getName() + "」的播放记录？", () -> {
+            showConfirmDialog("确认删除", "确定删除「" + song.getDisplayName() + "」的播放记录？", () -> {
                 HistoryManager.getInstance().removeFromHistory(song.getId());
                 loadHistory();
                 Toast.makeText(this, "已删除", Toast.LENGTH_SHORT).show();

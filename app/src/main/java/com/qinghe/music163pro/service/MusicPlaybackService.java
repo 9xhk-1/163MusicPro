@@ -286,10 +286,10 @@ public class MusicPlaybackService extends Service {
                 .build());
         Song currentSong = player.getCurrentSong();
         if (currentSong != null) {
-            currentSongName = currentSong.getName();
+            currentSongName = currentSong.getDisplayName();
             currentArtist = currentSong.getArtist();
             mediaSession.setMetadata(new MediaMetadata.Builder()
-                    .putString(MediaMetadata.METADATA_KEY_TITLE, currentSong.getName())
+                    .putString(MediaMetadata.METADATA_KEY_TITLE, currentSong.getDisplayName())
                     .putString(MediaMetadata.METADATA_KEY_ARTIST, currentSong.getArtist())
                     .build());
         }

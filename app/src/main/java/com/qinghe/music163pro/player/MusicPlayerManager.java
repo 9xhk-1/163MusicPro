@@ -40,6 +40,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MusicPlayerManager {
 
@@ -662,6 +663,7 @@ public class MusicPlayerManager {
                 trialSkipStreak = 0;
                 song.setUrl(freshUrl);
                 currentlyPlayingSongId = song.getId();
+                reportScrobbleStart(song);
                 play(freshUrl);
             }
 
@@ -670,6 +672,7 @@ public class MusicPlayerManager {
                 // Fallback: try cached URL if available
                 if (song.getUrl() != null && !song.getUrl().isEmpty()) {
                     currentlyPlayingSongId = song.getId();
+                    reportScrobbleStart(song);
                     play(song.getUrl());
                 } else if (callback != null) {
                     mainHandler.post(() -> callback.onError("无法获取歌曲链接: " + message));
@@ -693,7 +696,7 @@ public class MusicPlayerManager {
     private void onTrialOnlySong(Song song) {
         trialSkipStreak++;
         if (callback != null) {
-            final String songName = song.getName();
+            final String songName = song.getDisplayName();
             mainHandler.post(() -> callback.onError("已跳过试听歌曲: " + songName));
         }
         if (playlist.isEmpty()) {
@@ -736,6 +739,57 @@ public class MusicPlayerManager {
         return song.isForceLocalPlayback() || (url != null && url.startsWith("/"));
     }
 
+    private final ConcurrentHashMap<String, Long> scrobbleThrottle = new ConcurrentHashMap<>();
+
+    /** Min interval (ms) between identical scrobble reports of the same song. */
+    private static final long SCROBBLE_THROTTLE_MS = 60_000L;
+
+    /**
+     * Collapse bursts of identical reports (e.g. replay loops after a playback
+     * failure). key = report kind + song id (+ seconds for end reports).
+     */
+    private boolean shouldThrottleScrobble(String key) {
+        long now = System.currentTimeMillis();
+        Long last = scrobbleThrottle.get(key);
+        if (last != null && now - last < SCROBBLE_THROTTLE_MS) {
+            Log.d(TAG, "听歌打卡节流跳过: " + key);
+            return true;
+        }
+        scrobbleThrottle.put(key, now);
+        for (Map.Entry<String, Long> e : scrobbleThrottle.entrySet()) {
+            if (now - e.getValue() >= SCROBBLE_THROTTLE_MS) {
+                scrobbleThrottle.remove(e.getKey());
+            }
+        }
+        return false;
+    }
+
+    /**
+     * sourceid is required by /scrobble: prefer the source playlist, fall back
+     * to the song's album id, else 0.
+     */
+    private long resolveScrobbleSourceId(Song song) {
+        if (hasSourcePlaylist()) {
+            return sourcePlaylistId;
+        }
+        return song.getAlbumId() > 0 ? song.getAlbumId() : 0L;
+    }
+
+    /**
+     * Report playback start immediately (time = 0) so the song appears in
+     * NetEase recent plays even when the session ends abruptly.
+     */
+    private void reportScrobbleStart(Song song) {
+        if (song == null || song.getId() <= 0 || song.isBilibili()) {
+            return;
+        }
+        if (shouldThrottleScrobble("start:" + song.getId())) {
+            return;
+        }
+        MusicApiHelper.scrobble(song.getId(), resolveScrobbleSourceId(song), 0,
+                isCurrentLocalPlayback(), true, getCookie());
+    }
+
     /**
      * Report current song playback to NetEase (/scrobble). When naturalEnd is
      * true the song played to the end (time = duration); otherwise the manual
@@ -755,9 +809,11 @@ public class MusicPlayerManager {
                 return;
             }
         }
-        long sourceId = hasSourcePlaylist() ? sourcePlaylistId : 0L;
-        MusicApiHelper.scrobble(song.getId(), sourceId, seconds,
-                isCurrentLocalPlayback(), getCookie());
+        if (shouldThrottleScrobble("end:" + song.getId() + ":" + seconds)) {
+            return;
+        }
+        MusicApiHelper.scrobble(song.getId(), resolveScrobbleSourceId(song), seconds,
+                isCurrentLocalPlayback(), false, getCookie());
     }
 
     /**
@@ -1339,6 +1395,9 @@ public class MusicPlayerManager {
                 if (current.getFee() != 0) {
                     songJson.put("fee", current.getFee());
                 }
+                if (current.getAlias() != null && !current.getAlias().isEmpty()) {
+                    songJson.put("alias", current.getAlias());
+                }
                 if (current.isForceLocalPlayback()) {
                     songJson.put(KEY_FORCE_LOCAL_PLAYBACK, true);
                 }
@@ -1366,6 +1425,9 @@ public class MusicPlayerManager {
                 }
                 if (s.getFee() != 0) {
                     obj.put("fee", s.getFee());
+                }
+                if (s.getAlias() != null && !s.getAlias().isEmpty()) {
+                    obj.put("alias", s.getAlias());
                 }
                 if (s.isForceLocalPlayback()) obj.put(KEY_FORCE_LOCAL_PLAYBACK, true);
                 playlistArr.put(obj);
@@ -1437,6 +1499,7 @@ public class MusicPlayerManager {
                     song.setAlbumId(albumId);
                 }
                 song.setFee(obj.optInt("fee", 0));
+                song.setAlias(obj.optString("alias", ""));
                 song.setForceLocalPlayback(obj.optBoolean(KEY_FORCE_LOCAL_PLAYBACK, false));
                 restoredList.add(song);
             }
@@ -1487,7 +1550,7 @@ public class MusicPlayerManager {
         if (callback == null) {
             return;
         }
-        String songName = song != null && !TextUtils.isEmpty(song.getName()) ? song.getName() : "当前歌曲";
+        String songName = song != null && !TextUtils.isEmpty(song.getDisplayName()) ? song.getDisplayName() : "当前歌曲";
         mainHandler.post(() -> callback.onError(
                 songName + " 仅支持本地播放，但本地文件未找到。请在下载列表中重新下载"));
     }

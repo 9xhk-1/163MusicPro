@@ -26,6 +26,11 @@ public class Song implements Serializable {
     private long albumId;
     /** NetEase fee flag: 1 = VIP song, 0 = free, etc. */
     private int fee;
+    /** NetEase song alias (alia[0]); null/empty when the song has none. */
+    private String alias;
+
+    /** Global switch: show alias after the name in UI (default on). */
+    private static volatile boolean aliasDisplayEnabled = true;
 
     public Song() {}
 
@@ -41,6 +46,30 @@ public class Song implements Serializable {
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+
+    public String getAlias() { return alias; }
+    public void setAlias(String alias) { this.alias = alias; }
+
+    public static void setAliasDisplayEnabled(boolean enabled) {
+        aliasDisplayEnabled = enabled;
+    }
+
+    public static boolean isAliasDisplayEnabled() {
+        return aliasDisplayEnabled;
+    }
+
+    /**
+     * UI text for the song name. When the "show alias" switch is on and the
+     * song has a NetEase alias (alia), it renders as 名称（别名）.
+     * File paths / persistence must keep using {@link #getName()}.
+     */
+    public String getDisplayName() {
+        if (aliasDisplayEnabled && alias != null && !alias.isEmpty()
+                && name != null && !name.isEmpty()) {
+            return name + "（" + alias + "）";
+        }
+        return name;
+    }
 
     @Override
     public String toString() { return name != null ? name : ""; }

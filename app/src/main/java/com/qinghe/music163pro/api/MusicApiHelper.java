@@ -427,6 +427,7 @@ public class MusicApiHelper {
                     }
                     Song song = new Song(id, name, artist, album);
                     song.setFee(s.optInt("fee", 0));
+                    song.setAlias(firstAlias(s));
                     if (!coverUrl.isEmpty()) {
                         song.setCoverUrl(coverUrl);
                     }
@@ -885,10 +886,12 @@ public class MusicApiHelper {
     /**
      * 听歌打卡：上报播放历史（matches NeteaseCloudMusicApiBackup module/scrobble.js，
      * POST /api/feedback/weblog with action=play）。downloadPlay=true 表示本次播放
-     * 来自已下载的本地歌曲。
+     * 来自已下载的本地歌曲。start=true 表示播放刚开始（time=0，立即上报，保证
+     * 即便会话中断也会留下记录）；end 报告 time 为已听秒数。weapi 加密前会像
+     * util/request.js 一样注入顶层 csrf_token。
      */
     public static void scrobble(long songId, long sourceId, int seconds,
-                                boolean downloadPlay, String cookie) {
+                                boolean downloadPlay, boolean start, String cookie) {
         executor.execute(() -> {
             try {
                 JSONObject json = new JSONObject();
@@ -896,7 +899,7 @@ public class MusicApiHelper {
                 json.put("end", "playend");
                 json.put("id", songId);
                 json.put("sourceId", sourceId);
-                json.put("time", seconds);
+                json.put("time", Math.max(0, seconds));
                 json.put("type", "song");
                 json.put("wifi", 0);
                 json.put("source", "list");
@@ -911,10 +914,14 @@ public class MusicApiHelper {
                 logs.put(entry);
                 JSONObject data = new JSONObject();
                 data.put("logs", logs.toString());
+                String csrfToken = extractCsrfToken(cookie);
+                if (csrfToken != null && !csrfToken.isEmpty()) {
+                    data.put("csrf_token", csrfToken);
+                }
 
                 weapiPost("/api/feedback/weblog", data.toString(), cookie);
                 MusicLog.d(TAG, "听歌打卡上报成功: id=" + songId + " time=" + seconds
-                        + "s download=" + downloadPlay);
+                        + "s download=" + downloadPlay + (start ? " start" : ""));
             } catch (Exception e) {
                 MusicLog.w(TAG, "听歌打卡上报失败: " + songId, e);
             }
@@ -2252,6 +2259,7 @@ public class MusicApiHelper {
                         }
                         Song fmSong = new Song(id, name, artist, album);
                         fmSong.setFee(s.optInt("fee", 0));
+                        fmSong.setAlias(firstAlias(s));
                         if (!cover.isEmpty()) {
                             fmSong.setCoverUrl(cover);
                         }
@@ -2305,6 +2313,7 @@ public class MusicApiHelper {
                         }
                         Song fmSong = new Song(id, name, artist, album);
                         fmSong.setFee(s.optInt("fee", 0));
+                        fmSong.setAlias(firstAlias(s));
                         if (!cover.isEmpty()) {
                             fmSong.setCoverUrl(cover);
                         }
@@ -3185,6 +3194,23 @@ public class MusicApiHelper {
         return "";
     }
 
+    /**
+     * First non-empty entry of the NetEase "alia" array (歌曲别名),
+     * or null when the song has no alias.
+     */
+    private static String firstAlias(JSONObject songObj) {
+        JSONArray alia = songObj.optJSONArray("alia");
+        if (alia != null) {
+            for (int i = 0; i < alia.length(); i++) {
+                String a = alia.optString(i, "");
+                if (!a.isEmpty()) {
+                    return a;
+                }
+            }
+        }
+        return null;
+    }
+
     private static String joinArtistNames(JSONArray artists) {
         if (artists == null || artists.length() == 0) {
             return "";
@@ -3386,6 +3412,7 @@ public class MusicApiHelper {
         }
         Song parsedSong = new Song(songId, songName, artist, album);
         parsedSong.setFee(songObj.optInt("fee", 0));
+        parsedSong.setAlias(firstAlias(songObj));
         if (!coverUrl.isEmpty()) {
             parsedSong.setCoverUrl(coverUrl);
         }
@@ -3440,6 +3467,7 @@ public class MusicApiHelper {
         if (parsedSong != null && hasSimpleSong) {
             item.setSongId(parsedSong.getId());
             item.setSongName(parsedSong.getName());
+            item.setAlias(parsedSong.getAlias());
             item.setArtist(parsedSong.getArtist());
             item.setAlbum(parsedSong.getAlbum());
         }
@@ -3640,6 +3668,7 @@ public class MusicApiHelper {
         }
         Song recogSong = new Song(songId, songName, artist, album);
         recogSong.setFee(songObj.optInt("fee", 0));
+        recogSong.setAlias(firstAlias(songObj));
         return recogSong;
     }
 

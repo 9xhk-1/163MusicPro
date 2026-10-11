@@ -54,8 +54,8 @@ public class DailyRecommendActivity extends BaseWatchActivity {
                     if (vipBadge != null) {
                         vipBadge.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
                     }
-                    if (!android.text.TextUtils.equals(tvName.getText(), song.getName())) {
-                        tvName.setText(song.getName());
+                    if (!android.text.TextUtils.equals(tvName.getText(), song.getDisplayName())) {
+                        tvName.setText(song.getDisplayName());
                     }
                     if (!android.text.TextUtils.equals(tvArtist.getText(), song.getArtist())) {
                         tvArtist.setText(song.getArtist());
