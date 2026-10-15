@@ -1,6 +1,5 @@
 package com.qinghe.music163pro.activity;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -13,22 +12,23 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.api.MusicApiHelper;
+import com.qinghe.music163pro.api.NeteaseWatchApi;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.util.MusicLog;
 
 /**
- * SMS Login Activity.
- * Two-step flow:
- * 1. Send SMS verification code to phone number
- * 2. Login with phone + verification code
+ * SMS Captcha Login Activity (Watch gateway).
+ * Two-step flow using NeteaseWatchApi (docs/163watch.md):
+ * 1. /eapi/sms/captcha/sent - send SMS verification code
+ * 2. /eapi/login/cellphone  - login with phone + captcha
  *
- * If server returns -462 (needs CAPTCHA), launches WebVerifyActivity and
- * retries login automatically after WebView verification completes.
+ * On success: saves cookie, shows "成功登录：昵称" and returns to
+ * the login main page which refreshes into the logged-in style.
  */
 public class SmsLoginActivity extends AppCompatActivity {
 
     private static final String TAG = "SmsLoginActivity";
-    private static final int REQ_WEB_VERIFY = 201;
+    private static final String PREFS_NAME = "music163_settings";
 
     private EditText etPhone;
     private EditText etCode;
@@ -38,10 +38,6 @@ public class SmsLoginActivity extends AppCompatActivity {
 
     private final Handler handler = new Handler();
     private int countdown = 0;
-
-    /** Saved phone/code for retry after WebView verification */
-    private String pendingPhone;
-    private String pendingCode;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,7 +64,7 @@ public class SmsLoginActivity extends AppCompatActivity {
         btnSendCode.setEnabled(false);
         tvStatus.setText("正在发送验证码...");
 
-        MusicApiHelper.sendSmsCode(phone, "86", new MusicApiHelper.SmsCallback() {
+        NeteaseWatchApi.sendSmsCaptcha(phone, "86", new NeteaseWatchApi.WatchSmsCallback() {
             @Override
             public void onResult(boolean success, String message) {
                 tvStatus.setText(message);
@@ -127,26 +123,16 @@ public class SmsLoginActivity extends AppCompatActivity {
         btnLogin.setEnabled(false);
         tvStatus.setText("正在登录...");
 
-        pendingPhone = phone;
-        pendingCode = code;
-        attemptLogin(phone, code);
-    }
-
-    private void attemptLogin(String phone, String code) {
-        MusicApiHelper.loginByCellphone(phone, code, "86",
-                new MusicApiHelper.LoginCallback() {
+        NeteaseWatchApi.loginByCellphone(phone, code, "86",
+                new NeteaseWatchApi.WatchLoginCallback() {
                     @Override
-                    public void onResult(int resultCode, String message, String cookie) {
-                        if (resultCode == 200) {
-                            if (cookie == null || cookie.isEmpty()) {
-                                tvStatus.setText("登录成功但未获取到Cookie");
-                                btnLogin.setEnabled(true);
-                                return;
-                            }
-                            tvStatus.setText("登录成功!");
-                            saveCookie(cookie);
-                            Toast.makeText(SmsLoginActivity.this,
-                                    "登录成功，Cookie已保存", Toast.LENGTH_LONG).show();
+                    public void onResult(int resultCode, String message,
+                                          String cookie, String nickname, long userId) {
+                        if (resultCode == 200 && cookie != null && !cookie.isEmpty()) {
+                            saveCookie(cookie, userId);
+                            String tip = "成功登录：" + (nickname.isEmpty() ? "未知用户" : nickname);
+                            tvStatus.setText(tip);
+                            Toast.makeText(SmsLoginActivity.this, tip, Toast.LENGTH_LONG).show();
                             handler.postDelayed(() -> finish(), 1500);
                         } else {
                             tvStatus.setText("登录失败: " + message);
@@ -159,45 +145,19 @@ public class SmsLoginActivity extends AppCompatActivity {
                         tvStatus.setText("登录失败: " + message);
                         btnLogin.setEnabled(true);
                     }
-
-                    @Override
-                    public void onVerificationRequired(String verifyUrl) {
-                        MusicLog.i(TAG, "需要滑块验证，打开WebView: " + verifyUrl);
-                        tvStatus.setText("需要安全验证，请在浏览器中完成...");
-                        if (verifyUrl == null || verifyUrl.isEmpty()) {
-                            tvStatus.setText("验证地址无效，请稍后重试");
-                            btnLogin.setEnabled(true);
-                            return;
-                        }
-                        Intent intent = new Intent(SmsLoginActivity.this, WebVerifyActivity.class);
-                        intent.putExtra(WebVerifyActivity.EXTRA_URL, verifyUrl);
-                        startActivityForResult(intent, REQ_WEB_VERIFY);
-                    }
                 });
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQ_WEB_VERIFY) {
-            if (resultCode == Activity.RESULT_OK && pendingPhone != null && pendingCode != null) {
-                // WebView verification done — retry login
-                tvStatus.setText("验证完成，正在重新登录...");
-                btnLogin.setEnabled(false);
-                MusicLog.i(TAG, "WebView验证完成，重新尝试登录");
-                attemptLogin(pendingPhone, pendingCode);
-            } else {
-                tvStatus.setText("验证已取消");
-                btnLogin.setEnabled(true);
-            }
-        }
-    }
-
-    private void saveCookie(String cookie) {
+    private void saveCookie(String cookie, long userId) {
         if (cookie == null || cookie.isEmpty()) return;
-        SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
-        prefs.edit().putString("cookie", cookie).apply();
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit().putString("cookie", cookie);
+        if (userId > 0) {
+            editor.putLong("current_user_id", userId);
+        }
+        editor.apply();
         MusicPlayerManager.getInstance().setCookie(cookie);
+        MusicLog.op(TAG, "验证码登录成功", "uid=" + userId);
     }
 
     @Override
@@ -206,4 +166,3 @@ public class SmsLoginActivity extends AppCompatActivity {
         handler.removeCallbacks(countdownRunnable);
     }
 }
-

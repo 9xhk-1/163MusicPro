@@ -80,6 +80,22 @@ public class NeteaseApiCrypto {
     }
 
     /**
+     * eapi response decryption: AES-128-ECB decrypt with the same EAPI key.
+     * Returns plaintext string, or null if decryption fails.
+     */
+    public static String eapiDecrypt(byte[] encrypted) {
+        try {
+            SecretKeySpec keySpec = new SecretKeySpec(EAPI_KEY.getBytes("UTF-8"), "AES");
+            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+            cipher.init(Cipher.DECRYPT_MODE, keySpec);
+            byte[] decrypted = cipher.doFinal(encrypted);
+            return new String(decrypted, "UTF-8");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
      * AES-128-CBC encryption with PKCS5Padding, returns Base64
      */
     private static String aesEncryptCBC(String plaintext, String key, String iv) {

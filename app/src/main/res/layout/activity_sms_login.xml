@@ -10,24 +10,25 @@
         android:layout_height="wrap_content"
         android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:padding="8dp">
+        android:padding="12dp">
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:text="@string/sms_login"
-            android:textColor="@color/white"
-            android:textSize="15sp"
+            android:text="@string/captcha_login"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
             android:textStyle="bold"
-            android:paddingBottom="6dp" />
+            android:letterSpacing="0.05"
+            android:paddingBottom="8dp" />
 
         <!-- Phone number -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/phone_label"
-            android:textColor="@color/gray_text"
+            android:textColor="@color/text_secondary"
             android:textSize="11sp"
             android:paddingBottom="2dp" />
 
@@ -35,74 +36,68 @@
             android:id="@+id/et_phone"
             android:layout_width="match_parent"
             android:layout_height="36dp"
-            android:background="@color/gray_light"
+            android:background="@color/surface_elevated"
             android:hint="@string/phone_hint"
             android:inputType="phone"
             android:padding="6dp"
             android:singleLine="true"
-            android:textColor="@color/black"
-            android:textColorHint="@color/gray_text"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_disabled"
             android:textSize="13sp" />
 
         <!-- Send code button -->
-        <TextView
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_send_code"
             android:layout_width="match_parent"
-            android:layout_height="34dp"
-            android:layout_marginTop="4dp"
-            android:background="@color/colorAccent"
-            android:gravity="center"
+            android:layout_height="36dp"
+            android:layout_marginTop="6dp"
             android:text="@string/send_code"
-            android:textColor="@color/white"
             android:textSize="13sp"
-            android:clickable="true"
-            android:focusable="true" />
+            android:textAllCaps="false"
+            style="@style/Widget.App.Button" />
 
         <!-- Verification code -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
             android:text="@string/code_label"
-            android:textColor="@color/gray_text"
+            android:textColor="@color/text_secondary"
             android:textSize="11sp"
-            android:paddingTop="6dp"
             android:paddingBottom="2dp" />
 
         <EditText
             android:id="@+id/et_code"
             android:layout_width="match_parent"
             android:layout_height="36dp"
-            android:background="@color/gray_light"
+            android:background="@color/surface_elevated"
             android:hint="@string/code_hint"
             android:inputType="number"
             android:padding="6dp"
             android:singleLine="true"
-            android:textColor="@color/black"
-            android:textColorHint="@color/gray_text"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_disabled"
             android:textSize="13sp" />
 
         <!-- Login button -->
-        <TextView
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_sms_login"
             android:layout_width="match_parent"
-            android:layout_height="34dp"
-            android:layout_marginTop="4dp"
-            android:background="@color/colorPrimary"
-            android:gravity="center"
+            android:layout_height="36dp"
+            android:layout_marginTop="6dp"
             android:text="@string/login"
-            android:textColor="@color/white"
             android:textSize="13sp"
-            android:clickable="true"
-            android:focusable="true" />
+            android:textAllCaps="false"
+            style="@style/Widget.App.Button.Outlined" />
 
         <!-- Status text -->
         <TextView
             android:id="@+id/tv_sms_status"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="6dp"
             android:gravity="center"
-            android:textColor="@color/gray_text"
+            android:textColor="@color/text_secondary"
             android:textSize="11sp" />
 
     </LinearLayout>
