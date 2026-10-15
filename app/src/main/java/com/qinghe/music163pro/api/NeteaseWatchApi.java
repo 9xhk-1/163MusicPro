@@ -201,10 +201,11 @@ public final class NeteaseWatchApi {
                 final long okUid = userId;
                 final String okCookie = code == 200 && cookie.contains("MUSIC_U") ? cookie : "";
                 final String okMsg = message;
+                final boolean okHasSession = hasSession;
 
                 if (code == 200 && okCookie.isEmpty()) {
                     mainHandler.post(() -> callback.onResult(okCode,
-                            hasSession ? "登录成功但未获取到Cookie" : okMsg, "", okNick, okUid));
+                            okHasSession ? "登录成功但未获取到Cookie" : okMsg, "", okNick, okUid));
                     return;
                 }
                 mainHandler.post(() -> callback.onResult(okCode, okMsg, okCookie, okNick, okUid));
@@ -287,7 +288,7 @@ public final class NeteaseWatchApi {
      * Same shape as _get_cookies_as_header_dict() in the Python client,
      * plus static device identity fields.
      */
-    private static JSONObject buildHeader() {
+    private static JSONObject buildHeader() throws org.json.JSONException {
         JSONObject header = new JSONObject();
         Map<String, String> snapshot;
         synchronized (cookieJar) {
@@ -326,7 +327,12 @@ public final class NeteaseWatchApi {
             }
         }
         // 3) Hex-encoded ciphertext
-        String trimmed = new String(raw, "UTF-8").trim();
+        String trimmed;
+        try {
+            trimmed = new String(raw, "UTF-8").trim();
+        } catch (Exception e) {
+            return null;
+        }
         if (isHex(trimmed) && trimmed.length() % 2 == 0) {
             try {
                 byte[] bytes = new byte[trimmed.length() / 2];
