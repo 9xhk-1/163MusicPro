@@ -57,6 +57,25 @@ public final class NeteaseWatchApi {
     private static final int CONNECT_TIMEOUT_MS = 15000;
     private static final int READ_TIMEOUT_MS = 15000;
 
+    /**
+     * Real XTC watch device identity cookies (captured from /sdcard/cookie.txt
+     * on the watch). Merged into EVERY request: payload "header" object and
+     * the Cookie request header. os=andrwear (not "android") is what the real
+     * watch client sends — the gateway expects it.
+     */
+    private static final String[][] DEVICE_COOKIES = {
+            {"osver", "13"},
+            {"appver", "2.9.105"},
+            {"versioncode", "29105"},
+            {"mobilename", "Z9"},
+            {"distributeChannel", "andrwear%24%7B%22channel%22%3A%22xtc-store%22%7D"},
+            {"buildver", "1776866597"},
+            {"resolution", "360x320"},
+            {"brand", "XTC"},
+            {"os", "andrwear"},
+            {"channel", "xtc-store"},
+    };
+
     private static final ExecutorService executor = Executors.newCachedThreadPool();
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -290,6 +309,10 @@ public final class NeteaseWatchApi {
      */
     private static JSONObject buildHeader() throws org.json.JSONException {
         JSONObject header = new JSONObject();
+        // Real watch device identity first (session values may override below)
+        for (String[] kv : DEVICE_COOKIES) {
+            header.put(kv[0], kv[1]);
+        }
         Map<String, String> snapshot;
         synchronized (cookieJar) {
             snapshot = new LinkedHashMap<>(cookieJar);
@@ -372,14 +395,15 @@ public final class NeteaseWatchApi {
         }
     }
 
-    /** Render the session jar as a Cookie request header. */
+    /** Render the session jar + device identity as a Cookie request header. */
     private static String cookieJarToString() {
         StringBuilder sb = new StringBuilder();
-        // Static device cookies first, jar values override them
+        // Real watch device cookies first; session jar values override them
         Map<String, String> base = new LinkedHashMap<>();
+        for (String[] kv : DEVICE_COOKIES) {
+            base.put(kv[0], kv[1]);
+        }
         base.put("__remember_me", "true");
-        base.put("os", "android");
-        base.put("deviceId", deviceId);
         base.put("NMTID", randomHex(16));
         base.put("_ntes_nuid", randomHex(16));
         synchronized (cookieJar) {
