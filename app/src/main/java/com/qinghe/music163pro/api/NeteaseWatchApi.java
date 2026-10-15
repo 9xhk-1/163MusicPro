@@ -181,10 +181,13 @@ public final class NeteaseWatchApi {
                     }
                 }
 
+                final int okCode = code;
+                final String okNick = nickname;
+                final long okUid = userId;
                 if (code == 200 && !cookie.contains("MUSIC_U")) {
                     // Success but no usable session
-                    mainHandler.post(() -> callback.onResult(code, "登录成功但未获取到Cookie",
-                            "", nickname, userId));
+                    mainHandler.post(() -> callback.onResult(okCode, "登录成功但未获取到Cookie",
+                            "", okNick, okUid));
                     return;
                 }
 
