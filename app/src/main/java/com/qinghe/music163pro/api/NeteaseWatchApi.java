@@ -50,9 +50,15 @@ public final class NeteaseWatchApi {
     /** Watch client secret required by the captcha-sent endpoint. */
     private static final String WATCH_SECRET = "music_middleuser_andrwarelogin";
 
-    // Same UA as the reference Python client (known to work with the gateway)
+    // Exact UA captured from the real watch app request:
+    // NeteaseMusic/2.9.105.1776866597(29105);Dalvik/2.1.0 (Linux; U; Android 13; Z9 Build/OPM1.171019.026)
     private static final String WATCH_USER_AGENT =
-            "Mozilla/5.0 (Android; Mobile) Xiaomi/XTC Child Watch";
+            "NeteaseMusic/2.9.105.1776866597(29105);Dalvik/2.1.0 "
+            + "(Linux; U; Android 13; Z9 Build/OPM1.171019.026)";
+
+    /** Captured mconfig-info header value (static in the real client). */
+    private static final String MCONFIG_INFO =
+            "{\"IuRPVVmc3WWul9fT\":{\"version\":\"135168\",\"appver\":\"2.9.105\"}}";
 
     private static final int CONNECT_TIMEOUT_MS = 15000;
     private static final int READ_TIMEOUT_MS = 15000;
@@ -79,8 +85,10 @@ public final class NeteaseWatchApi {
     private static final ExecutorService executor = Executors.newCachedThreadPool();
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
 
-    private static String deviceId = UUID.randomUUID().toString().replace("-", "");
     private static final SecureRandom secureRandom = new SecureRandom();
+    private static String deviceId = UUID.randomUUID().toString().replace("-", "");
+    /** Self-generated csrf token (random, stable for the process lifetime). */
+    private static final String csrfToken = randomHex(16);
 
     /**
      * Session cookie jar shared across requests (mirrors the Python requests.Session).
@@ -250,10 +258,11 @@ public final class NeteaseWatchApi {
      * @param apiPath original path starting with /api/
      */
     private static EapiResult eapiPost(String apiPath, JSONObject data) throws Exception {
-        // payload["header"] = session cookies + requestId (nested object, not string)
-        JSONObject header = buildHeader();
-        data.put("header", header);
-        // payload["e_r"] = "true" (string) — request an encrypted response
+        // Payload layout captured from the real watch client:
+        // {"phone":"...","captcha":"...","countrycode":"86","header":"{}","e_r":"true"}
+        // NOTE: "header" is the STRING "{}" (not a nested object) — verified by
+        // decrypting the captured request body.
+        data.put("header", "{}");
         data.put("e_r", "true");
 
         String params = NeteaseApiCrypto.eapi(apiPath, data.toString());
@@ -265,9 +274,12 @@ public final class NeteaseWatchApi {
         URL url = new URL(urlStr);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
+        // Exact header set captured from the real watch client
         conn.setRequestProperty("User-Agent", WATCH_USER_AGENT);
-        conn.setRequestProperty("Referer", EAPI_HOST);
+        conn.setRequestProperty("cmpageid", "WatchLoginActivity");
+        conn.setRequestProperty("mconfig-info", MCONFIG_INFO);
         conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+        conn.setRequestProperty("Accept-Encoding", "gzip");
         conn.setRequestProperty("Cookie", cookieJarToString());
         conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
         conn.setReadTimeout(READ_TIMEOUT_MS);
@@ -287,7 +299,7 @@ public final class NeteaseWatchApi {
                 stream = err != null ? err : conn.getInputStream();
             }
 
-            byte[] raw = readAllBytes(stream);
+            byte[] raw = readAllBytes(maybeGunzip(conn, stream));
             // Merge Set-Cookie into the session jar (like requests.Session)
             updateCookieJar(conn);
             JSONObject json = parseResponse(raw);
@@ -303,31 +315,18 @@ public final class NeteaseWatchApi {
     }
 
     /**
-     * Build the nested "header" object: current session cookies + requestId.
-     * Same shape as _get_cookies_as_header_dict() in the Python client,
-     * plus static device identity fields.
+     * Wrap the input stream with GZIPInputStream when the server responds
+     * with Content-Encoding: gzip (the real client sends accept-encoding: gzip).
      */
-    private static JSONObject buildHeader() throws org.json.JSONException {
-        JSONObject header = new JSONObject();
-        // Real watch device identity first (session values may override below)
-        for (String[] kv : DEVICE_COOKIES) {
-            header.put(kv[0], kv[1]);
+    private static InputStream maybeGunzip(HttpURLConnection conn, InputStream stream) {
+        try {
+            String enc = conn.getContentEncoding();
+            if (enc != null && enc.toLowerCase().contains("gzip")) {
+                return new java.util.zip.GZIPInputStream(stream);
+            }
+        } catch (Exception ignored) {
         }
-        Map<String, String> snapshot;
-        synchronized (cookieJar) {
-            snapshot = new LinkedHashMap<>(cookieJar);
-        }
-        for (Map.Entry<String, String> e : snapshot.entrySet()) {
-            header.put(e.getKey(), e.getValue());
-        }
-        // Static watch device identity
-        if (!header.has("os")) header.put("os", "android");
-        if (!header.has("deviceId")) header.put("deviceId", deviceId);
-        // requestId format from the Python client: {millis}_{rand}
-        String requestId = (System.currentTimeMillis()) + "_"
-                + (1000 + secureRandom.nextInt(9000));
-        header.put("requestId", requestId);
-        return header;
+        return stream;
     }
 
     /**
@@ -395,21 +394,47 @@ public final class NeteaseWatchApi {
         }
     }
 
-    /** Render the session jar + device identity as a Cookie request header. */
+    /**
+     * Render the Cookie request header exactly as captured from the real watch
+     * client, minus the values that must be self-generated or session-bound:
+     *   osver=13; deviceId=<gen>; appver=2.9.105; versioncode=29105;
+     *   mobilename=Z9; distributeChannel=andrwear${"channel":"xtc-store"};
+     *   buildver=1776866597; resolution=360x320; __csrf=<gen>; brand=XTC;
+     *   NMTID=<gen>; os=andrwear; channel=xtc-store
+     * (MUSIC_A is dropped per spec; session cookies from the jar — MUSIC_U etc.
+     * — are appended at the end.)
+     */
     private static String cookieJarToString() {
         StringBuilder sb = new StringBuilder();
-        // Real watch device cookies first; session jar values override them
         Map<String, String> base = new LinkedHashMap<>();
+        // Device identity from the capture
         for (String[] kv : DEVICE_COOKIES) {
             base.put(kv[0], kv[1]);
         }
         base.put("__remember_me", "true");
-        base.put("NMTID", randomHex(16));
+        // Self-generated dynamic values
+        base.put("deviceId", deviceId);
+        base.put("__csrf", csrfToken);
+        base.put("NMTID", "00" + randomBase64Url(38));
         base.put("_ntes_nuid", randomHex(16));
+        // Session cookies (MUSIC_U etc.) override/add on top
         synchronized (cookieJar) {
             base.putAll(cookieJar);
         }
+        // Captured order: device identity first, dynamic ids inline, session last
+        String[] order = {"osver", "deviceId", "appver", "versioncode", "mobilename",
+                "distributeChannel", "buildver", "resolution", "__csrf", "brand",
+                "NMTID", "_ntes_nuid", "__remember_me"};
+        java.util.Set<String> emitted = new java.util.HashSet<>();
+        for (String key : order) {
+            String value = base.get(key);
+            if (value == null) continue;
+            if (sb.length() > 0) sb.append("; ");
+            sb.append(key).append("=").append(value);
+            emitted.add(key);
+        }
         for (Map.Entry<String, String> e : base.entrySet()) {
+            if (emitted.contains(e.getKey())) continue;
             if (sb.length() > 0) sb.append("; ");
             sb.append(e.getKey()).append("=").append(e.getValue());
         }
@@ -464,6 +489,15 @@ public final class NeteaseWatchApi {
             hex.append(String.format("%02x", b));
         }
         return hex.toString();
+    }
+
+    /** Random URL-safe Base64 string (used for the NMTID cookie shape). */
+    private static String randomBase64Url(int byteLength) {
+        byte[] bytes = new byte[byteLength];
+        secureRandom.nextBytes(bytes);
+        return android.util.Base64.encodeToString(bytes,
+                android.util.Base64.URL_SAFE | android.util.Base64.NO_WRAP
+                        | android.util.Base64.NO_PADDING);
     }
 
     private static String maskPhone(String phone) {
