@@ -63,6 +63,9 @@ public class LoginActivity extends AppCompatActivity {
         tvUserId = findViewById(R.id.tv_user_id);
         tvNickname = findViewById(R.id.tv_nickname);
         etCookie = findViewById(R.id.et_cookie);
+        // Enable marquee scrolling for long values
+        tvUserId.setSelected(true);
+        tvNickname.setSelected(true);
 
         TextView btnSave = findViewById(R.id.btn_save_cookie);
         TextView btnCopy = findViewById(R.id.btn_copy_cookie);

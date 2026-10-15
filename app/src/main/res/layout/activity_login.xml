@@ -93,7 +93,6 @@
                 android:singleLine="true"
                 android:ellipsize="marquee"
                 android:marqueeRepeatLimit="-1"
-                android:selected="true"
                 android:text="--"
                 android:textColor="@color/text_primary"
                 android:textSize="13sp" />
@@ -116,7 +115,6 @@
                 android:singleLine="true"
                 android:ellipsize="marquee"
                 android:marqueeRepeatLimit="-1"
-                android:selected="true"
                 android:text="--"
                 android:textColor="@color/text_primary"
                 android:textSize="13sp" />
