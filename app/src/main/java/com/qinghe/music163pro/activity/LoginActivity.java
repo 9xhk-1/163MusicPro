@@ -16,7 +16,9 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.api.MusicApiHelper;
+import com.qinghe.music163pro.api.NeteaseWatchApi;
 import com.qinghe.music163pro.player.MusicPlayerManager;
+import com.qinghe.music163pro.util.MusicLog;
 
 import org.json.JSONObject;
 
@@ -35,6 +37,7 @@ import org.json.JSONObject;
  */
 public class LoginActivity extends AppCompatActivity {
 
+    private static final String TAG = "LoginActivity";
     private static final String PREFS_NAME = "music163_settings";
 
     private LinearLayout llLoggedIn;
@@ -72,6 +75,7 @@ public class LoginActivity extends AppCompatActivity {
         TextView btnLogout = findViewById(R.id.btn_logout);
         TextView btnQrLogin = findViewById(R.id.btn_qr_login);
         TextView btnCaptchaLogin = findViewById(R.id.btn_captcha_login);
+        TextView btnCookieLogin = findViewById(R.id.btn_cookie_login_entry);
 
         btnSave.setOnClickListener(v -> confirmSaveCookie());
         btnCopy.setOnClickListener(v -> copyCookie());
@@ -80,6 +84,8 @@ public class LoginActivity extends AppCompatActivity {
                 startActivity(new Intent(this, QrLoginActivity.class)));
         btnCaptchaLogin.setOnClickListener(v ->
                 startActivity(new Intent(this, SmsLoginActivity.class)));
+        btnCookieLogin.setOnClickListener(v ->
+                startActivity(new Intent(this, CookieLoginActivity.class)));
 
         refreshUi();
     }
@@ -181,6 +187,23 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void logout() {
+        String cookie = prefs.getString("cookie", "");
+        // Real server-side logout (weapi /api/logout); local state is
+        // cleared regardless of the network result.
+        if (cookie.contains("MUSIC_U")) {
+            MusicApiHelper.logout(cookie, new MusicApiHelper.LikeCallback() {
+                @Override
+                public void onResult(boolean success) {
+                    MusicLog.i(TAG, "服务端退出登录: " + (success ? "成功" : "失败"));
+                }
+
+                @Override
+                public void onError(String message) {
+                    MusicLog.w(TAG, "服务端退出登录请求失败: " + message);
+                }
+            });
+        }
+        NeteaseWatchApi.clearSession();
         prefs.edit().remove("cookie").remove("current_user_id").apply();
         playerManager.setCookie("");
         Toast.makeText(this, "已退出登录", Toast.LENGTH_SHORT).show();

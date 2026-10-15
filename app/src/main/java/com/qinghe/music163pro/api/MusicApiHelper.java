@@ -1277,6 +1277,38 @@ public class MusicApiHelper {
         });
     }
 
+    // ==================== Logout ====================
+
+    /**
+     * Real server-side logout.
+     * (NeteaseCloudMusicApiBackup module/logout.js: request('/api/logout', {}, createOption(query)))
+     * Weapi POST /api/logout with the user cookie (__csrf included).
+     * The caller clears the local cookie afterwards regardless of the result.
+     */
+    public static void logout(String cookie, LikeCallback callback) {
+        executor.execute(() -> {
+            try {
+                MusicLog.op(TAG, "退出登录", null);
+                JSONObject data = new JSONObject();
+                data.put("csrf_token", extractCsrfToken(cookie));
+
+                String response = weapiPost("/api/logout", data.toString(), cookie);
+                JSONObject json = new JSONObject(response);
+                int code = json.optInt("code", -1);
+                boolean ok = code == 200;
+                if (!ok) {
+                    MusicLog.w(TAG, "退出登录返回 code=" + code);
+                }
+                mainHandler.post(() -> callback.onResult(ok));
+            } catch (Exception e) {
+                // Network failure must not block local logout; report and let caller decide
+                MusicLog.e(TAG, "退出登录失败", e);
+                mainHandler.post(() -> callback.onError(
+                        e.getMessage() != null ? e.getMessage() : "网络连接失败"));
+            }
+        });
+    }
+
     // ==================== Password Login ====================
 
     /**

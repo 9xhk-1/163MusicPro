@@ -57,6 +57,16 @@
                 android:textSize="13sp"
                 android:textAllCaps="false"
                 style="@style/Widget.App.Button.Outlined" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_cookie_login_entry"
+                android:layout_width="match_parent"
+                android:layout_height="36dp"
+                android:layout_marginTop="6dp"
+                android:text="@string/cookie_login"
+                android:textSize="13sp"
+                android:textAllCaps="false"
+                style="@style/Widget.App.Button.Outlined" />
         </LinearLayout>
 
         <!-- ============ 已登录状态 ============ -->
