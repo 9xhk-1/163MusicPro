@@ -205,9 +205,10 @@ public final class NeteaseWatchApi {
                     hasSession = true;
                 }
 
-                // Session cookie: jar (MUSIC_U etc. set during the login response)
-                // merged with token/cookie fields in the body
-                String cookie = cookieJarToString();
+                // Session cookie: ONLY server-issued values from the jar
+                // (device identity items from DEVICE_COOKIES are excluded —
+                // they are request-side context, not login credentials)
+                String cookie = sessionCookieToString();
                 if (!cookie.contains("MUSIC_U") && json != null) {
                     if (json.has("token")) {
                         String token = json.optString("token", "");
@@ -414,6 +415,28 @@ public final class NeteaseWatchApi {
         header.put("requestId", System.currentTimeMillis()
                 + "_" + (1000 + secureRandom.nextInt(9000)));
         return header;
+    }
+
+    /**
+     * Session-only cookie string: entries collected from Set-Cookie, with the
+     * DEVICE_COOKIES keys filtered out. This is the persisted login credential
+     * handed to the caller (MUSIC_U, __csrf, NMTID, ...), never the device
+     * identity items (os, appver, brand ... which are re-attached per request).
+     */
+    private static String sessionCookieToString() {
+        StringBuilder sb = new StringBuilder();
+        java.util.Set<String> deviceKeys = new java.util.HashSet<>();
+        for (String[] kv : DEVICE_COOKIES) {
+            deviceKeys.add(kv[0]);
+        }
+        synchronized (cookieJar) {
+            for (Map.Entry<String, String> e : cookieJar.entrySet()) {
+                if (deviceKeys.contains(e.getKey())) continue;
+                if (sb.length() > 0) sb.append("; ");
+                sb.append(e.getKey()).append("=").append(e.getValue());
+            }
+        }
+        return sb.toString();
     }
 
     /**
