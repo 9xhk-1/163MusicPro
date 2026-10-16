@@ -660,7 +660,7 @@ public class MusicPlayerManager {
             public void onResult(String freshUrl, boolean trialOnly) {
                 if (trialOnly && isWatchParseEnabled()) {
                     // Watch gateway enabled: try it for a full (non-trial) URL
-                    resolveViaWatchGateway(song, freshUrl);
+                    resolveViaWatchGateway(song, freshUrl, cookie);
                     return;
                 }
                 finishPlay(song, freshUrl, trialOnly);
@@ -687,7 +687,11 @@ public class MusicPlayerManager {
      *   - empty / trial      -> fall back to the original trial URL, then run
      *                            the usual skip-trial check
      */
-    private void resolveViaWatchGateway(Song song, String trialUrl) {
+    private void resolveViaWatchGateway(Song song, String trialUrl, String sessionCookie) {
+        // The gateway jar is process-scoped: re-inject the saved session cookie
+        // (MUSIC_U/__csrf) so the request is authenticated. Without it the
+        // gateway treats us as anonymous and refuses even whitelisted songs.
+        NeteaseWatchApi.setSessionCookie(sessionCookie);
         MusicLog.i("MusicPlayerManager", "试听链接，手表网关解析 songId=" + song.getId());
         NeteaseWatchApi.getPlayUrl(song.getId(), new NeteaseWatchApi.WatchUrlCallback() {
             @Override

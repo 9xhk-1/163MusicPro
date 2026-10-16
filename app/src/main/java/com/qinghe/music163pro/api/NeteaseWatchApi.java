@@ -242,6 +242,30 @@ public final class NeteaseWatchApi {
         });
     }
 
+    /**
+     * Inject the persisted session cookie (MUSIC_U/__csrf/NMTID ... saved in
+     * SharedPreferences after login) into the in-memory jar. The jar is
+     * process-scoped, so without this every request after an app restart would
+     * be anonymous — the gateway then refuses even whitelisted songs.
+     * Device identity items are NOT needed here; they are attached per request.
+     */
+    public static void setSessionCookie(String sessionCookie) {
+        if (sessionCookie == null || sessionCookie.trim().isEmpty()) {
+            return;
+        }
+        Map<String, String> parsed = new LinkedHashMap<>();
+        for (String kv : sessionCookie.split(";")) {
+            String pair = kv.trim();
+            int eq = pair.indexOf('=');
+            if (eq <= 0) continue;
+            parsed.put(pair.substring(0, eq).trim(), pair.substring(eq + 1).trim());
+        }
+        if (parsed.isEmpty()) return;
+        synchronized (cookieJar) {
+            cookieJar.putAll(parsed);
+        }
+    }
+
     /** Reset the session cookie jar (e.g. after logout). */
     public static void clearSession() {
         synchronized (cookieJar) {
@@ -285,8 +309,20 @@ public final class NeteaseWatchApi {
                     JSONObject json = result.json;
                     JSONArray arr = json != null ? json.optJSONArray("data") : null;
                     JSONObject item = arr != null ? arr.optJSONObject(0) : null;
-                    String url = item != null ? item.optString("url", "") : "";
-                    if (url.isEmpty()) {
+                    // org.json optString() returns the literal "null" for a JSON
+                    // null value — treating that as a URL made the player try to
+                    // open the string "null" (set data source failed). Also skip
+                    // non-200 items (songs outside the gateway whitelist come
+                    // back as {"url":null,"code":404}).
+                    String url = null;
+                    if (item != null && !item.isNull("url")
+                            && item.optInt("code", 200) == 200) {
+                        String u = item.optString("url", "");
+                        if (!u.isEmpty() && !"null".equalsIgnoreCase(u)) {
+                            url = u;
+                        }
+                    }
+                    if (url == null) {
                         MusicLog.d(TAG, "trialMode=" + trialMode + " 无URL, songId=" + songId);
                         continue;
                     }
