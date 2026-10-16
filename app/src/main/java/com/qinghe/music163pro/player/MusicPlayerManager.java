@@ -96,6 +96,9 @@ public class MusicPlayerManager {
     private Context appContext;
     private long bilibiliRetrySongId = -1;
     private int bilibiliRetryCount = 0;
+    /** MediaPlayer error-retry guard: at most ONE re-fetch per song, otherwise a
+     *  dead URL loops forever (error -> getSongUrl -> same URL -> error ...). */
+    private long errorRetrySongId = -1;
 
     // ExoPlayer for Bilibili audio (better seek/buffering than MediaPlayer)
     private ExoPlayer exoPlayer;
@@ -364,8 +367,11 @@ public class MusicPlayerManager {
                 if (song != null) {
                     song.setUrl(null);
                 }
-                // Retry without cached URL
-                if (song != null) {
+                // Retry without cached URL — but only ONCE per song: without a
+                // guard a dead URL loops forever (error -> getSongUrl -> same
+                // dead URL -> error ...), hammering the API every ~300ms.
+                if (song != null && song.getId() != errorRetrySongId) {
+                    errorRetrySongId = song.getId();
                     String cookie = getCookie();
                     MusicApiHelper.getSongUrl(song.getId(), cookie, false,
                             new MusicApiHelper.UrlCallback() {
@@ -622,6 +628,11 @@ public class MusicPlayerManager {
     public void playCurrent() {
         Song song = getCurrentSong();
         if (song == null) return;
+
+        // User-initiated (or next/prev) play: allow one error retry again
+        // for this song. The MediaPlayer error loop never reaches here —
+        // it retries through play() directly — so this cannot re-open the loop.
+        errorRetrySongId = -1;
 
         notifySongChanged(song);
         savePlaybackState();

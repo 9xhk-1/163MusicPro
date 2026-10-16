@@ -746,19 +746,22 @@ public class MusicApiHelper {
                 boolean trialOnly = false;
                 MusicLog.op(TAG, "获取歌曲URL", "songId=" + songId + " level=" + preferredLevel);
 
-                // Try preferred level first (may need VIP/SVIP for higher tiers)
-                if (cookie != null && !cookie.isEmpty()) {
-                    try {
-                        JSONObject item = fetchSongUrlData(songId, cookie, preferredLevel);
-                        url = extractUrlFromItem(item);
-                        trialOnly = url != null && isTrialUrlItem(item);
-                        if (url != null) {
-                            MusicLog.d(TAG, "获取" + preferredLevel + " URL成功: " + songId
-                                    + (trialOnly ? " (试听)" : ""));
-                        }
-                    } catch (Exception e) {
-                        MusicLog.w(TAG, "eapi " + preferredLevel + " 失败: " + songId, e);
+                // Try preferred level first (may need VIP/SVIP for higher tiers).
+                // Runs even with an EMPTY cookie on purpose: anonymous eapi
+                // returns the trial clip, and that trial flag is what routes
+                // the song through the watch gateway (guest session) below.
+                // Skipping here would fall through to the direct-link fallback
+                // with trialOnly=false and the gateway would never run.
+                try {
+                    JSONObject item = fetchSongUrlData(songId, cookie, preferredLevel);
+                    url = extractUrlFromItem(item);
+                    trialOnly = url != null && isTrialUrlItem(item);
+                    if (url != null) {
+                        MusicLog.d(TAG, "获取" + preferredLevel + " URL成功: " + songId
+                                + (trialOnly ? " (试听)" : ""));
                     }
+                } catch (Exception e) {
+                    MusicLog.w(TAG, "eapi " + preferredLevel + " 失败: " + songId, e);
                 }
 
                 // Fallback through free quality levels
