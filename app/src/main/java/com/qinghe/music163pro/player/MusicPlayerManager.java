@@ -608,13 +608,38 @@ public class MusicPlayerManager {
     public void next() {
         if (playlist.isEmpty()) return;
         reportScrobble(false);
+        // 随机播放 + 切歌顺序=随机: 上下键均随机切歌 (默认列表顺序时走顺序切换)
+        if (useRandomJumpForKeys()) {
+            playRandomOther();
+            return;
+        }
         playNextSequential();
     }
 
     public void previous() {
         if (playlist.isEmpty()) return;
         reportScrobble(false);
+        if (useRandomJumpForKeys()) {
+            playRandomOther();
+            return;
+        }
         currentIndex = (currentIndex - 1 + playlist.size()) % playlist.size();
+        playCurrent();
+    }
+
+    /** 随机播放模式且开启了随机切歌 (仅手动上下键, 私人FM除外). */
+    private boolean useRandomJumpForKeys() {
+        return playMode == PlayMode.RANDOM && !personalFmMode
+                && isRandomSkipRandom() && playlist.size() > 1;
+    }
+
+    /** 随机播放列表内的另一首歌 (排除当前). */
+    private void playRandomOther() {
+        int newIndex;
+        do {
+            newIndex = random.nextInt(playlist.size());
+        } while (newIndex == currentIndex);
+        currentIndex = newIndex;
         playCurrent();
     }
 
@@ -808,6 +833,12 @@ public class MusicPlayerManager {
                 Context.MODE_PRIVATE).getBoolean("use_watch_parse", true);
     }
 
+    /** 开关选项: 随机播放模式下上下键随机切歌 (默认关=按列表顺序). */
+    private boolean isRandomSkipRandom() {
+        return appContext != null && appContext.getSharedPreferences("music163_settings",
+                Context.MODE_PRIVATE).getBoolean("random_skip_random", false);
+    }
+
     /**
      * The URL API returned a free-trial-only link and the user enabled
      * "skip trial songs". Advance past it (ads-watched VIP songs return a
@@ -815,10 +846,8 @@ public class MusicPlayerManager {
      */
     private void onTrialOnlySong(Song song) {
         trialSkipStreak++;
-        if (callback != null) {
-            final String songName = song.getDisplayName();
-            mainHandler.post(() -> callback.onError("已跳过试听歌曲: " + songName));
-        }
+        // 静默跳过 (不再 Toast "已跳过试听歌曲")
+        Log.d(TAG, "试听歌曲跳过: " + song.getDisplayName());
         if (playlist.isEmpty()) {
             return;
         }
