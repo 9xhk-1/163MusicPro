@@ -32,6 +32,8 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private static final String PREF_LYRIC_RESUME_INTERVAL = "lyric_resume_interval";
     private static final String PREF_SLEEP_TIMER_EXIT_APP = "sleep_timer_exit_app";
     private static final String PREF_SKIP_TRIAL_SONGS = "skip_trial_songs";
+    private static final String PREF_RANDOM_SKIP_RANDOM = "random_skip_random";
+    private static final String PREF_USE_WATCH_API = "use_watch_parse";
     private static final String PREF_DISPLAY_SONG_ALIAS = "display_song_alias";
     private static final String PREF_SLEEP_TIMER_MODE = "sleep_timer_mode";
     private static final String PREF_FAV_MODE_CLOUD = "fav_mode_cloud";
@@ -50,6 +52,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private SwitchMaterial switchKeepScreenOn;
     private SwitchMaterial switchSleepTimerExitApp;
     private SwitchMaterial switchSkipTrialSongs;
+    private SwitchMaterial switchUseWatchApi;
     private SwitchMaterial switchDisplaySongAlias;
     private TextView tvFavModeValue;
     private TextView tvSleepTimerModeValue;
@@ -57,6 +60,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private TextView tvRecognitionModeValue;
     private TextView tvLyricScrollModeValue;
     private TextView tvLyricResumeIntervalValue;
+    private TextView tvRandomSkipModeValue;
     private LinearLayout rowLyricResumeInterval;
     private SharedPreferences prefs;
 
@@ -78,6 +82,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         switchKeepScreenOn = findViewById(R.id.switch_keep_screen_on);
         switchSleepTimerExitApp = findViewById(R.id.switch_sleep_timer_exit_app);
         switchSkipTrialSongs = findViewById(R.id.switch_skip_trial_songs);
+        switchUseWatchApi = findViewById(R.id.switch_use_watch_api);
         switchDisplaySongAlias = findViewById(R.id.switch_display_song_alias);
         tvFavModeValue = findViewById(R.id.tv_fav_mode_value);
         tvSleepTimerModeValue = findViewById(R.id.tv_sleep_timer_mode_value);
@@ -90,6 +95,8 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         LinearLayout rowLyricScrollMode = findViewById(R.id.row_lyric_scroll_mode);
         LinearLayout rowFavMode = findViewById(R.id.row_fav_mode);
         LinearLayout rowSleepTimerMode = findViewById(R.id.row_sleep_timer_mode);
+        LinearLayout rowRandomSkipMode = findViewById(R.id.row_random_skip_mode);
+        tvRandomSkipModeValue = findViewById(R.id.tv_random_skip_mode_value);
         rowLyricResumeInterval = findViewById(R.id.row_lyric_resume_interval);
 
         // Initialise switch states from prefs
@@ -131,11 +138,22 @@ public class ToggleSettingsActivity extends AppCompatActivity {
                     Toast.LENGTH_SHORT).show();
         });
 
+        switchUseWatchApi.setOnCheckedChangeListener((btn, isChecked) -> {
+            if (updatingSwitch) return;
+            prefs.edit().putBoolean(PREF_USE_WATCH_API, isChecked).apply();
+            Toast.makeText(this,
+                    isChecked ? "试听歌曲将先用手表接口解析完整链接" : "已关闭手表解析，按原逻辑获取URL",
+                    Toast.LENGTH_SHORT).show();
+        });
+
         // Favorites mode: tap to cycle (本地 / 云端)
         if (rowFavMode != null) rowFavMode.setOnClickListener(v -> cycleFavMode());
 
         // Sleep timer mode: tap to cycle (总时长 / 播放净时长)
         if (rowSleepTimerMode != null) rowSleepTimerMode.setOnClickListener(v -> cycleSleepTimerMode());
+
+        // Random-skip mode: tap to cycle (列表顺序 / 随机)
+        if (rowRandomSkipMode != null) rowRandomSkipMode.setOnClickListener(v -> cycleRandomSkipMode());
 
         // Speed mode: tap row to cycle through 3 values
         rowSpeedMode.setOnClickListener(v -> cycleSpeedMode());
@@ -156,6 +174,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         switchSleepTimerExitApp.setChecked(prefs.getBoolean(PREF_SLEEP_TIMER_EXIT_APP, false));
         switchSkipTrialSongs.setChecked(prefs.getBoolean(PREF_SKIP_TRIAL_SONGS, false));
         switchDisplaySongAlias.setChecked(prefs.getBoolean(PREF_DISPLAY_SONG_ALIAS, true));
+        switchUseWatchApi.setChecked(prefs.getBoolean(PREF_USE_WATCH_API, true));
         updatingSwitch = false;
         updateFavModeValue();
         updateSleepTimerModeValue();
@@ -163,6 +182,23 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         updateRecognitionModeValue();
         updateLyricScrollModeValue();
         updateLyricResumeIntervalValue();
+        updateRandomSkipModeValue();
+    }
+
+    private void cycleRandomSkipMode() {
+        boolean current = prefs.getBoolean(PREF_RANDOM_SKIP_RANDOM, false);
+        boolean next = !current;
+        prefs.edit().putBoolean(PREF_RANDOM_SKIP_RANDOM, next).apply();
+        updateRandomSkipModeValue();
+        Toast.makeText(this,
+                "随机播放切歌顺序: " + (next ? "随机" : "列表顺序"),
+                Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateRandomSkipModeValue() {
+        if (tvRandomSkipModeValue == null) return;
+        boolean random = prefs.getBoolean(PREF_RANDOM_SKIP_RANDOM, false);
+        tvRandomSkipModeValue.setText(random ? "随机" : "列表顺序");
     }
 
     private void cycleFavMode() {
