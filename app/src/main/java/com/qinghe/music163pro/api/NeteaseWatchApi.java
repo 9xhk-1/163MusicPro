@@ -299,49 +299,69 @@ public final class NeteaseWatchApi {
      */
     public static void fetchGuestSession(GuestSessionCallback callback) {
         executor.execute(() -> {
-            try {
-                JSONObject data = new JSONObject();
-                data.put("type", 1);
-                String[] enc = NeteaseApiCrypto.weapi(data.toString());
-                String postBody = "params=" + URLEncoder.encode(enc[0], "UTF-8")
-                        + "&encSecKey=" + URLEncoder.encode(enc[1], "UTF-8");
+            String guestCookie = "";
+            Exception lastError = null;
+            // Anonymous weapi is intermittently blocked by risk control
+            // (-462 "请完成验证操作") or an empty CDN response — retry up to
+            // 3 times before giving up.
+            for (int attempt = 1; attempt <= 3 && guestCookie.isEmpty(); attempt++) {
+                try {
+                    if (attempt > 1) Thread.sleep(600);
+                    JSONObject data = new JSONObject();
+                    data.put("type", 1);
+                    String[] enc = NeteaseApiCrypto.weapi(data.toString());
+                    String postBody = "params=" + URLEncoder.encode(enc[0], "UTF-8")
+                            + "&encSecKey=" + URLEncoder.encode(enc[1], "UTF-8");
 
-                URL url = new URL(WEAPI_HOST
-                        + API_REGISTER_ANONIMOUS.replaceFirst("^/api/", "/weapi/"));
-                MusicLog.i(TAG, "[REQ] POST(guest-weapi) " + url);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("User-Agent", GUEST_WEAPI_UA);
-                conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-                conn.setRequestProperty("Accept-Encoding", "gzip");
-                conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
-                conn.setReadTimeout(READ_TIMEOUT_MS);
-                conn.setDoOutput(true);
-                OutputStream os = conn.getOutputStream();
-                os.write(postBody.getBytes("UTF-8"));
-                os.flush();
-                os.close();
+                    URL url = new URL(WEAPI_HOST
+                            + API_REGISTER_ANONIMOUS.replaceFirst("^/api/", "/weapi/"));
+                    MusicLog.i(TAG, "[REQ] POST(guest-weapi) attempt=" + attempt + " " + url);
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setRequestProperty("User-Agent", GUEST_WEAPI_UA);
+                    conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                    conn.setRequestProperty("Accept-Encoding", "gzip");
+                    conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+                    conn.setReadTimeout(READ_TIMEOUT_MS);
+                    conn.setDoOutput(true);
+                    OutputStream os = conn.getOutputStream();
+                    os.write(postBody.getBytes("UTF-8"));
+                    os.flush();
+                    os.close();
 
-                int status = conn.getResponseCode();
-                byte[] raw = readAllBytes(maybeGunzip(conn, conn.getInputStream()));
-                String body = new String(raw, "UTF-8");
-                MusicLog.i(TAG, "[API] POST(guest-weapi) → HTTP " + status);
+                    int status = conn.getResponseCode();
+                    byte[] raw = readAllBytes(maybeGunzip(conn, conn.getInputStream()));
+                    String body = new String(raw, "UTF-8");
+                    MusicLog.i(TAG, "[API] POST(guest-weapi) → HTTP " + status);
 
-                JSONObject json = new JSONObject(body);
-                String guestCookie = json.optString("cookie", "");
-                if (guestCookie.isEmpty() || guestCookie.contains("null")) {
-                    String token = json.optString("token", "");
-                    if (!token.isEmpty()) {
-                        guestCookie = "MUSIC_U=" + token;
-                        String csrf = json.optString("__csrf", "");
-                        if (!csrf.isEmpty()) guestCookie += "; __csrf=" + csrf;
+                    JSONObject json = new JSONObject(body);
+                    int code = json.optInt("code", 200);
+                    if (code != 200) {
+                        MusicLog.w(TAG, "游客会话被拒 code=" + code + " attempt=" + attempt);
+                        continue;
                     }
+                    String cookie = json.optString("cookie", "");
+                    if (cookie.isEmpty() || cookie.contains("null")) {
+                        String token = json.optString("token", "");
+                        if (!token.isEmpty()) {
+                            cookie = "MUSIC_U=" + token;
+                            String csrf = json.optString("__csrf", "");
+                            if (!csrf.isEmpty()) cookie += "; __csrf=" + csrf;
+                        }
+                    }
+                    guestCookie = cookie != null ? cookie : "";
+                } catch (Exception e) {
+                    lastError = e;
+                    MusicLog.w(TAG, "游客会话 attempt=" + attempt + " 失败: " + e);
                 }
-                final String result = guestCookie != null ? guestCookie : "";
+            }
+            if (!guestCookie.isEmpty()) {
+                final String result = guestCookie;
                 mainHandler.post(() -> callback.onResult(result));
-            } catch (Exception e) {
-                MusicLog.e(TAG, "获取游客会话失败", e);
-                mainHandler.post(() -> callback.onError(errText(e)));
+            } else {
+                final String err = lastError != null
+                        ? errText(lastError) : "三次尝试均未取得游客会话";
+                mainHandler.post(() -> callback.onError(err));
             }
         });
     }

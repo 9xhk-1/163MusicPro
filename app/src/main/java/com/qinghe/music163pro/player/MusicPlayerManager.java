@@ -669,7 +669,15 @@ public class MusicPlayerManager {
                 new MusicApiHelper.SongUrlInfoCallback() {
             @Override
             public void onResult(String freshUrl, boolean trialOnly) {
-                if (trialOnly && isWatchParseEnabled()) {
+                // Route through the watch gateway when the main API produced a
+                // trial clip OR could not produce any URL at all. In the latter
+                // case freshUrl is the outer/url direct fallback: anonymous eapi
+                // answers 404 (no freeTrialInfo!) for VIP songs, so logged-out
+                // playback would otherwise never reach the gateway and the user
+                // only hears the trial snippet the outer link redirects to.
+                boolean needsGateway = trialOnly
+                        || (freshUrl != null && freshUrl.contains("/song/media/outer/url"));
+                if (needsGateway && isWatchParseEnabled()) {
                     // Watch gateway enabled: try it for a full (non-trial) URL
                     resolveViaWatchGateway(song, freshUrl, cookie);
                     return;
