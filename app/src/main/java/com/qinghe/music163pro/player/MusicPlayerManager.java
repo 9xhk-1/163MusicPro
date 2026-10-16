@@ -27,6 +27,8 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 
 import com.qinghe.music163pro.api.BilibiliApiHelper;
 import com.qinghe.music163pro.api.MusicApiHelper;
+import com.qinghe.music163pro.api.NeteaseWatchApi;
+import com.qinghe.music163pro.util.MusicLog;
 import com.qinghe.music163pro.manager.DownloadManager;
 import com.qinghe.music163pro.model.Song;
 
@@ -656,15 +658,12 @@ public class MusicPlayerManager {
                 new MusicApiHelper.SongUrlInfoCallback() {
             @Override
             public void onResult(String freshUrl, boolean trialOnly) {
-                if (trialOnly && isSkipTrialEnabled()) {
-                    onTrialOnlySong(song);
+                if (trialOnly && isWatchParseEnabled()) {
+                    // Watch gateway enabled: try it for a full (non-trial) URL
+                    resolveViaWatchGateway(song, freshUrl);
                     return;
                 }
-                trialSkipStreak = 0;
-                song.setUrl(freshUrl);
-                currentlyPlayingSongId = song.getId();
-                reportScrobbleStart(song);
-                play(freshUrl);
+                finishPlay(song, freshUrl, trialOnly);
             }
 
             @Override
@@ -681,11 +680,61 @@ public class MusicPlayerManager {
         });
     }
 
+    /**
+     * Trial link received and "use watch parse" is on: ask the watch gateway
+     * (NeteaseWatchApi, eapi trialMode) for a full URL.
+     *   - full URL returned  -> play it
+     *   - empty / trial      -> fall back to the original trial URL, then run
+     *                            the usual skip-trial check
+     */
+    private void resolveViaWatchGateway(Song song, String trialUrl) {
+        MusicLog.i("MusicPlayerManager", "试听链接，手表网关解析 songId=" + song.getId());
+        NeteaseWatchApi.getPlayUrl(song.getId(), new NeteaseWatchApi.WatchUrlCallback() {
+            @Override
+            public void onResult(String url, boolean trialOnly) {
+                if (!trialOnly && url != null && !url.isEmpty()) {
+                    MusicLog.i("MusicPlayerManager", "手表网关返回完整链接 songId=" + song.getId());
+                    finishPlay(song, url, false);
+                } else {
+                    // No full link from the gateway: fall back to trial URL
+                    finishPlay(song, trialUrl, true);
+                }
+            }
+
+            @Override
+            public void onError(String message) {
+                MusicLog.w("MusicPlayerManager", "手表网关解析失败，回退试听: " + message);
+                finishPlay(song, trialUrl, true);
+            }
+        });
+    }
+
+    /**
+     * Common tail of playCurrent: honour the skip-trial switch, then play.
+     */
+    private void finishPlay(Song song, String url, boolean trialOnly) {
+        if (trialOnly && isSkipTrialEnabled()) {
+            onTrialOnlySong(song);
+            return;
+        }
+        trialSkipStreak = 0;
+        song.setUrl(url);
+        currentlyPlayingSongId = song.getId();
+        reportScrobbleStart(song);
+        play(url);
+    }
+
     private int trialSkipStreak = 0;
 
     private boolean isSkipTrialEnabled() {
         return appContext != null && appContext.getSharedPreferences("music163_settings",
                 Context.MODE_PRIVATE).getBoolean("skip_trial_songs", false);
+    }
+
+    /** 开关选项: 是否使用手表解析接口 (默认开). */
+    private boolean isWatchParseEnabled() {
+        return appContext == null || appContext.getSharedPreferences("music163_settings",
+                Context.MODE_PRIVATE).getBoolean("use_watch_parse", true);
     }
 
     /**

@@ -5,6 +5,7 @@ import android.os.Looper;
 
 import com.qinghe.music163pro.util.MusicLog;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.InputStream;
@@ -45,6 +46,7 @@ public final class NeteaseWatchApi {
     private static final String EAPI_HOST = "https://interface3.music.163.com";
     private static final String API_SMS_CAPTCHA_SENT = "/api/sms/captcha/sent";
     private static final String API_LOGIN_CELLPHONE = "/api/login/cellphone";
+    private static final String API_PLAY_URL = "/api/song/enhance/player/url/v1";
 
     /** Watch client secret required by the captcha-sent endpoint. */
     private static final String WATCH_SECRET = "music_middleuser_andrwarelogin";
@@ -245,6 +247,64 @@ public final class NeteaseWatchApi {
         synchronized (cookieJar) {
             cookieJar.clear();
         }
+    }
+
+    public interface WatchUrlCallback {
+        /**
+         * @param url       full playback URL, empty when the gateway gives none
+         * @param trialOnly true when the returned link is a free-trial clip
+         *                  (freeTrialInfo present) or url is empty
+         */
+        void onResult(String url, boolean trialOnly);
+        void onError(String message);
+    }
+
+    /**
+     * Free VIP playback URL via the watch gateway (watch163.py play_url).
+     * POST /eapi/song/enhance/player/url/v1 with trialMode — NO red-heart
+     * favorite required:
+     *   ids = ["{songId}_0"], level = "higher", encodeType = "aac"
+     * Tries trialMode=105 (watch163.py default) first, then 86 (star scene
+     * from 163watch.md) as fallback. Empty result is reported as
+     * onResult("", true) so callers can fall back to their trial URL.
+     */
+    public static void getPlayUrl(long songId, WatchUrlCallback callback) {
+        executor.execute(() -> {
+            try {
+                String[] trialModes = {"105", "86"};
+                for (String trialMode : trialModes) {
+                    JSONObject data = new JSONObject();
+                    data.put("ids", "[\"" + songId + "_0\"]");
+                    data.put("level", "higher");
+                    data.put("encodeType", "aac");
+                    data.put("trialMode", trialMode);
+
+                    MusicLog.op(TAG, "穿戴端获取播放URL",
+                            "songId=" + songId + " trialMode=" + trialMode);
+                    EapiResult result = eapiPost(API_PLAY_URL, data);
+                    JSONObject json = result.json;
+                    JSONArray arr = json != null ? json.optJSONArray("data") : null;
+                    JSONObject item = arr != null ? arr.optJSONObject(0) : null;
+                    String url = item != null ? item.optString("url", "") : "";
+                    if (url.isEmpty()) {
+                        MusicLog.d(TAG, "trialMode=" + trialMode + " 无URL, songId=" + songId);
+                        continue;
+                    }
+                    boolean trialOnly = item.optJSONObject("freeTrialInfo") != null;
+                    MusicLog.d(TAG, "穿戴端URL songId=" + songId + " trialMode=" + trialMode
+                            + (trialOnly ? " (试听)" : " (完整)"));
+                    final String fUrl = url;
+                    final boolean fTrial = trialOnly;
+                    mainHandler.post(() -> callback.onResult(fUrl, fTrial));
+                    return;
+                }
+                // Gateway returned no URL at all
+                mainHandler.post(() -> callback.onResult("", true));
+            } catch (Exception e) {
+                MusicLog.e(TAG, "穿戴端获取播放URL失败", e);
+                mainHandler.post(() -> callback.onError(errText(e)));
+            }
+        });
     }
 
     // ==================== EAPI core ====================
