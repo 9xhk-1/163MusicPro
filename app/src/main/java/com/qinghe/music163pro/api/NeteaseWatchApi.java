@@ -48,6 +48,13 @@ public final class NeteaseWatchApi {
     private static final String API_LOGIN_CELLPHONE = "/api/login/cellphone";
     private static final String API_PLAY_URL = "/api/song/enhance/player/url/v1";
 
+    /** Anonymous guest session (weapi): the ONLY extra cookie source of this class. */
+    private static final String WEAPI_HOST = "https://music.163.com";
+    private static final String API_REGISTER_ANONIMOUS = "/api/register/anonimous";
+    private static final String GUEST_WEAPI_UA =
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+            + "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0";
+
     /** Watch client secret required by the captcha-sent endpoint. */
     private static final String WATCH_SECRET = "music_middleuser_andrwarelogin";
 
@@ -271,6 +278,72 @@ public final class NeteaseWatchApi {
         synchronized (cookieJar) {
             cookieJar.clear();
         }
+    }
+
+    public interface GuestSessionCallback {
+        /**
+         * @param guestCookie server-issued anonymous cookie string
+         *                    ("MUSIC_U=...; __csrf=...; ..."), empty on failure
+         */
+        void onResult(String guestCookie);
+        void onError(String message);
+    }
+
+    /**
+     * Fetch an anonymous "guest" session via weapi /api/register/anonimous.
+     * Returns the server-issued cookie string (the "cookie" body field, with a
+     * token-based fallback). The caller persists it FOREVER (never deleted by
+     * logout or anything else) and uses it ONLY for NeteaseWatchApi play-URL
+     * requests while the user is not logged in — it must never leak into the
+     * main-API cookie or any other request.
+     */
+    public static void fetchGuestSession(GuestSessionCallback callback) {
+        executor.execute(() -> {
+            try {
+                JSONObject data = new JSONObject();
+                data.put("type", 1);
+                String[] enc = NeteaseApiCrypto.weapi(data.toString());
+                String postBody = "params=" + URLEncoder.encode(enc[0], "UTF-8")
+                        + "&encSecKey=" + URLEncoder.encode(enc[1], "UTF-8");
+
+                URL url = new URL(WEAPI_HOST
+                        + API_REGISTER_ANONIMOUS.replaceFirst("^/api/", "/weapi/"));
+                MusicLog.i(TAG, "[REQ] POST(guest-weapi) " + url);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("User-Agent", GUEST_WEAPI_UA);
+                conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                conn.setRequestProperty("Accept-Encoding", "gzip");
+                conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+                conn.setReadTimeout(READ_TIMEOUT_MS);
+                conn.setDoOutput(true);
+                OutputStream os = conn.getOutputStream();
+                os.write(postBody.getBytes("UTF-8"));
+                os.flush();
+                os.close();
+
+                int status = conn.getResponseCode();
+                byte[] raw = readAllBytes(maybeGunzip(conn, conn.getInputStream()));
+                String body = new String(raw, "UTF-8");
+                MusicLog.i(TAG, "[API] POST(guest-weapi) → HTTP " + status);
+
+                JSONObject json = new JSONObject(body);
+                String guestCookie = json.optString("cookie", "");
+                if (guestCookie.isEmpty() || guestCookie.contains("null")) {
+                    String token = json.optString("token", "");
+                    if (!token.isEmpty()) {
+                        guestCookie = "MUSIC_U=" + token;
+                        String csrf = json.optString("__csrf", "");
+                        if (!csrf.isEmpty()) guestCookie += "; __csrf=" + csrf;
+                    }
+                }
+                final String result = guestCookie != null ? guestCookie : "";
+                mainHandler.post(() -> callback.onResult(result));
+            } catch (Exception e) {
+                MusicLog.e(TAG, "获取游客会话失败", e);
+                mainHandler.post(() -> callback.onError(errText(e)));
+            }
+        });
     }
 
     public interface WatchUrlCallback {

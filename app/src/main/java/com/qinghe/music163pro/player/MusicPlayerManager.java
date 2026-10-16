@@ -688,11 +688,59 @@ public class MusicPlayerManager {
      *                            the usual skip-trial check
      */
     private void resolveViaWatchGateway(Song song, String trialUrl, String sessionCookie) {
-        // The gateway jar is process-scoped: re-inject the saved session cookie
-        // (MUSIC_U/__csrf) so the request is authenticated. Without it the
-        // gateway treats us as anonymous and refuses even whitelisted songs.
-        NeteaseWatchApi.setSessionCookie(sessionCookie);
         MusicLog.i("MusicPlayerManager", "试听链接，手表网关解析 songId=" + song.getId());
+        boolean loggedIn = sessionCookie != null && sessionCookie.contains("MUSIC_U");
+        if (loggedIn) {
+            // Logged in: authenticate gateway requests with the saved session
+            NeteaseWatchApi.setSessionCookie(sessionCookie);
+            requestWatchPlayUrl(song, trialUrl);
+            return;
+        }
+        // Not logged in: reuse the anonymous "guest" cookie persisted on first
+        // use (stored forever, deleted by nothing, used ONLY by NeteaseWatchApi
+        // play-URL requests — never for the main API).
+        String guest = readPersistedGuestCookie();
+        if (!guest.isEmpty()) {
+            NeteaseWatchApi.setSessionCookie(guest);
+            requestWatchPlayUrl(song, trialUrl);
+            return;
+        }
+        // First ever use: mint an anonymous session via the guest endpoint
+        NeteaseWatchApi.fetchGuestSession(new NeteaseWatchApi.GuestSessionCallback() {
+            @Override
+            public void onResult(String guestCookie) {
+                if (!guestCookie.isEmpty()) {
+                    persistGuestCookie(guestCookie);
+                    NeteaseWatchApi.setSessionCookie(guestCookie);
+                    MusicLog.i("MusicPlayerManager", "已获取并保存游客会话");
+                }
+                requestWatchPlayUrl(song, trialUrl);
+            }
+
+            @Override
+            public void onError(String message) {
+                MusicLog.w("MusicPlayerManager", "获取游客会话失败: " + message);
+                requestWatchPlayUrl(song, trialUrl);
+            }
+        });
+    }
+
+    /** 游客 cookie (watch_guest_cookie) — 长期储存，任何情况都不删除. */
+    private static final String PREF_WATCH_GUEST_COOKIE = "watch_guest_cookie";
+
+    private String readPersistedGuestCookie() {
+        return appContext == null ? "" : appContext.getSharedPreferences("music163_settings",
+                Context.MODE_PRIVATE).getString(PREF_WATCH_GUEST_COOKIE, "");
+    }
+
+    private void persistGuestCookie(String guestCookie) {
+        if (appContext == null || guestCookie == null || guestCookie.isEmpty()) return;
+        appContext.getSharedPreferences("music163_settings", Context.MODE_PRIVATE)
+                .edit().putString(PREF_WATCH_GUEST_COOKIE, guestCookie).apply();
+    }
+
+    /** Second half of resolveViaWatchGateway: fire the gateway and honour the fallback. */
+    private void requestWatchPlayUrl(Song song, String trialUrl) {
         NeteaseWatchApi.getPlayUrl(song.getId(), new NeteaseWatchApi.WatchUrlCallback() {
             @Override
             public void onResult(String url, boolean trialOnly) {
