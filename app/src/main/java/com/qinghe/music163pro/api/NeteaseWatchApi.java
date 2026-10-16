@@ -48,12 +48,8 @@ public final class NeteaseWatchApi {
     private static final String API_LOGIN_CELLPHONE = "/api/login/cellphone";
     private static final String API_PLAY_URL = "/api/song/enhance/player/url/v1";
 
-    /** Anonymous guest session (weapi): the ONLY extra cookie source of this class. */
-    private static final String WEAPI_HOST = "https://music.163.com";
-    private static final String API_REGISTER_ANONIMOUS = "/api/register/anonimous";
-    private static final String GUEST_WEAPI_UA =
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-            + "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0";
+    /** Guest session (watch-gateway eapi): the ONLY extra cookie source of this class. */
+    private static final String API_LOGIN_ANON_DEVICE = "/api/login/anon/device";
 
     /** Watch client secret required by the captcha-sent endpoint. */
     private static final String WATCH_SECRET = "music_middleuser_andrwarelogin";
@@ -79,6 +75,12 @@ public final class NeteaseWatchApi {
      */
     private static final String[][] DEVICE_COOKIES = {
             {"osver", "13"},
+            // deviceId is NOT here: it is generated ONCE per install as a
+            // random, permanently stable value (see setDeviceId below) and
+            // injected into every request after these fixed entries.
+            // It is MANDATORY: /eapi/login/anon/device answers 400
+            // "illegal parameter, more device info is needed" without it
+            // (watch163.py has it commented out and its guest login fails).
             {"appver", "2.9.105"},
             {"versioncode", "29105"},
             {"mobilename", "Z9"},
@@ -101,6 +103,55 @@ public final class NeteaseWatchApi {
      * subsequent login request.
      */
     private static final Map<String, String> cookieJar = new LinkedHashMap<>();
+
+    /**
+     * Install-unique device identity for the watch gateway, generated once by
+     * {@link #generateDeviceId()} and persisted forever by the Application
+     * (SharedPreferences "watch_device_id") — it must never change across
+     * app restarts or reinstalls of the data. Sent as the 2nd cookie (right
+     * after osver, matching the real watch capture) and inside payload
+     * "header". Format: percent-encoded base64 of
+     * "null\t02:00:00:00:00:00\t<16 hex random>\tnull".
+     */
+    private static volatile String deviceId = "";
+
+    /** Inject the persisted deviceId (called from MusicApp.onCreate). */
+    public static void setDeviceId(String id) {
+        if (id != null && !id.trim().isEmpty()) {
+            deviceId = id.trim();
+        }
+    }
+
+    /**
+     * Generate a new permanent-random deviceId in the real device's format:
+     * base64("null\t02:00:00:00:00:00\t<16 hex>\tnull") with +, / and =
+     * percent-encoded (the capture shows the %3D form is what the real
+     * client transmits).
+     */
+    public static String generateDeviceId() {
+        byte[] rnd = new byte[8];
+        new SecureRandom().nextBytes(rnd);
+        StringBuilder hex = new StringBuilder(16);
+        for (byte b : rnd) {
+            hex.append(Character.forDigit((b >> 4) & 0xF, 16));
+            hex.append(Character.forDigit(b & 0xF, 16));
+        }
+        String raw = "null\t02:00:00:00:00:00\t" + hex + "\tnull";
+        String b64 = android.util.Base64.encodeToString(
+                raw.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                android.util.Base64.NO_WRAP);
+        return b64.replace("+", "%2B").replace("/", "%2F").replace("=", "%3D");
+    }
+
+    /** Current deviceId; lazily generated (in-memory only) as a last resort. */
+    private static String deviceIdValue() {
+        String id = deviceId;
+        if (id == null || id.isEmpty()) {
+            id = generateDeviceId();
+            deviceId = id;
+        }
+        return id;
+    }
 
     private NeteaseWatchApi() {
     }
@@ -282,85 +333,61 @@ public final class NeteaseWatchApi {
 
     public interface GuestSessionCallback {
         /**
-         * @param guestCookie server-issued anonymous cookie string
-         *                    ("MUSIC_U=...; __csrf=...; ..."), empty on failure
+         * @param guestCookie server-issued anonymous session string
+         *                    ("MUSIC_A=...; __csrf=...; NMTID=..."), empty on
+         *                    failure. Guest sessions use MUSIC_A (NOT MUSIC_U).
          */
         void onResult(String guestCookie);
         void onError(String message);
     }
 
     /**
-     * Fetch an anonymous "guest" session via weapi /api/register/anonimous.
-     * Returns the server-issued cookie string (the "cookie" body field, with a
-     * token-based fallback). The caller persists it FOREVER (never deleted by
-     * logout or anything else) and uses it ONLY for NeteaseWatchApi play-URL
+     * Fetch an anonymous "guest" session via watch-gateway eapi
+     * POST /eapi/login/anon/device (watch163.py anon_login(): empty params,
+     * nested header object + e_r — handled by {@link #eapiPost}). The server
+     * issues a temporary wearable account (MUSIC_A/__csrf/NMTID ...) purely
+     * through Set-Cookie, which eapiPost collects into the jar.
+     *
+     * The returned session string is persisted FOREVER (never deleted by
+     * logout or anything else) and used ONLY for NeteaseWatchApi play-URL
      * requests while the user is not logged in — it must never leak into the
      * main-API cookie or any other request.
      */
     public static void fetchGuestSession(GuestSessionCallback callback) {
         executor.execute(() -> {
             String guestCookie = "";
+            int lastCode = 0;
             Exception lastError = null;
-            // Anonymous weapi is intermittently blocked by risk control
-            // (-462 "请完成验证操作") or an empty CDN response — retry up to
-            // 3 times before giving up.
+            // This endpoint is intermittently hit by risk control (-462) —
+            // retry up to 3 times before giving up.
             for (int attempt = 1; attempt <= 3 && guestCookie.isEmpty(); attempt++) {
                 try {
                     if (attempt > 1) Thread.sleep(600);
-                    JSONObject data = new JSONObject();
-                    data.put("type", 1);
-                    String[] enc = NeteaseApiCrypto.weapi(data.toString());
-                    String postBody = "params=" + URLEncoder.encode(enc[0], "UTF-8")
-                            + "&encSecKey=" + URLEncoder.encode(enc[1], "UTF-8");
-
-                    URL url = new URL(WEAPI_HOST
-                            + API_REGISTER_ANONIMOUS.replaceFirst("^/api/", "/weapi/"));
-                    MusicLog.i(TAG, "[REQ] POST(guest-weapi) attempt=" + attempt + " " + url);
-                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                    conn.setRequestMethod("POST");
-                    conn.setRequestProperty("User-Agent", GUEST_WEAPI_UA);
-                    conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-                    conn.setRequestProperty("Accept-Encoding", "gzip");
-                    conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
-                    conn.setReadTimeout(READ_TIMEOUT_MS);
-                    conn.setDoOutput(true);
-                    OutputStream os = conn.getOutputStream();
-                    os.write(postBody.getBytes("UTF-8"));
-                    os.flush();
-                    os.close();
-
-                    int status = conn.getResponseCode();
-                    byte[] raw = readAllBytes(maybeGunzip(conn, conn.getInputStream()));
-                    String body = new String(raw, "UTF-8");
-                    MusicLog.i(TAG, "[API] POST(guest-weapi) → HTTP " + status);
-
-                    JSONObject json = new JSONObject(body);
-                    int code = json.optInt("code", 200);
+                    MusicLog.i(TAG, "[REQ] POST(guest-anon-device) attempt=" + attempt);
+                    EapiResult result = eapiPost(API_LOGIN_ANON_DEVICE, new JSONObject());
+                    JSONObject json = result.json;
+                    int code = json != null ? json.optInt("code", 0) : 0;
+                    lastCode = code;
                     if (code != 200) {
                         MusicLog.w(TAG, "游客会话被拒 code=" + code + " attempt=" + attempt);
                         continue;
                     }
-                    String cookie = json.optString("cookie", "");
-                    if (cookie.isEmpty() || cookie.contains("null")) {
-                        String token = json.optString("token", "");
-                        if (!token.isEmpty()) {
-                            cookie = "MUSIC_U=" + token;
-                            String csrf = json.optString("__csrf", "");
-                            if (!csrf.isEmpty()) cookie += "; __csrf=" + csrf;
-                        }
-                    }
-                    guestCookie = cookie != null ? cookie : "";
+                    // Server-issued cookies are already in the jar via Set-Cookie
+                    guestCookie = sessionCookieToString();
                 } catch (Exception e) {
                     lastError = e;
                     MusicLog.w(TAG, "游客会话 attempt=" + attempt + " 失败: " + e);
                 }
             }
             if (!guestCookie.isEmpty()) {
+                MusicLog.op(TAG, "已获取并保存游客会话",
+                        guestCookie.replaceAll("=([^;]{8})[^;]*", "=$1***"));
                 final String result = guestCookie;
                 mainHandler.post(() -> callback.onResult(result));
             } else {
                 final String err = lastError != null
-                        ? errText(lastError) : "三次尝试均未取得游客会话";
+                        ? errText(lastError)
+                        : ("三次尝试均未取得游客会话 (code=" + lastCode + ")");
                 mainHandler.post(() -> callback.onError(err));
             }
         });
@@ -586,8 +613,12 @@ public final class NeteaseWatchApi {
      */
     private static JSONObject buildHeaderObject() throws org.json.JSONException {
         JSONObject header = new JSONObject();
-        // Device identity (watch163.py FIXED_COOKIES)
+        // Device identity (watch163.py FIXED_COOKIES) with the per-install
+        // deviceId inserted right after osver (real capture order)
+        header.put("osver", "13");
+        header.put("deviceId", deviceIdValue());
         for (String[] kv : DEVICE_COOKIES) {
+            if ("osver".equals(kv[0])) continue;
             header.put(kv[0], kv[1]);
         }
         // Server-issued session cookies (MUSIC_U, __csrf, NMTID ... collected
@@ -618,6 +649,8 @@ public final class NeteaseWatchApi {
         for (String[] kv : DEVICE_COOKIES) {
             deviceKeys.add(kv[0]);
         }
+        // deviceId is device identity, never a session credential
+        deviceKeys.add("deviceId");
         synchronized (cookieJar) {
             for (Map.Entry<String, String> e : cookieJar.entrySet()) {
                 if (deviceKeys.contains(e.getKey())) continue;
@@ -636,8 +669,12 @@ public final class NeteaseWatchApi {
     private static String cookieJarToString() {
         StringBuilder sb = new StringBuilder();
         Map<String, String> base = new LinkedHashMap<>();
-        // Device identity from the capture (watch163.py FIXED_COOKIES)
+        // Device identity from the capture (watch163.py FIXED_COOKIES) —
+        // deviceId goes right after osver, as in the real watch cookie
+        base.put("osver", "13");
+        base.put("deviceId", deviceIdValue());
         for (String[] kv : DEVICE_COOKIES) {
+            if ("osver".equals(kv[0])) continue;
             base.put(kv[0], kv[1]);
         }
         // Server-issued session cookies (override static on key collision)
