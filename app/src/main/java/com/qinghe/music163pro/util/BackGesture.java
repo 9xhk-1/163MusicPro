@@ -209,7 +209,7 @@ public final class BackGesture implements Application.ActivityLifecycleCallbacks
             origin.onWindowFocusChanged(hasFocus);
         }
 
-        public View onWindowStartingActionMode(ActionMode.Callback callback) {
+        public ActionMode onWindowStartingActionMode(ActionMode.Callback callback) {
             return origin.onWindowStartingActionMode(callback);
         }
 
