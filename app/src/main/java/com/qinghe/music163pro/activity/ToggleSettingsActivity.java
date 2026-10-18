@@ -32,6 +32,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private static final String PREF_LYRIC_RESUME_INTERVAL = "lyric_resume_interval";
     private static final String PREF_SLEEP_TIMER_EXIT_APP = "sleep_timer_exit_app";
     private static final String PREF_SKIP_TRIAL_SONGS = "skip_trial_songs";
+    private static final String PREF_BACK_GESTURE = "in_app_back_gesture";
     private static final String PREF_RANDOM_SKIP_RANDOM = "random_skip_random";
     private static final String PREF_USE_WATCH_API = "use_watch_parse";
     private static final String PREF_DISPLAY_SONG_ALIAS = "display_song_alias";
@@ -54,6 +55,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private SwitchMaterial switchSkipTrialSongs;
     private SwitchMaterial switchUseWatchApi;
     private SwitchMaterial switchDisplaySongAlias;
+    private SwitchMaterial switchBackGesture;
     private TextView tvFavModeValue;
     private TextView tvSleepTimerModeValue;
     private TextView tvSpeedModeValue;
@@ -84,6 +86,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         switchSkipTrialSongs = findViewById(R.id.switch_skip_trial_songs);
         switchUseWatchApi = findViewById(R.id.switch_use_watch_api);
         switchDisplaySongAlias = findViewById(R.id.switch_display_song_alias);
+        switchBackGesture = findViewById(R.id.switch_back_gesture);
         tvFavModeValue = findViewById(R.id.tv_fav_mode_value);
         tvSleepTimerModeValue = findViewById(R.id.tv_sleep_timer_mode_value);
         tvSpeedModeValue = findViewById(R.id.tv_speed_mode_value);
@@ -146,6 +149,14 @@ public class ToggleSettingsActivity extends AppCompatActivity {
                     Toast.LENGTH_SHORT).show();
         });
 
+        switchBackGesture.setOnCheckedChangeListener((btn, isChecked) -> {
+            if (updatingSwitch) return;
+            prefs.edit().putBoolean(PREF_BACK_GESTURE, isChecked).apply();
+            Toast.makeText(this,
+                    isChecked ? "已开启：从左向右滑动返回上一页" : "已关闭应用内返回手势",
+                    Toast.LENGTH_SHORT).show();
+        });
+
         // Favorites mode: tap to cycle (本地 / 云端)
         if (rowFavMode != null) rowFavMode.setOnClickListener(v -> cycleFavMode());
 
@@ -175,6 +186,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         switchSkipTrialSongs.setChecked(prefs.getBoolean(PREF_SKIP_TRIAL_SONGS, false));
         switchDisplaySongAlias.setChecked(prefs.getBoolean(PREF_DISPLAY_SONG_ALIAS, true));
         switchUseWatchApi.setChecked(prefs.getBoolean(PREF_USE_WATCH_API, true));
+        switchBackGesture.setChecked(prefs.getBoolean(PREF_BACK_GESTURE, false));
         updatingSwitch = false;
         updateFavModeValue();
         updateSleepTimerModeValue();

@@ -31,5 +31,8 @@ public class MusicApp extends Application {
             MusicLog.i(TAG, "已生成并永久保存 watch deviceId");
         }
         NeteaseWatchApi.setDeviceId(id);
+        // 应用内返回手势 (in_app_back_gesture, 默认关) — 生命周期回调
+        // 自动挂到除 MainActivity 外的每个 Activity
+        com.qinghe.music163pro.util.BackGesture.install(this);
     }
 }
