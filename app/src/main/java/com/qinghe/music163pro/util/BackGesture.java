@@ -9,6 +9,7 @@ import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
+import android.view.SearchEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -227,6 +228,14 @@ public final class BackGesture implements Application.ActivityLifecycleCallbacks
 
         public void onPanelClosed(int featureId, Menu menu) {
             origin.onPanelClosed(featureId, menu);
+        }
+
+        public boolean onSearchRequested() {
+            return origin.onSearchRequested();
+        }
+
+        public boolean onSearchRequested(SearchEvent event) {
+            return origin.onSearchRequested(event);
         }
 
         public void onActionModeStarted(ActionMode mode) {
