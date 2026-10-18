@@ -153,6 +153,45 @@ public final class BackgroundUtil {
     }
 
     private static Bitmap downloadBitmap(Context context, String urlStr) {
+        byte[] data;
+        if (urlStr != null && urlStr.startsWith("file://")) {
+            // 本地封面: 离线播放已下载歌曲时 coverUrl 是 file:// 路径
+            // (DownloadManager 优先使用歌曲目录下的 cover.jpg)。不能走
+            // HttpURLConnection 分支 — file 协议强转会 ClassCastException,
+            // 之前被 catch 吞掉导致离线封面一直不显示。
+            data = readLocalFile(urlStr.substring(7));
+        } else {
+            data = readHttpFile(urlStr);
+        }
+        if (data == null || data.length == 0) return null;
+        int reqW = context.getResources().getDisplayMetrics().widthPixels;
+        int reqH = context.getResources().getDisplayMetrics().heightPixels;
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeByteArray(data, 0, data.length, bounds);
+        BitmapFactory.Options opts = new BitmapFactory.Options();
+        opts.inSampleSize = calculateSampleSize(bounds, reqW, reqH);
+        return BitmapFactory.decodeByteArray(data, 0, data.length, opts);
+    }
+
+    /** 读取本地文件全部字节 (file:// 封面). */
+    private static byte[] readLocalFile(String path) {
+        InputStream is = null;
+        try {
+            is = new java.io.FileInputStream(path);
+            return readAll(is);
+        } catch (Exception ignored) {
+            return null;
+        } finally {
+            try {
+                if (is != null) is.close();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    /** 读取网络图片全部字节 (http/https 封面). */
+    private static byte[] readHttpFile(String urlStr) {
         HttpURLConnection conn = null;
         InputStream is = null;
         try {
@@ -162,16 +201,7 @@ public final class BackgroundUtil {
             conn.setRequestProperty("User-Agent", "Mozilla/5.0");
             conn.connect();
             is = conn.getInputStream();
-            byte[] data = readAll(is);
-            if (data.length == 0) return null;
-            int reqW = context.getResources().getDisplayMetrics().widthPixels;
-            int reqH = context.getResources().getDisplayMetrics().heightPixels;
-            BitmapFactory.Options bounds = new BitmapFactory.Options();
-            bounds.inJustDecodeBounds = true;
-            BitmapFactory.decodeByteArray(data, 0, data.length, bounds);
-            BitmapFactory.Options opts = new BitmapFactory.Options();
-            opts.inSampleSize = calculateSampleSize(bounds, reqW, reqH);
-            return BitmapFactory.decodeByteArray(data, 0, data.length, opts);
+            return readAll(is);
         } catch (Exception ignored) {
             return null;
         } finally {
