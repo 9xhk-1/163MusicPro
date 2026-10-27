@@ -38,6 +38,10 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private static final String PREF_DISPLAY_SONG_ALIAS = "display_song_alias";
     private static final String PREF_SLEEP_TIMER_MODE = "sleep_timer_mode";
     private static final String PREF_FAV_MODE_CLOUD = "fav_mode_cloud";
+    /** Sheet/image save directory; default = first preset, /sdcard/Pictures. */
+    private static final String PREF_IMAGE_SAVE_DIR = "image_save_dir";
+    private static final String[] IMAGE_SAVE_PRESETS = {
+            "/sdcard/Pictures", "/sdcard/DCIM/Camera"};
     private static final int MODE_MANUAL = 0;
     private static final int MODE_AUTO = 1;
     // Lyric scroll modes: 0=每行 (follow current line), 1=阻塞 (blocked by user scroll)
@@ -64,6 +68,8 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private TextView tvLyricResumeIntervalValue;
     private TextView tvRandomSkipModeValue;
     private LinearLayout rowLyricResumeInterval;
+    private LinearLayout rowImageSaveDir;
+    private TextView tvImageSaveDirValue;
     private SharedPreferences prefs;
 
     /** Suppress listener callbacks while programmatically setting switch state. */
@@ -101,6 +107,8 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         LinearLayout rowRandomSkipMode = findViewById(R.id.row_random_skip_mode);
         tvRandomSkipModeValue = findViewById(R.id.tv_random_skip_mode_value);
         rowLyricResumeInterval = findViewById(R.id.row_lyric_resume_interval);
+        rowImageSaveDir = findViewById(R.id.row_image_save_dir);
+        tvImageSaveDirValue = findViewById(R.id.tv_image_save_dir_value);
 
         // Initialise switch states from prefs
         syncSwitchStates();
@@ -171,6 +179,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         rowRecognitionMode.setOnClickListener(v -> cycleRecognitionMode());
         rowLyricScrollMode.setOnClickListener(v -> cycleLyricScrollMode());
         rowLyricResumeInterval.setOnClickListener(v -> editLyricResumeInterval());
+        if (rowImageSaveDir != null) rowImageSaveDir.setOnClickListener(v -> editImageSaveDir());
     }
 
     @Override
@@ -195,6 +204,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         updateLyricScrollModeValue();
         updateLyricResumeIntervalValue();
         updateRandomSkipModeValue();
+        updateImageSaveDirValue();
     }
 
     private void cycleRandomSkipMode() {
@@ -328,5 +338,64 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private void updateLyricResumeIntervalValue() {
         int seconds = prefs.getInt(PREF_LYRIC_RESUME_INTERVAL, 3);
         tvLyricResumeIntervalValue.setText(seconds + "秒无操作后恢复跟随");
+    }
+
+    // ─── 图片保存地址 ────────────────────────────────────────────────
+
+    private void editImageSaveDir() {
+        final String current = prefs.getString(PREF_IMAGE_SAVE_DIR, IMAGE_SAVE_PRESETS[0]);
+        String[] labels = {IMAGE_SAVE_PRESETS[0], IMAGE_SAVE_PRESETS[1], "自定义..."};
+        int checked = -1;
+        for (int i = 0; i < IMAGE_SAVE_PRESETS.length; i++) {
+            if (IMAGE_SAVE_PRESETS[i].equals(current)) checked = i;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("图片保存地址")
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    if (which < IMAGE_SAVE_PRESETS.length) {
+                        prefs.edit().putString(PREF_IMAGE_SAVE_DIR, IMAGE_SAVE_PRESETS[which]).apply();
+                        updateImageSaveDirValue();
+                        Toast.makeText(this,
+                                "图片保存地址: " + IMAGE_SAVE_PRESETS[which],
+                                Toast.LENGTH_SHORT).show();
+                        dialog.dismiss();
+                    } else {
+                        dialog.dismiss();
+                        promptCustomImageSaveDir(current);
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void promptCustomImageSaveDir(String current) {
+        EditText input = new EditText(this);
+        input.setText(current);
+        input.setSelectAllOnFocus(true);
+        input.setSingleLine(true);
+        input.setHint("/sdcard/...");
+        int pad = (int) (8 * getResources().getDisplayMetrics().density);
+        input.setPadding(pad * 3, pad * 2, pad * 3, pad * 2);
+
+        new AlertDialog.Builder(this)
+                .setTitle("自定义保存地址")
+                .setView(input)
+                .setPositiveButton("确定", (dialog, which) -> {
+                    String path = input.getText().toString().trim();
+                    while (path.endsWith("/")) {
+                        path = path.substring(0, path.length() - 1);
+                    }
+                    if (path.isEmpty()) return;
+                    prefs.edit().putString(PREF_IMAGE_SAVE_DIR, path).apply();
+                    updateImageSaveDirValue();
+                    Toast.makeText(this, "图片保存地址: " + path, Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void updateImageSaveDirValue() {
+        if (tvImageSaveDirValue == null) return;
+        tvImageSaveDirValue.setText(prefs.getString(PREF_IMAGE_SAVE_DIR, IMAGE_SAVE_PRESETS[0]));
     }
 }

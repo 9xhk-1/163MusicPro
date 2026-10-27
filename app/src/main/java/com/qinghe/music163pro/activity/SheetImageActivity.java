@@ -33,8 +33,8 @@ import java.net.URL;
  *
  * - Opens from the sheet card in SongInfoActivity (image_url / title extras).
  * - Pinch to zoom, double-tap to toggle zoom, drag to pan (ZoomableImageView).
- * - Long-press shows a dialog offering to save the image to
- *   /sdcard/163Music/sheet/<title>_<timestamp>.jpg (visible in gallery).
+ * - Long-press shows a dialog offering to save the image to the directory
+ *   configured in 设置-图片保存地址 (default /sdcard/Pictures, visible in gallery).
  *
  * The source image may be http(s) or a local file:// path; decoding is
  * sampled so the longest edge stays <= 2048px (watch memory safety) while
@@ -211,8 +211,10 @@ public class SheetImageActivity extends AppCompatActivity {
     private void saveImage() {
         final Bitmap bm = loadedBitmap;
         if (bm == null) return;
-        final String dirPath = new File(
-                Environment.getExternalStorageDirectory(), "163Music/sheet").getAbsolutePath();
+        // Save directory comes from 设置-图片保存地址 (default /sdcard/Pictures)
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        final String dirPath = prefs.getString("image_save_dir",
+                new File(Environment.getExternalStorageDirectory(), "Pictures").getAbsolutePath());
         final String name = sanitizeFileName(title) + "_" + System.currentTimeMillis() + ".jpg";
         new Thread(() -> {
             try {
