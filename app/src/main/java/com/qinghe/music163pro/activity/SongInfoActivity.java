@@ -190,6 +190,21 @@ public class SongInfoActivity extends AppCompatActivity {
             }
         }
 
+        // Song translations (译名, e.g. "Normal No More" → "不再平庸")
+        JSONArray tns = song.optJSONArray("tns");
+        if (tns != null && tns.length() > 0) {
+            StringBuilder translations = new StringBuilder();
+            for (int i = 0; i < tns.length(); i++) {
+                String t = tns.optString(i, "");
+                if (t.isEmpty()) continue;
+                if (translations.length() > 0) translations.append(" / ");
+                translations.append(t);
+            }
+            if (translations.length() > 0) {
+                addInfoRow("译名", translations.toString());
+            }
+        }
+
         // Song ID
         addInfoRow("歌曲ID", String.valueOf(song.optLong("id", songId)));
 
@@ -219,6 +234,19 @@ public class SongInfoActivity extends AppCompatActivity {
             long albumId = al.optLong("id", 0);
             if (albumId > 0) {
                 addInfoRow("专辑ID", String.valueOf(albumId));
+            }
+            JSONArray alTns = al.optJSONArray("tns");
+            if (alTns != null && alTns.length() > 0) {
+                StringBuilder albumT = new StringBuilder();
+                for (int i = 0; i < alTns.length(); i++) {
+                    String t = alTns.optString(i, "");
+                    if (t.isEmpty()) continue;
+                    if (albumT.length() > 0) albumT.append(" / ");
+                    albumT.append(t);
+                }
+                if (albumT.length() > 0) {
+                    addInfoRow("专辑译名", albumT.toString());
+                }
             }
         }
 
@@ -300,8 +328,18 @@ public class SongInfoActivity extends AppCompatActivity {
     private String formatBitrate(JSONObject quality) {
         long br = quality.optLong("br", 0);
         long size = quality.optLong("size", 0);
+        int sr = quality.optInt("sr", 0);
         StringBuilder sb = new StringBuilder();
         if (br > 0) sb.append(br / 1000).append("kbps");
+        // 采样率: sr 单位 Hz (44100 → 44.1kHz, 48000 → 48kHz)
+        if (sr >= 1000) {
+            if (sb.length() > 0) sb.append(" / ");
+            if (sr % 1000 == 0) {
+                sb.append(sr / 1000).append("kHz");
+            } else {
+                sb.append(String.format(Locale.getDefault(), "%.1fkHz", sr / 1000f));
+            }
+        }
         if (size > 0) {
             if (sb.length() > 0) sb.append(" / ");
             double mb = size / (1024.0 * 1024.0);
@@ -373,10 +411,11 @@ public class SongInfoActivity extends AppCompatActivity {
         contentLayout.addView(makeSpacer(px(6)));
         addSectionHeader(getBlockIconRes(blockCode), blockTitle);
 
-        // Show block-level UI element if present
+        // Show block-level UI element if present (skip mainTitle that just
+        // repeats the section header, e.g. 相似歌曲/相关歌单/回忆坐标)
         JSONObject blockUiElement = block.optJSONObject("uiElement");
         if (blockUiElement != null) {
-            displayUiElement(blockUiElement);
+            displayUiElement(blockUiElement, blockTitle);
         }
 
         // Parse creatives
@@ -695,15 +734,21 @@ public class SongInfoActivity extends AppCompatActivity {
                     rightLayout.addView(makeText(title, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
                 }
             }
-            // subTitles is an array in the API response
+            // subTitles is an array in the API response — join ALL entries
+            // (e.g. songAward: "获" + "华语榜年度十大单曲"; first-only lost the award)
             JSONArray subTitles = resUiElement.optJSONArray("subTitles");
             if (subTitles != null && subTitles.length() > 0) {
-                JSONObject st0 = subTitles.optJSONObject(0);
-                if (st0 != null) {
-                    String title = st0.optString("title", "");
-                    if (!title.isEmpty()) {
-                        rightLayout.addView(makeSmallLabel(title));
-                    }
+                StringBuilder stJoined = new StringBuilder();
+                for (int i = 0; i < subTitles.length(); i++) {
+                    JSONObject st = subTitles.optJSONObject(i);
+                    if (st == null) continue;
+                    String title = st.optString("title", "");
+                    if (title.isEmpty()) continue;
+                    if (stJoined.length() > 0) stJoined.append(" ");
+                    stJoined.append(title);
+                }
+                if (stJoined.length() > 0) {
+                    rightLayout.addView(makeSmallLabel(stJoined.toString()));
                 }
             } else {
                 // Fallback: legacy single-object form
@@ -718,6 +763,36 @@ public class SongInfoActivity extends AppCompatActivity {
             String ueDesc = resUiElement.optString("description", "");
             if (!ueDesc.isEmpty()) {
                 rightLayout.addView(makeText(ueDesc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+            }
+            // descriptions array carries the actual text for 乐评 etc.
+            // (singular "description" is always absent in real responses)
+            JSONArray descs = resUiElement.optJSONArray("descriptions");
+            if (descs != null && descs.length() > 0) {
+                for (int i = 0; i < descs.length(); i++) {
+                    JSONObject d = descs.optJSONObject(i);
+                    if (d == null) continue;
+                    String dText = d.optString("description", "");
+                    if (!dText.isEmpty()) {
+                        rightLayout.addView(makeText(dText, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                        rightLayout.addView(makeSpacer(px(3)));
+                    }
+                }
+            }
+            // Resource-level textLinks (values some cards put here)
+            JSONArray resTextLinks = resUiElement.optJSONArray("textLinks");
+            if (resTextLinks != null && resTextLinks.length() > 0) {
+                StringBuilder rlValues = new StringBuilder();
+                for (int i = 0; i < resTextLinks.length(); i++) {
+                    JSONObject link = resTextLinks.optJSONObject(i);
+                    if (link == null) continue;
+                    String text = link.optString("text", "");
+                    if (text.isEmpty()) continue;
+                    if (rlValues.length() > 0) rlValues.append(" / ");
+                    rlValues.append(text);
+                }
+                if (rlValues.length() > 0) {
+                    rightLayout.addView(makeSmallLabel(rlValues.toString()));
+                }
             }
             // Image text (used by some blocks)
             JSONArray imgArr = resUiElement.optJSONArray("images");
@@ -783,6 +858,31 @@ public class SongInfoActivity extends AppCompatActivity {
             if (!desc.isEmpty()) {
                 rightLayout.addView(makeSpacer(px(3)));
                 rightLayout.addView(makeText(desc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+            }
+        }
+
+        // 回忆坐标 (memoryGrid) stores its content in resourceExt — not
+        // resourceExtInfo: {musicFirstListenDto: {date, period, season}}
+        JSONObject resourceExt = resource.optJSONObject("resourceExt");
+        if (resourceExt != null) {
+            JSONObject firstListen = resourceExt.optJSONObject("musicFirstListenDto");
+            if (firstListen != null) {
+                String date = firstListen.optString("date", "");
+                String period = firstListen.optString("period", "");
+                String season = firstListen.optString("season", "");
+                StringBuilder memory = new StringBuilder();
+                if (!date.isEmpty()) memory.append(date);
+                if (!period.isEmpty()) {
+                    if (memory.length() > 0) memory.append(" · ");
+                    memory.append(period);
+                }
+                if (!season.isEmpty()) {
+                    if (memory.length() > 0) memory.append(" · ");
+                    memory.append(season);
+                }
+                if (memory.length() > 0) {
+                    rightLayout.addView(makeSmallLabel(memory.toString()));
+                }
             }
         }
 
@@ -931,10 +1031,19 @@ public class SongInfoActivity extends AppCompatActivity {
     }
 
     private void displayUiElement(JSONObject uiElement) {
+        displayUiElement(uiElement, null);
+    }
+
+    /**
+     * @param skipTitle when non-null, a mainTitle identical to this string is
+     *                  not re-rendered (block-level uiElement duplicates the
+     *                  section header already added by displayBlock).
+     */
+    private void displayUiElement(JSONObject uiElement, String skipTitle) {
         JSONObject mainTitle = uiElement.optJSONObject("mainTitle");
         if (mainTitle != null) {
             String title = mainTitle.optString("title", "");
-            if (!title.isEmpty()) {
+            if (!title.isEmpty() && !title.equals(skipTitle)) {
                 contentLayout.addView(makeText(title, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
             }
         }
@@ -943,6 +1052,23 @@ public class SongInfoActivity extends AppCompatActivity {
             String title = subTitle.optString("title", "");
             if (!title.isEmpty()) {
                 contentLayout.addView(makeText(title, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+            }
+        }
+        // textLinks carries the actual values for creatives like 语种/BPM —
+        // the API puts them here, NOT in headline/desc (which are always null).
+        JSONArray textLinks = uiElement.optJSONArray("textLinks");
+        if (textLinks != null && textLinks.length() > 0) {
+            StringBuilder values = new StringBuilder();
+            for (int i = 0; i < textLinks.length(); i++) {
+                JSONObject link = textLinks.optJSONObject(i);
+                if (link == null) continue;
+                String text = link.optString("text", "");
+                if (text.isEmpty()) continue;
+                if (values.length() > 0) values.append(" / ");
+                values.append(text);
+            }
+            if (values.length() > 0) {
+                contentLayout.addView(makeText(values.toString(), COLOR_TEXT_DESC, px(13), false, Gravity.START));
             }
         }
         String description = uiElement.optString("description", "");
