@@ -35,6 +35,8 @@ public class ZoomableImageView extends ImageView {
 
     private float lastX;
     private float lastY;
+    /** Whether (lastX,lastY) is a valid anchor for the current single pointer. */
+    private boolean anchorValid = false;
     /** Whether fitCenter() has been applied for the current drawable/size. */
     private boolean fitted = false;
 
@@ -170,30 +172,37 @@ public class ZoomableImageView extends ImageView {
         scaleDetector.onTouchEvent(event);
         gestureDetector.onTouchEvent(event);
 
-        // Single-finger pan when zoomed beyond fit-center
-        if (!scaleDetector.isInProgress() && scaleFactor > minScale + 0.01f) {
-            switch (event.getActionMasked()) {
-                case MotionEvent.ACTION_DOWN:
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+            case MotionEvent.ACTION_POINTER_DOWN:
+            case MotionEvent.ACTION_POINTER_UP:
+                // The active pointer set is about to change (a pinch just
+                // started/ended). Invalidate the pan anchor so the first
+                // single-finger move afterwards re-anchors instead of
+                // translating by a huge stale delta (the "zoom offset" bug).
+                anchorValid = false;
+                break;
+            case MotionEvent.ACTION_MOVE:
+                boolean canPan = anchorValid && !scaleDetector.isInProgress()
+                        && scaleFactor > minScale + 0.01f
+                        && event.getPointerCount() == 1;
+                if (canPan) {
+                    float x = event.getX();
+                    float y = event.getY();
+                    matrix.postTranslate(x - lastX, y - lastY);
+                    fixTranslation();
+                    setImageMatrix(matrix);
+                    lastX = x;
+                    lastY = y;
+                } else if (event.getPointerCount() == 1) {
+                    // (Re)anchor without translating
                     lastX = event.getX();
                     lastY = event.getY();
-                    break;
-                case MotionEvent.ACTION_MOVE:
-                    if (event.getPointerCount() == 1) {
-                        float x = event.getX();
-                        float y = event.getY();
-                        matrix.postTranslate(x - lastX, y - lastY);
-                        fixTranslation();
-                        setImageMatrix(matrix);
-                        lastX = x;
-                        lastY = y;
-                    }
-                    break;
-                default:
-                    break;
-            }
-        } else if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-            lastX = event.getX();
-            lastY = event.getY();
+                    anchorValid = true;
+                }
+                break;
+            default:
+                break;
         }
         return true;
     }
