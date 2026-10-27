@@ -69,15 +69,24 @@ public class ZoomableImageView extends ImageView {
                         scaleFactor *= factor;
                         fixTranslation();
                         setImageMatrix(matrix);
+                        MusicLog.d("ZoomableImg", "onScale factor=" + factor
+                                + " focus=(" + detector.getFocusX() + "," + detector.getFocusY()
+                                + ") scaleFactor=" + scaleFactor + " min=" + minScale);
                         return true;
                     }
 
                     @Override
                     public boolean onScaleBegin(ScaleGestureDetector detector) {
+                        MusicLog.d("ZoomableImg", "onScaleBegin");
                         if (getParent() != null) {
                             getParent().requestDisallowInterceptTouchEvent(true);
                         }
                         return true;
+                    }
+
+                    @Override
+                    public void onScaleEnd(ScaleGestureDetector detector) {
+                        MusicLog.d("ZoomableImg", "onScaleEnd scaleFactor=" + scaleFactor);
                     }
                 });
 
@@ -93,15 +102,19 @@ public class ZoomableImageView extends ImageView {
                         // A pinch can look like a quick tap pair to the gesture
                         // detector — zooming right after a pinch makes the image
                         // jump. Ignore double-taps briefly after multi-touch.
-                        if (SystemClock.uptimeMillis() - lastMultiTouchTime < 500) {
+                        long since = SystemClock.uptimeMillis() - lastMultiTouchTime;
+                        if (since < 500) {
+                            MusicLog.d("ZoomableImg", "doubleTap BLOCKED sinceMulti=" + since);
                             return true;
                         }
+                        MusicLog.d("ZoomableImg", "doubleTap toggleZoomAt (" + e.getX() + "," + e.getY() + ")");
                         toggleZoomAt(e.getX(), e.getY());
                         return true;
                     }
 
                     @Override
                     public void onLongPress(MotionEvent e) {
+                        MusicLog.d("ZoomableImg", "onLongPress -> performLongClick");
                         performLongClick();
                     }
                 });
@@ -170,6 +183,9 @@ public class ZoomableImageView extends ImageView {
         if (deltaX != 0 || deltaY != 0) {
             matrix.postTranslate(deltaX, deltaY);
         }
+        MusicLog.d("ZoomableImg", "fixT rect=(" + rect.left + "," + rect.top + ","
+                + rect.width() + "x" + rect.height() + ") view=" + getWidth() + "x" + getHeight()
+                + " delta=(" + deltaX + "," + deltaY + ")");
     }
 
     private static float clamp(float value, float min, float max) {
@@ -190,6 +206,7 @@ public class ZoomableImageView extends ImageView {
                 if (getParent() != null) {
                     getParent().requestDisallowInterceptTouchEvent(true);
                 }
+                MusicLog.d("ZoomableImg", "DOWN scaleFactor=" + scaleFactor + " min=" + minScale);
                 break;
             case MotionEvent.ACTION_POINTER_DOWN:
             case MotionEvent.ACTION_POINTER_UP:
@@ -199,9 +216,12 @@ public class ZoomableImageView extends ImageView {
                 // delta (the "zoom offset" bug).
                 lastMultiTouchTime = SystemClock.uptimeMillis();
                 anchorValid = false;
+                MusicLog.d("ZoomableImg", "POINTER action=" + event.getActionMasked()
+                        + " count=" + event.getPointerCount());
                 break;
             case MotionEvent.ACTION_CANCEL:
                 anchorValid = false;
+                MusicLog.d("ZoomableImg", "CANCEL");
                 break;
             case MotionEvent.ACTION_MOVE:
                 // Gate on pointer count only — ScaleGestureDetector may report
@@ -213,16 +233,22 @@ public class ZoomableImageView extends ImageView {
                 if (canPan) {
                     float x = event.getX();
                     float y = event.getY();
-                    matrix.postTranslate(x - lastX, y - lastY);
+                    float dx = x - lastX;
+                    float dy = y - lastY;
+                    matrix.postTranslate(dx, dy);
                     fixTranslation();
                     setImageMatrix(matrix);
                     lastX = x;
                     lastY = y;
+                    MusicLog.d("ZoomableImg", "PAN dx=" + dx + " dy=" + dy
+                            + " scaleFactor=" + scaleFactor);
                 } else if (event.getPointerCount() == 1) {
                     // (Re)anchor without translating
                     lastX = event.getX();
                     lastY = event.getY();
                     anchorValid = true;
+                    MusicLog.d("ZoomableImg", "ANCHOR only scaleFactor=" + scaleFactor
+                            + " min=" + minScale + " zoomed=" + (scaleFactor > minScale + 0.01f));
                 }
                 break;
             default:
