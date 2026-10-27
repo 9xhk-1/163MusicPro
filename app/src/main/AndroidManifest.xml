@@ -68,6 +68,7 @@
         <activity android:name=".activity.EditMoreActivity" android:exported="false" />
         <activity android:name=".activity.UpdateActivity" android:exported="false" />
         <activity android:name=".activity.MvDetailActivity" android:exported="false" />
+        <activity android:name=".activity.SheetImageActivity" android:exported="false" />
         <activity android:name=".activity.MvPlayerActivity" android:exported="false" />
         <activity android:name=".activity.BilibiliActivity" android:exported="false" />
         <activity android:name=".activity.BilibiliBvidActivity" android:exported="false" />

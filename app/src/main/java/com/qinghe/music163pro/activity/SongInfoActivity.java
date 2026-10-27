@@ -652,6 +652,7 @@ public class SongInfoActivity extends AppCompatActivity {
 
         // Extract cover URL for card thumbnail
         String coverUrlRes = "";
+        String sheetImgTitle = "";
         if (resUiElement != null) {
             // images is an array in the API response
             JSONArray imgs = resUiElement.optJSONArray("images");
@@ -659,6 +660,7 @@ public class SongInfoActivity extends AppCompatActivity {
                 JSONObject img0 = imgs.optJSONObject(0);
                 if (img0 != null) {
                     coverUrlRes = img0.optString("imageUrl", img0.optString("url", ""));
+                    sheetImgTitle = img0.optString("title", "");
                 }
             }
             // Fallback: legacy single-object form
@@ -686,6 +688,9 @@ public class SongInfoActivity extends AppCompatActivity {
             displaySongCard(resource, resInfo, resUiElement, coverUrlRes);
             return;
         }
+
+        // 乐谱 (sheet_music) cards open the zoomable full-screen viewer
+        boolean sheetCard = "sheet_music".equals(resource.optString("resourceType", ""));
 
         // Create a horizontal card: [cover thumbnail] + [content column]
         LinearLayout card = new LinearLayout(this);
@@ -943,8 +948,26 @@ public class SongInfoActivity extends AppCompatActivity {
                     card.setOnClickListener(v -> openPlaylistDetail(finalPlId, finalPlName, finalPlTrackCount, ""));
                 }
             }
+            if (sheetCard) {
+                rightLayout.addView(makeSmallLabel("点击放大 · 长按保存"));
+            }
             contentLayout.addView(card);
+            if (sheetCard && !coverUrlRes.isEmpty()) {
+                final String sheetUrl = coverUrlRes;
+                final String sheetTitle = sheetImgTitle != null && !sheetImgTitle.isEmpty()
+                        ? sheetImgTitle : "乐谱";
+                card.setClickable(true);
+                card.setOnClickListener(v -> openSheetImage(sheetUrl, sheetTitle));
+            }
         }
+    }
+
+    /** Open the zoomable sheet music viewer (pinch to zoom, long-press to save). */
+    private void openSheetImage(String imageUrl, String title) {
+        Intent intent = new Intent(this, SheetImageActivity.class);
+        intent.putExtra("image_url", imageUrl);
+        intent.putExtra("title", title);
+        startActivity(intent);
     }
 
     /**
