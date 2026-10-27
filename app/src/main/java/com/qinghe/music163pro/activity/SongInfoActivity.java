@@ -502,15 +502,65 @@ public class SongInfoActivity extends AppCompatActivity {
             displayUiElement(uiElement);
         }
 
-        // Parse resources
+        // Parse resources. Text-only tag resources (曲风/推荐标签 — one tiny
+        // title per resource) are joined into ONE flowing line: rendering each
+        // on its own row made2-char titles waste a line each and duplicated
+        // the white bold title style onto what is really content.
         JSONArray resources = creative.optJSONArray("resources");
-        if (resources != null) {
+        if (resources != null && resources.length() > 0 && allInlineTags(resources)) {
+            StringBuilder tags = new StringBuilder();
+            for (int r = 0; r < resources.length(); r++) {
+                JSONObject res = resources.optJSONObject(r);
+                if (res == null) continue;
+                JSONObject rUe = res.optJSONObject("uiElement");
+                JSONObject rMt = rUe != null ? rUe.optJSONObject("mainTitle") : null;
+                String t = rMt != null ? text(rMt, "title") : "";
+                if (t.isEmpty()) continue;
+                if (tags.length() > 0) tags.append(" · ");
+                tags.append(t);
+            }
+            if (tags.length() > 0) {
+                contentLayout.addView(makeText(tags.toString(), COLOR_TEXT_DESC, px(14), false, Gravity.START));
+                contentLayout.addView(makeSpacer(px(3)));
+            }
+        } else if (resources != null) {
             for (int r = 0; r < resources.length(); r++) {
                 JSONObject resource = resources.optJSONObject(r);
                 if (resource == null) continue;
                 displayResource(resource);
             }
         }
+    }
+
+    /**
+     * True when every resource is a text-only tag (no id/cover/info): its
+     * mainTitle IS the whole content — e.g. 曲风 → "流行-欧美流行",
+     * 推荐标签 → 甜蜜 / 活力 / 放松 …
+     */
+    private static boolean allInlineTags(JSONArray resources) {
+        for (int i = 0; i < resources.length(); i++) {
+            JSONObject res = resources.optJSONObject(i);
+            if (res == null) return false;
+            if (res.optLong("id", 0) > 0 || !text(res, "resourceId").isEmpty()) return false;
+            if (res.optJSONObject("resourceInfo") != null) return false;
+            if (res.optJSONObject("resourceExt") != null) return false;
+            if (res.optJSONObject("resourceExtInfo") != null) return false;
+            if ("sheet_music".equals(text(res, "resourceType"))) return false;
+            if (res.optJSONArray("images") != null) return false;
+            JSONObject ue = res.optJSONObject("uiElement");
+            if (ue == null) return false;
+            JSONObject mt = ue.optJSONObject("mainTitle");
+            if (mt == null || text(mt, "title").isEmpty()) return false;
+            JSONArray sub = ue.optJSONArray("subTitles");
+            if (sub != null && sub.length() > 0) return false;
+            JSONArray tl = ue.optJSONArray("textLinks");
+            if (tl != null && tl.length() > 0) return false;
+            JSONArray im = ue.optJSONArray("images");
+            if (im != null && im.length() > 0) return false;
+            JSONArray ds = ue.optJSONArray("descriptions");
+            if (ds != null && ds.length() > 0) return false;
+        }
+        return true;
     }
 
     /**
@@ -633,7 +683,7 @@ public class SongInfoActivity extends AppCompatActivity {
                 if (valStr.isEmpty() || "null".equals(valStr)) continue;
                 if (valStr.startsWith("{") || valStr.startsWith("[")) continue;
                 if (valStr.length() > 300) continue;
-                contentLayout.addView(makeText(valStr, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                contentLayout.addView(makeText(valStr, COLOR_TEXT_DESC, px(14), false, Gravity.START));
                 contentLayout.addView(makeSpacer(px(2)));
             }
         } catch (Exception e) {
@@ -783,7 +833,7 @@ public class SongInfoActivity extends AppCompatActivity {
             }
             String ueDesc = text(resUiElement, "description");
             if (!ueDesc.isEmpty()) {
-                rightLayout.addView(makeText(ueDesc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                rightLayout.addView(makeText(ueDesc, COLOR_TEXT_DESC, px(14), false, Gravity.START));
             }
             // descriptions array carries the actual text for 乐评 etc.
             // (singular "description" is always absent in real responses)
@@ -794,7 +844,7 @@ public class SongInfoActivity extends AppCompatActivity {
                     if (d == null) continue;
                     String dText = text(d, "description");
                     if (!dText.isEmpty()) {
-                        rightLayout.addView(makeText(dText, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                        rightLayout.addView(makeText(dText, COLOR_TEXT_DESC, px(14), false, Gravity.START));
                         rightLayout.addView(makeSpacer(px(3)));
                     }
                 }
@@ -878,7 +928,7 @@ public class SongInfoActivity extends AppCompatActivity {
             String desc = text(resInfo, "desc");
             if (!desc.isEmpty()) {
                 rightLayout.addView(makeSpacer(px(3)));
-                rightLayout.addView(makeText(desc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                rightLayout.addView(makeText(desc, COLOR_TEXT_DESC, px(14), false, Gravity.START));
             }
         }
 
@@ -1121,7 +1171,7 @@ public class SongInfoActivity extends AppCompatActivity {
         if (subTitle != null) {
             String title = text(subTitle, "title");
             if (!title.isEmpty()) {
-                contentLayout.addView(makeText(title, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                contentLayout.addView(makeText(title, COLOR_TEXT_DESC, px(14), false, Gravity.START));
             }
         }
         // textLinks carries the actual values for creatives like 语种/BPM —
@@ -1138,12 +1188,12 @@ public class SongInfoActivity extends AppCompatActivity {
                 values.append(value);
             }
             if (values.length() > 0) {
-                contentLayout.addView(makeText(values.toString(), COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                contentLayout.addView(makeText(values.toString(), COLOR_TEXT_DESC, px(14), false, Gravity.START));
             }
         }
         String description = text(uiElement, "description");
         if (!description.isEmpty()) {
-            contentLayout.addView(makeText(description, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+            contentLayout.addView(makeText(description, COLOR_TEXT_DESC, px(14), false, Gravity.START));
         }
     }
 
@@ -1360,8 +1410,10 @@ public class SongInfoActivity extends AppCompatActivity {
     private TextView makeSmallLabel(String text) {
         TextView tv = new TextView(this);
         tv.setText(text);
-        tv.setTextColor(COLOR_TEXT_SECONDARY);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
+        // Content style — same gray + size as every other body text so the
+        // page has exactly two levels: white bold title / gray body.
+        tv.setTextColor(COLOR_TEXT_DESC);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
         tv.setPadding(0, px(1), 0, 0);
         return tv;
     }

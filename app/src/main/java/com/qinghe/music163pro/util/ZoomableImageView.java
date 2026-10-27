@@ -5,6 +5,7 @@ import android.content.Context;
 import android.graphics.Matrix;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
+import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -37,6 +38,9 @@ public class ZoomableImageView extends ImageView {
     private float lastY;
     /** Whether (lastX,lastY) is a valid anchor for the current single pointer. */
     private boolean anchorValid = false;
+    /** Uptime of the last multi-pointer event — used to suppress the phantom
+     *  double-tap a pinch can leave behind (the "image jumps after pinch" bug). */
+    private long lastMultiTouchTime = -1000;
     /** Whether fitCenter() has been applied for the current drawable/size. */
     private boolean fitted = false;
 
@@ -86,6 +90,12 @@ public class ZoomableImageView extends ImageView {
 
                     @Override
                     public boolean onDoubleTap(MotionEvent e) {
+                        // A pinch can look like a quick tap pair to the gesture
+                        // detector — zooming right after a pinch makes the image
+                        // jump. Ignore double-taps briefly after multi-touch.
+                        if (SystemClock.uptimeMillis() - lastMultiTouchTime < 500) {
+                            return true;
+                        }
                         toggleZoomAt(e.getX(), e.getY());
                         return true;
                     }
@@ -174,18 +184,32 @@ public class ZoomableImageView extends ImageView {
 
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
+                // Fresh single-finger gesture: re-anchor and keep the parent
+                // (e.g. a scroll view) from stealing the pan.
+                anchorValid = false;
+                if (getParent() != null) {
+                    getParent().requestDisallowInterceptTouchEvent(true);
+                }
+                break;
             case MotionEvent.ACTION_POINTER_DOWN:
             case MotionEvent.ACTION_POINTER_UP:
-                // The active pointer set is about to change (a pinch just
-                // started/ended). Invalidate the pan anchor so the first
-                // single-finger move afterwards re-anchors instead of
-                // translating by a huge stale delta (the "zoom offset" bug).
+                // A pinch just started/ended. Record it (double-tap suppression)
+                // and invalidate the pan anchor so the first single-finger move
+                // afterwards re-anchors instead of translating by a huge stale
+                // delta (the "zoom offset" bug).
+                lastMultiTouchTime = SystemClock.uptimeMillis();
+                anchorValid = false;
+                break;
+            case MotionEvent.ACTION_CANCEL:
                 anchorValid = false;
                 break;
             case MotionEvent.ACTION_MOVE:
-                boolean canPan = anchorValid && !scaleDetector.isInProgress()
-                        && scaleFactor > minScale + 0.01f
-                        && event.getPointerCount() == 1;
+                // Gate on pointer count only — ScaleGestureDetector may report
+                // "in progress" until the final ACTION_UP, which would block
+                // panning for the whole drag after a pinch.
+                boolean canPan = anchorValid
+                        && event.getPointerCount() == 1
+                        && scaleFactor > minScale + 0.01f;
                 if (canPan) {
                     float x = event.getX();
                     float y = event.getY();
