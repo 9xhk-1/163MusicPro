@@ -77,7 +77,10 @@ public final class WatchUiUtils {
         edit.setBackground(null);
         edit.setPadding((int) (10 * density), (int) (4 * density),
                 (int) (10 * density), (int) (4 * density));
-        layout.addView(edit, new android.view.ViewGroup.LayoutParams(
+        // TextInputLayout extends LinearLayout, whose measure pass casts child
+        // params to LinearLayout.LayoutParams — plain ViewGroup.LayoutParams
+        // would crash the dialog.
+        layout.addView(edit, new android.widget.LinearLayout.LayoutParams(
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                 android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
         return layout;
@@ -157,7 +160,7 @@ public final class WatchUiUtils {
 
         android.widget.ScrollView scroll = new android.widget.ScrollView(activity);
         scroll.setVerticalScrollBarEnabled(false);
-        scroll.addView(rows, new android.view.ViewGroup.LayoutParams(
+        scroll.addView(rows, new android.widget.FrameLayout.LayoutParams(
                 android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                 android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(scroll, new android.widget.LinearLayout.LayoutParams(
