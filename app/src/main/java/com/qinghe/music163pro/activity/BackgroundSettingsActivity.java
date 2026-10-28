@@ -14,6 +14,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.material.card.MaterialCardView;
+import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
@@ -34,11 +36,12 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
         super.onCreate(savedInstanceState);
 
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(0xFF121212);
+        scroll.setBackgroundColor(getResources().getColor(R.color.bg_dark));
         scroll.setFillViewport(true);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
         scroll.addView(root);
         setContentView(scroll);
 
@@ -46,24 +49,30 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
 
         ivPreview = new ImageView(this);
         ivPreview.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        ivPreview.setBackgroundColor(0xFF1E1E1E);
+        ivPreview.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
+        ivPreview.setContentDescription("背景预览");
+        MaterialCardView preview = new MaterialCardView(this);
+        preview.setRadius(dpToPx(16));
+        preview.setCardElevation(0);
         LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, px(180));
-        previewParams.setMargins(px(14), px(8), px(14), px(8));
-        ivPreview.setLayoutParams(previewParams);
-        root.addView(ivPreview);
+                LinearLayout.LayoutParams.MATCH_PARENT, dpToPx(90));
+        previewParams.setMargins(0, dpToPx(8), 0, dpToPx(8));
+        preview.setLayoutParams(previewParams);
+        preview.addView(ivPreview, new android.widget.FrameLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
+        root.addView(preview);
 
         TextView hint = new TextView(this);
         hint.setText("默认跟随专辑封面：每播放一首歌自动以其封面为背景（获取失败用默认背景）");
-        hint.setTextColor(0x80FFFFFF);
-        hint.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
+        hint.setTextColor(getResources().getColor(R.color.text_secondary));
+        hint.setTextSize(12);
         hint.setGravity(Gravity.CENTER);
         hint.setPadding(px(10), 0, px(10), px(8));
         root.addView(hint);
 
-        root.addView(buildButton("选择图片", v -> pickImage()));
-        root.addView(buildButton("使用专辑封面", v -> useAlbumCover()));
-        root.addView(buildButton("恢复默认背景", v -> resetBackground()));
+        root.addView(createWatchMenuButton(R.drawable.ic_image, "选择图片", v -> pickImage()));
+        root.addView(createWatchMenuButton(R.drawable.ic_album, "使用专辑封面", v -> useAlbumCover()));
+        root.addView(createWatchMenuButton(R.drawable.ic_refresh, "恢复默认背景", v -> resetBackground()));
 
         refreshPreview();
     }
@@ -71,32 +80,11 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
     private View buildTitleBar() {
         TextView title = new TextView(this);
         title.setText("自定义背景");
-        title.setTextColor(0xFFFFFFFF);
-        title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(15));
+        title.setTextColor(getResources().getColor(R.color.text_primary));
+        title.setTextSize(15);
         title.setGravity(Gravity.CENTER);
         title.setPadding(px(12), px(10), px(12), px(6));
         return title;
-    }
-
-    private View buildButton(String label, View.OnClickListener listener) {
-        TextView btn = new TextView(this);
-        btn.setText(label);
-        btn.setTextColor(0xFFBB86FC);
-        btn.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
-        btn.setGravity(Gravity.CENTER);
-        btn.setPadding(px(12), px(13), px(12), px(13));
-        btn.setClickable(true);
-        btn.setFocusable(true);
-        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-        bg.setColor(0xFF2D2D2D);
-        bg.setCornerRadius(px(6));
-        btn.setBackground(bg);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        params.setMargins(px(14), 0, px(14), px(10));
-        btn.setLayoutParams(params);
-        btn.setOnClickListener(listener);
-        return btn;
     }
 
     private void pickImage() {

@@ -202,9 +202,10 @@ public class FavoritesListActivity extends BaseWatchActivity {
     private void switchToSongTab() {
         isSongTab = true;
         // active tab: text color only
-        tabFavSongs.setTextColor(0xFFBB86FC);
-        //
-        tabFavPlaylists.setTextColor(0xB3FFFFFF);
+        tabFavSongs.setTextColor(getResources().getColor(R.color.colorPrimary));
+        tabFavPlaylists.setTextColor(getResources().getColor(R.color.text_secondary));
+        tabFavSongs.setSelected(true);
+        tabFavPlaylists.setSelected(false);
         lvFavPlaylists.setVisibility(View.GONE);
         loadData();
     }
@@ -212,9 +213,10 @@ public class FavoritesListActivity extends BaseWatchActivity {
     private void switchToPlaylistTab() {
         isSongTab = false;
         // active tab: text color only
-        tabFavPlaylists.setTextColor(0xFFBB86FC);
-        //
-        tabFavSongs.setTextColor(0xB3FFFFFF);
+        tabFavPlaylists.setTextColor(getResources().getColor(R.color.colorPrimary));
+        tabFavSongs.setTextColor(getResources().getColor(R.color.text_secondary));
+        tabFavPlaylists.setSelected(true);
+        tabFavSongs.setSelected(false);
         lvFavorites.setVisibility(View.GONE);
         loadPlaylists();
     }

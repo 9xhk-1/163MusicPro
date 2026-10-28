@@ -2738,13 +2738,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setPadding(dp(10), dp(9), dp(10), dp(9));
-            row.setBackgroundColor(isSelected ? 0x33BB86FC : 0xFF2D2D2D);
-            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            rowParams.bottomMargin = dp(4);
-            row.setLayoutParams(rowParams);
-            row.setClickable(true);
-            row.setFocusable(true);
+            row.setMinimumHeight(dp(48));
+            com.google.android.material.card.MaterialCardView card = createQualityCard(isSelected, true);
+            card.addView(row);
 
             LinearLayout leftCol = new LinearLayout(this);
             leftCol.setOrientation(LinearLayout.VERTICAL);
@@ -2753,7 +2749,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
             TextView tvName = new TextView(this);
             tvName.setText(getQualityShortName(quality));
-            tvName.setTextColor(isSelected ? 0xFFBB86FC : 0xFFFFFFFF);
+            tvName.setTextColor(getResources().getColor(isSelected ? R.color.on_primary_container : R.color.text_primary));
             tvName.setTextSize(14);
             leftCol.addView(tvName);
 
@@ -2776,11 +2772,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             row.addView(badge);
 
             final String selectedQuality = quality;
-            row.setOnClickListener(v -> {
+            card.setOnClickListener(v -> {
                 callback.onSelected(selectedQuality);
                 dismissOverlay();
             });
-            container.addView(row);
+            container.addView(card);
         }
     }
 
@@ -2846,16 +2842,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(android.view.Gravity.CENTER_VERTICAL);
             row.setPadding(dp(10), dp(9), dp(10), dp(9));
-            int bgColor = disabledForSelection ? 0xFF222222 : (isSelected ? 0x33BB86FC : 0xFF2D2D2D);
-            row.setBackgroundColor(bgColor);
-            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            rowParams.bottomMargin = dp(4);
-            row.setLayoutParams(rowParams);
-            if (!disabledForSelection) {
-                row.setClickable(true);
-                row.setFocusable(true);
-            }
+            row.setMinimumHeight(dp(48));
+            com.google.android.material.card.MaterialCardView card =
+                    createQualityCard(isSelected, !disabledForSelection);
+            card.addView(row);
 
             // Left column: name + bitrate
             LinearLayout leftCol = new LinearLayout(this);
@@ -2865,7 +2855,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
             TextView tvName = new TextView(this);
             tvName.setText(name);
-            int nameColor = disabledForSelection ? 0x60FFFFFF : (isSelected ? 0xFFBB86FC : 0xFFFFFFFF);
+            int nameColor = getResources().getColor(disabledForSelection ? R.color.text_disabled
+                    : isSelected ? R.color.on_primary_container : R.color.text_primary);
             tvName.setTextColor(nameColor);
             tvName.setTextSize(14);
             leftCol.addView(tvName);
@@ -2899,14 +2890,30 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             row.addView(tvTier);
 
             if (!disabledForSelection) {
-                row.setOnClickListener(v -> {
+                card.setOnClickListener(v -> {
                     callback.onSelected(level);
                     dismissOverlay();
                 });
             }
 
-            container.addView(row);
+            container.addView(card);
         }
+    }
+
+    private com.google.android.material.card.MaterialCardView createQualityCard(boolean selected, boolean enabled) {
+        com.google.android.material.card.MaterialCardView card =
+                new com.google.android.material.card.MaterialCardView(this);
+        card.setRadius(dp(14));
+        card.setCardElevation(0);
+        card.setCardBackgroundColor(getResources().getColor(selected ? R.color.primary_container : R.color.surface_elevated));
+        card.setClickable(enabled);
+        card.setFocusable(enabled);
+        card.setEnabled(enabled);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.bottomMargin = dp(4);
+        card.setLayoutParams(params);
+        return card;
     }
 
     /** Short display name for current quality (shown on the button label). */
