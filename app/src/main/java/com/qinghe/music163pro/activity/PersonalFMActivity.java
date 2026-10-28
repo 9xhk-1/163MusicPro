@@ -11,6 +11,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import com.qinghe.music163pro.R;
 
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.player.MusicPlayerManager;
@@ -35,7 +36,7 @@ public class PersonalFMActivity extends AppCompatActivity {
 
         // Wrap content in a ScrollView so small watch screens can scroll
         ScrollView scrollView = new ScrollView(this);
-        scrollView.setBackgroundColor(0xFF121212);
+        scrollView.setBackgroundColor(getResources().getColor(R.color.bg_dark));
         scrollView.setFillViewport(true);
 
         LinearLayout root = new LinearLayout(this);

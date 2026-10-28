@@ -47,7 +47,7 @@ public class HistoryActivity extends BaseWatchActivity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF212121);
+        root.setBackgroundColor(getResources().getColor(R.color.bg_dark));
         root.setPadding(px(6), px(6), px(6), px(6));
 
         // Title bar
@@ -57,7 +57,7 @@ public class HistoryActivity extends BaseWatchActivity {
 
         TextView title = new TextView(this);
         title.setText("历史记录");
-        title.setTextColor(0xFFFFFFFF);
+        title.setTextColor(getResources().getColor(R.color.text_primary));
         title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(15));
         title.setGravity(Gravity.CENTER);
         android.widget.RelativeLayout.LayoutParams titleParams = new android.widget.RelativeLayout.LayoutParams(
@@ -69,7 +69,7 @@ public class HistoryActivity extends BaseWatchActivity {
 
         tvEmpty = new TextView(this);
         tvEmpty.setText("暂无播放记录");
-        tvEmpty.setTextColor(0x80FFFFFF);
+        tvEmpty.setTextColor(getResources().getColor(R.color.text_secondary));
         tvEmpty.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
         tvEmpty.setGravity(Gravity.CENTER);
         tvEmpty.setPadding(0, px(40), 0, 0);

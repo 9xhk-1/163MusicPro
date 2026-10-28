@@ -56,7 +56,7 @@ public class AlbumDetailActivity extends AppCompatActivity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF121212);
+        root.setBackgroundColor(getResources().getColor(R.color.bg_dark));
         root.setPadding(px(6), px(6), px(6), px(6));
 
         // Title bar
@@ -92,7 +92,7 @@ public class AlbumDetailActivity extends AppCompatActivity {
         coverParams.setMarginEnd(px(8));
         ivAlbumCover.setLayoutParams(coverParams);
         ivAlbumCover.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        ivAlbumCover.setBackgroundColor(0xFF252525);
+        ivAlbumCover.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
         albumInfoRow.addView(ivAlbumCover);
 
         tvAlbumName = new TextView(this);

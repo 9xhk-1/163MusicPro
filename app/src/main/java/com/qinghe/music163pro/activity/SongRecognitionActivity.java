@@ -101,7 +101,7 @@ public class SongRecognitionActivity extends AppCompatActivity {
 
     private void buildUi() {
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(0xFF212121);
+        scroll.setBackgroundColor(getResources().getColor(R.color.bg_dark));
         scroll.setFillViewport(true);
 
         LinearLayout root = new LinearLayout(this);

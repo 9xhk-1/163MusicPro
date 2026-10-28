@@ -1629,7 +1629,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             textView.setTextColor(0xFFFFFFFF);
             textView.setTextSize(12);
             textView.setPadding(dp(10), dp(8), dp(10), dp(8));
-            textView.setBackgroundColor(0xFF2D2D2D);
+            textView.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             params.bottomMargin = dp(4);

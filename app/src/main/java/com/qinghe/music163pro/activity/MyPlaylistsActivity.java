@@ -52,7 +52,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF121212);
+        root.setBackgroundColor(getResources().getColor(R.color.bg_dark));
         root.setPadding(px(6), px(6), px(6), px(6));
 
         // Title row with "+" button
@@ -261,7 +261,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
         input.setHintTextColor(0xFF888888);
         input.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
         input.setPadding(px(8), px(4), px(8), px(4));
-        input.setBackgroundColor(0xFF333333);
+        input.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
         input.setSelectAllOnFocus(true);
 
         android.widget.LinearLayout container = new android.widget.LinearLayout(this);
@@ -374,7 +374,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
         input.setHintTextColor(0xFF888888);
         input.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
         input.setPadding(px(8), px(4), px(8), px(4));
-        input.setBackgroundColor(0xFF333333);
+        input.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
 
         LinearLayout container = new LinearLayout(this);
         container.setPadding(px(12), px(8), px(12), px(4));

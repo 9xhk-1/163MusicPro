@@ -18,6 +18,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import com.qinghe.music163pro.R;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
@@ -72,7 +73,7 @@ public class UpdateActivity extends AppCompatActivity {
 
     private void buildUI() {
         ScrollView scrollView = new ScrollView(this);
-        scrollView.setBackgroundColor(0xFF212121);
+        scrollView.setBackgroundColor(getResources().getColor(R.color.bg_dark));
         scrollView.setFillViewport(true);
 
         LinearLayout root = new LinearLayout(this);
@@ -151,7 +152,7 @@ public class UpdateActivity extends AppCompatActivity {
         btnCancel.setTextColor(0xB3FFFFFF);
         btnCancel.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(15));
         btnCancel.setGravity(Gravity.CENTER);
-        btnCancel.setBackgroundColor(0xFF424242);
+        btnCancel.setBackgroundColor(getResources().getColor(R.color.surface_variant));
         LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         btnCancel.setLayoutParams(cancelParams);
@@ -278,7 +279,7 @@ public class UpdateActivity extends AppCompatActivity {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setBackgroundColor(0xFF2D2D2D);
+            row.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
             LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             rowParams.setMargins(0, 0, 0, px(6));

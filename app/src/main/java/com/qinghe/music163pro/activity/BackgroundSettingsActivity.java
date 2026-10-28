@@ -167,11 +167,11 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
         if (BackgroundUtil.MODE_COVER.equals(mode)) {
             Bitmap cover = BackgroundUtil.getCoverBackground();
             if (cover != null) {
-                ivPreview.setBackgroundColor(0xFF1E1E1E);
+                ivPreview.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
                 ivPreview.setImageDrawable(new BitmapDrawable(getResources(), cover));
             } else {
                 ivPreview.setImageDrawable(null);
-                ivPreview.setBackgroundColor(0xFF1E1E1E);
+                ivPreview.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
             }
             return;
         }
@@ -182,7 +182,7 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
                 Bitmap bmp = BitmapFactory.decodeFile(
                         BackgroundUtil.getBackgroundFile(this).getAbsolutePath(), opts);
                 if (bmp != null) {
-                    ivPreview.setBackgroundColor(0xFF1E1E1E);
+                    ivPreview.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
                     ivPreview.setImageDrawable(new BitmapDrawable(getResources(), bmp));
                     return;
                 }
@@ -190,7 +190,7 @@ public class BackgroundSettingsActivity extends BaseWatchActivity {
             }
         }
         ivPreview.setImageDrawable(null);
-        ivPreview.setBackgroundColor(0xFF1E1E1E);
+        ivPreview.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
     }
 
     @Override

@@ -11,6 +11,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
+import com.qinghe.music163pro.R;
 
 public class OpenSourceActivity extends AppCompatActivity {
 
@@ -24,7 +25,7 @@ public class OpenSourceActivity extends AppCompatActivity {
         }
 
         ScrollView scrollView = new ScrollView(this);
-        scrollView.setBackgroundColor(0xFF121212);
+        scrollView.setBackgroundColor(getResources().getColor(R.color.bg_dark));
         scrollView.setFillViewport(true);
 
         LinearLayout content = new LinearLayout(this);
@@ -94,7 +95,7 @@ public class OpenSourceActivity extends AppCompatActivity {
 
     private android.view.View makeDivider() {
         android.view.View divider = new android.view.View(this);
-        divider.setBackgroundColor(0xFF2D2D2D);
+        divider.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
         divider.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, px(1)));
         return divider;

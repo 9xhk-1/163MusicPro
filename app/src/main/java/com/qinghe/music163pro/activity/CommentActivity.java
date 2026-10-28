@@ -132,7 +132,7 @@ public class CommentActivity extends BaseWatchActivity {
     private View buildTopBar() {
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.VERTICAL);
-        topBar.setBackgroundColor(0xFF1A1A1A);
+        topBar.setBackgroundColor(getResources().getColor(R.color.surface));
         topBar.setPadding(px(8), px(6), px(8), px(4));
 
         // Song name row
@@ -260,7 +260,7 @@ public class CommentActivity extends BaseWatchActivity {
     private View buildBottomBar() {
         LinearLayout bottomBar = new LinearLayout(this);
         bottomBar.setOrientation(LinearLayout.HORIZONTAL);
-        bottomBar.setBackgroundColor(0xFF1A1A1A);
+        bottomBar.setBackgroundColor(getResources().getColor(R.color.surface));
         bottomBar.setPadding(px(6), px(4), px(6), px(4));
         bottomBar.setGravity(Gravity.CENTER_VERTICAL);
 
@@ -649,7 +649,7 @@ public class CommentActivity extends BaseWatchActivity {
 
         LinearLayout sheet = new LinearLayout(this);
         sheet.setOrientation(LinearLayout.VERTICAL);
-        sheet.setBackgroundColor(0xFF1E1E1E);
+        sheet.setBackgroundColor(getResources().getColor(R.color.surface));
         sheet.setPadding(0, px(6), 0, px(6));
         FrameLayout.LayoutParams sheetParams = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
