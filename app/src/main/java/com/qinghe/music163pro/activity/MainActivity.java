@@ -1636,6 +1636,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             textView.setTextColor(0xFFE6E0E9);
             textView.setTextSize(12);
             textView.setPadding(dp(10), dp(6), dp(10), dp(6));
+            textView.setSingleLine(true);
+            textView.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
+            textView.setMarqueeRepeatLimit(-1);
+            textView.setSelected(true);
             lines.addView(textView, new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         }
