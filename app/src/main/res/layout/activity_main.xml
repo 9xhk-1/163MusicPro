@@ -64,7 +64,7 @@
                 android:paddingEnd="3dp"
                 android:paddingBottom="1dp"
                 android:text="@string/vip_badge"
-                android:textColor="#F44336"
+                android:textColor="@color/favorite_red"
                 android:textSize="9sp"
                 android:textStyle="bold"
                 android:visibility="gone" />

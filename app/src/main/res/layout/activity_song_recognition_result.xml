@@ -47,7 +47,7 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:cacheColorHint="@android:color/transparent"
-        android:divider="#1FFFFFFF"
+        android:divider="@color/divider"
         android:dividerHeight="1dp"
         android:listSelector="?attr/selectableItemBackground"
         android:transcriptMode="disabled" />
