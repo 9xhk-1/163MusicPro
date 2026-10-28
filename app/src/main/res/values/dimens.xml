@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material alert dialogs inset their rounded background 24dp on every
+         side; on the 160x180dp watch that alone eats a quarter of the dialog
+         window, so halve it. -->
+    <dimen name="mtrl_alert_dialog_background_inset_horizontal">12dp</dimen>
+    <dimen name="mtrl_alert_dialog_background_inset_top">12dp</dimen>
+    <dimen name="mtrl_alert_dialog_background_inset_bottom">12dp</dimen>
+</resources>

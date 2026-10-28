@@ -25,6 +25,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.button.MaterialButton;
 import com.qinghe.music163pro.R;
+import com.qinghe.music163pro.util.WatchUiUtils;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.util.MusicLog;
 import com.qinghe.music163pro.util.NetworkImageLoader;
@@ -647,26 +648,19 @@ public class CommentFloorActivity extends BaseWatchActivity {
     }
 
     private void showCommentActions(long commentId, String content, boolean isOwn) {
-        java.util.List<String> options = new java.util.ArrayList<>();
-        options.add("复制");
-        if (isOwn) {
-            options.add("删除");
-        }
-        String[] items = options.toArray(new String[0]);
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                .setTitle("评论操作")
-                .setItems(items, (dialog, which) -> {
-                    String action = items[which];
-                    if ("复制".equals(action)) {
-                        copyToClipboard(content);
-                    } else if ("删除".equals(action)) {
-                        showConfirmDialog("删除回复", "确定删除这条回复吗？\n\n"
-                                + (content.length() > 40 ? content.substring(0, 40) + "..." : content),
-                                () -> deleteOwnComment(commentId));
-                    }
-                })
-                .setNegativeButton("取消", null)
-                .show();
+        String[] items = isOwn ? new String[]{"复制", "删除"} : new String[]{"复制"};
+        int[] colors = isOwn
+                ? new int[]{0, getResources().getColor(R.color.colorError)}
+                : null;
+        WatchUiUtils.showActionDialog(this, "回复操作", items, colors, (dialog, which) -> {
+            if (which == 0) {
+                copyToClipboard(content);
+            } else {
+                showConfirmDialog("删除回复", "确定删除这条回复吗？\n\n"
+                        + (content.length() > 40 ? content.substring(0, 40) + "..." : content),
+                        () -> deleteOwnComment(commentId));
+            }
+        });
     }
 
     private void copyToClipboard(String text) {

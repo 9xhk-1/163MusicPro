@@ -37,6 +37,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.qinghe.music163pro.R;
+import com.qinghe.music163pro.util.WatchUiUtils;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.manager.DownloadManager;
 import com.qinghe.music163pro.manager.FavoritesManager;
@@ -1694,14 +1695,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         for (int i = 0; i < playlists.size(); i++) {
             names[i] = playlists.get(i).getName() + " (" + playlists.get(i).getTrackCount() + "首)";
         }
-        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                .setTitle("添加到歌单")
-                .setItems(names, (dialog, which) -> {
-                    com.qinghe.music163pro.model.PlaylistInfo selected = playlists.get(which);
-                    addSongToPlaylist(song, selected);
-                })
-                .setNegativeButton("取消", null)
-                .show();
+        WatchUiUtils.showActionDialog(this, "添加到歌单", names, null, (dialog, which) -> {
+            com.qinghe.music163pro.model.PlaylistInfo selected = playlists.get(which);
+            addSongToPlaylist(song, selected);
+        });
     }
 
     private void addSongToPlaylist(Song song, com.qinghe.music163pro.model.PlaylistInfo playlist) {

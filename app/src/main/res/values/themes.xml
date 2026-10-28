@@ -21,6 +21,10 @@
         <item name="android:windowBackground">@color/bg_dark</item>
         <!-- Ripple / selection -->
         <item name="android:colorControlHighlight">#33D0BCFF</item>
+        <!-- Dialog chrome must stay compact: the watch dialog window is only
+             ~132dp tall, so default M3 title/button bar sizes crowd out the
+             message or list content. -->
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.App.MaterialAlertDialog</item>
     </style>
 
     <!-- MainActivity theme: disables system swipe-to-dismiss -->
@@ -95,5 +99,33 @@
         <item name="iconGravity">textStart</item>
         <item name="iconSize">24dp</item>
         <item name="iconPadding">0dp</item>
+    </style>
+
+    <!-- Compact Material 3 alert dialog chrome for the 160x180dp display. -->
+    <style name="ThemeOverlay.App.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="materialAlertDialogTitleTextStyle">@style/MaterialAlertDialog.App.Title.Text</item>
+        <item name="materialAlertDialogBodyTextStyle">@style/MaterialAlertDialog.App.Body.Text</item>
+        <item name="buttonBarButtonStyle">@style/Widget.App.DialogButton.Text</item>
+    </style>
+
+    <style name="MaterialAlertDialog.App.Title.Text" parent="MaterialAlertDialog.Material3.Title.Text">
+        <item name="android:textSize">15sp</item>
+    </style>
+
+    <style name="MaterialAlertDialog.App.Body.Text" parent="MaterialAlertDialog.Material3.Body.Text">
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <style name="Widget.App.DialogButton.Text" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:paddingTop">6dp</item>
+        <item name="android:paddingBottom">6dp</item>
     </style>
 </resources>

@@ -19,6 +19,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.qinghe.music163pro.R;
+import com.qinghe.music163pro.util.WatchUiUtils;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.model.PlaylistInfo;
 import com.qinghe.music163pro.player.MusicPlayerManager;
@@ -241,17 +242,15 @@ public class MyPlaylistsActivity extends AppCompatActivity {
     }
 
     private void showOwnPlaylistOptions(PlaylistInfo pl, String cookie) {
-        new MaterialAlertDialogBuilder(this)
-                .setTitle(pl.getName())
-                .setItems(new String[]{"改名", "删除"}, (dialog, which) -> {
+        WatchUiUtils.showActionDialog(this, pl.getName(), new String[]{"改名", "删除"},
+                new int[]{0, getResources().getColor(R.color.colorError)},
+                (dialog, which) -> {
                     if (which == 0) {
                         showRenamePlaylistDialog(pl, cookie);
                     } else {
                         showDeletePlaylistDialog(pl, cookie);
                     }
-                })
-                .setNegativeButton("取消", null)
-                .show();
+                });
     }
 
     private void showRenamePlaylistDialog(PlaylistInfo pl, String cookie) {
