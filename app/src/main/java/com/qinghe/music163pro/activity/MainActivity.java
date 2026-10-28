@@ -1615,35 +1615,37 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         overlayContainer.setBackgroundColor(0xCC000000);
         addSwipeToDismiss(overlayContainer);
 
-        ScrollView scrollView = new ScrollView(this);
-        FrameLayout.LayoutParams scrollParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        scrollParams.gravity = Gravity.CENTER;
-        scrollParams.setMargins(dp(16), dp(24), dp(16), dp(24));
-        scrollView.setLayoutParams(scrollParams);
+        // Static rounded panel; only the lines inside scroll, so the panel's
+        // rounded corners stay visible while scrolling.
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setBackgroundResource(R.drawable.bg_panel_rounded);
+        FrameLayout.LayoutParams panelParams = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+        panelParams.gravity = Gravity.CENTER;
+        panelParams.setMargins(dp(16), dp(24), dp(16), dp(24));
+        panel.setLayoutParams(panelParams);
+        panel.setPadding(dp(16), dp(4), dp(16), dp(16));
+        panel.addView(createOverlayTitleBar("播放器信息"));
 
-        // Rounded M3 panel holding the whole info sheet.
-        LinearLayout contentLayout = new LinearLayout(this);
-        contentLayout.setOrientation(LinearLayout.VERTICAL);
-        contentLayout.setGravity(Gravity.CENTER);
-        contentLayout.setBackgroundResource(R.drawable.bg_panel_rounded);
-        contentLayout.setPadding(dp(12), dp(4), dp(12), dp(12));
-        contentLayout.addView(createOverlayTitleBar("播放器信息"));
-
+        LinearLayout lines = new LinearLayout(this);
+        lines.setOrientation(LinearLayout.VERTICAL);
         for (String line : playerManager.getCurrentPlayerInfoLines()) {
             TextView textView = new TextView(this);
             textView.setText(line);
             textView.setTextColor(0xFFE6E0E9);
             textView.setTextSize(12);
             textView.setPadding(dp(10), dp(6), dp(10), dp(6));
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            textView.setLayoutParams(params);
-            contentLayout.addView(textView);
+            lines.addView(textView, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         }
 
-        scrollView.addView(contentLayout);
-        overlayContainer.addView(scrollView);
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.addView(lines);
+        panel.addView(scrollView, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
+
+        overlayContainer.addView(panel);
         rootView.addView(overlayContainer);
     }
 

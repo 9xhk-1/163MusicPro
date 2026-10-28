@@ -123,7 +123,7 @@
             <com.google.android.material.slider.Slider
                 android:id="@+id/seek_bar"
                 android:layout_width="0dp"
-                android:layout_height="28dp"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:paddingTop="0dp"
                 android:paddingBottom="0dp"
@@ -147,11 +147,13 @@
                 android:textSize="9sp" />
         </LinearLayout>
 
-        <!-- Playback controls row -->
+        <!-- Playback controls row. The Slider forces a 48dp intrinsic height
+             regardless of layout constraints; its lower half is empty touch
+             padding, so pull this row up over it with a negative margin. -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="0dp"
+            android:layout_marginTop="-20dp"
             android:gravity="center"
             android:orientation="horizontal">
 
