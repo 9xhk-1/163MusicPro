@@ -45,11 +45,15 @@
         android:gravity="center_horizontal"
         android:orientation="vertical">
 
-        <!-- Song name with marquee + VIP badge -->
+        <!-- Song name with marquee + VIP badge. Symmetric 48dp margins keep the
+             text centered on the screen midline and confine the marquee between
+             the top-left playlist button and the top-right more button. -->
         <LinearLayout
             android:id="@+id/player_title_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginStart="48dp"
+            android:layout_marginEnd="48dp"
             android:gravity="center"
             android:orientation="horizontal">
 
@@ -90,6 +94,8 @@
             android:id="@+id/tv_artist"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginStart="48dp"
+            android:layout_marginEnd="48dp"
             android:layout_marginTop="2dp"
             android:ellipsize="marquee"
             android:gravity="center"
