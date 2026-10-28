@@ -53,6 +53,7 @@ import com.qinghe.music163pro.util.BackgroundUtil;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.progressindicator.CircularProgressIndicator;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
+import com.google.android.material.slider.LabelFormatter;
 import com.google.android.material.slider.Slider;
 
 import org.json.JSONObject;
@@ -3069,7 +3070,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         sbStart.setValueTo((float) totalSec);
         sbStart.setStepSize(1f);
         sbStart.setValue((float) startSec[0]);
-        sbStart.setLabelBehavior(Slider.LABEL_GONE);
+        sbStart.setLabelBehavior(LabelFormatter.LABEL_GONE);
         sbStart.setTickVisible(false);
         LinearLayout.LayoutParams seekParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -3089,7 +3090,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         sbEnd.setValueTo((float) totalSec);
         sbEnd.setStepSize(1f);
         sbEnd.setValue((float) endSec[0]);
-        sbEnd.setLabelBehavior(Slider.LABEL_GONE);
+        sbEnd.setLabelBehavior(LabelFormatter.LABEL_GONE);
         sbEnd.setTickVisible(false);
         sbEnd.setLayoutParams(seekParams);
         contentLayout.addView(sbEnd);
