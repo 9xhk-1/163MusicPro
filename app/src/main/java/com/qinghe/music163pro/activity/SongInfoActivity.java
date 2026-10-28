@@ -47,13 +47,13 @@ public class SongInfoActivity extends AppCompatActivity {
     private static final String TAG = "SongInfoActivity";
     private static final String PREFS_NAME = "music163_settings";
 
-    private static final int COLOR_BG = 0xFF121212;
-    private static final int COLOR_TEXT_PRIMARY = 0xFFFFFFFF;
-    private static final int COLOR_TEXT_SECONDARY = 0x80FFFFFF;
-    private static final int COLOR_TEXT_DESC = 0xB3FFFFFF;
-    private static final int COLOR_ACCENT = 0xFF03DAC6;
-    private static final int COLOR_DIVIDER = 0xFF1E1E1E;
-    private static final int COLOR_CARD_BG = 0xFF252525;
+    private static final int COLOR_BG = 0xFF141218;
+    private static final int COLOR_TEXT_PRIMARY = 0xFFE6E0E9;
+    private static final int COLOR_TEXT_SECONDARY = 0xFFCAC4D0;
+    private static final int COLOR_TEXT_DESC = 0xFFCAC4D0;
+    private static final int COLOR_ACCENT = 0xFFD0BCFF;
+    private static final int COLOR_DIVIDER = 0x1FFFFFFF;
+    private static final int COLOR_CARD_BG = 0xFF2B2930;
 
     private long songId;
     private String songName;
@@ -669,7 +669,7 @@ public class SongInfoActivity extends AppCompatActivity {
         ivCover.setLayoutParams(coverLp);
         ivCover.setScaleType(ImageView.ScaleType.CENTER_CROP);
         GradientDrawable coverBg = new GradientDrawable();
-        coverBg.setColor(0xFF333333);
+        coverBg.setColor(0xFF2B2930);
         coverBg.setCornerRadius(px(3));
         ivCover.setBackground(coverBg);
         if (!coverUrlRes.isEmpty()) {

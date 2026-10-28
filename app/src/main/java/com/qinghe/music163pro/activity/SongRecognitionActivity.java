@@ -461,7 +461,7 @@ public class SongRecognitionActivity extends AppCompatActivity {
         isRecognizing = true;
         handler.removeCallbacks(countdownRunnable);
         stopAudioRecordAsync();
-        setCircleButtonState(0xFF616161, false, "处理中");
+        setCircleButtonState(getResources().getColor(R.color.surface_variant), false, "处理中");
         if (isAutoMode()) {
             tvHint.setText("正在停止自动识别");
             tvStatus.setText("请稍候...");

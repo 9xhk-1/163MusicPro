@@ -614,7 +614,7 @@ public class SearchActivity extends BaseWatchActivity {
 
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
-                new WatchConfirmDialog.Options(0xFF1E1E1E, 0xFFBB86FC, true));
+                new WatchConfirmDialog.Options(0xFF2B2930, 0xFFD0BCFF, true));
     }
 
     @Override

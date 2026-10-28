@@ -23,6 +23,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.material.button.MaterialButton;
 import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.util.MusicLog;
@@ -47,13 +48,14 @@ public class CommentFloorActivity extends BaseWatchActivity {
     private static final String PREFS_NAME = "music163_settings";
     private static final int PAGE_SIZE = 20;
 
-    private static final int COLOR_BG = 0xFF121212;
-    private static final int COLOR_TEXT_PRIMARY = 0xFFFFFFFF;
-    private static final int COLOR_TEXT_SECONDARY = 0x80FFFFFF;
-    private static final int COLOR_ACCENT = 0xFF03DAC6;
-    private static final int COLOR_DIVIDER = 0xFF1E1E1E;
-    private static final int COLOR_INPUT_BG = 0xFF333333;
-    private static final int COLOR_PARENT_BG = 0xFF2A2A2A;
+    // Material 3 dark palette (mirrors res/values/colors.xml)
+    private static final int COLOR_BG = 0xFF141218;
+    private static final int COLOR_TEXT_PRIMARY = 0xFFE6E0E9;
+    private static final int COLOR_TEXT_SECONDARY = 0xFFCAC4D0;
+    private static final int COLOR_ACCENT = 0xFFD0BCFF;
+    private static final int COLOR_DIVIDER = 0x1FFFFFFF;
+    private static final int COLOR_INPUT_BG = 0xFF2B2930;
+    private static final int COLOR_PARENT_BG = 0xFF2B2930;
 
     private static final int[] AVATAR_COLORS = {
             0xFFE91E63, 0xFF9C27B0, 0xFF3F51B5, 0xFF2196F3,
@@ -78,7 +80,7 @@ public class CommentFloorActivity extends BaseWatchActivity {
     private LinearLayout subCommentListLayout;
     private ScrollView commentScrollView;
     private EditText inputField;
-    private TextView sendButton;
+    private MaterialButton sendButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -202,7 +204,7 @@ public class CommentFloorActivity extends BaseWatchActivity {
 
         inputField = new EditText(this);
         inputField.setHint("回复楼主...");
-        inputField.setHintTextColor(0xFF666666);
+        inputField.setHintTextColor(0xFFCAC4D0);
         inputField.setTextColor(COLOR_TEXT_PRIMARY);
         inputField.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
         inputField.setSingleLine(true);
@@ -218,15 +220,18 @@ public class CommentFloorActivity extends BaseWatchActivity {
         inputField.setLayoutParams(inputParams);
         bottomBar.addView(inputField);
 
-        sendButton = new TextView(this);
+        sendButton = new MaterialButton(this);
         sendButton.setText("发送");
-        sendButton.setTextColor(COLOR_ACCENT);
-        sendButton.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(15));
-        sendButton.setTypeface(sendButton.getTypeface(), Typeface.BOLD);
-        sendButton.setPadding(px(10), px(8), px(6), px(8));
+        sendButton.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
+        sendButton.setAllCaps(false);
+        sendButton.setTextColor(0xFFEADDFF); // on_primary_container
+        sendButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF4F378B)); // primary_container
+        sendButton.setCornerRadius(px(16));
+        sendButton.setInsetTop(0);
+        sendButton.setInsetBottom(0);
         sendButton.setMinHeight(px(40));
-        sendButton.setMinWidth(px(40));
-        sendButton.setGravity(Gravity.CENTER);
+        sendButton.setMinimumHeight(px(40));
+        sendButton.setPadding(px(12), 0, px(12), 0);
         sendButton.setOnClickListener(v -> submitReply());
         bottomBar.addView(sendButton);
 
@@ -977,7 +982,7 @@ public class CommentFloorActivity extends BaseWatchActivity {
 
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
-                new WatchConfirmDialog.Options(0xFF1E1E1E, 0xFFBB86FC, false));
+                new WatchConfirmDialog.Options(0xFF2B2930, 0xFFD0BCFF, false));
     }
 
     @Override

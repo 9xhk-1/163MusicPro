@@ -66,7 +66,7 @@ public class AlbumDetailActivity extends AppCompatActivity {
 
         TextView tvTitle = new TextView(this);
         tvTitle.setText("专辑");
-        tvTitle.setTextColor(0xFFFFFFFF);
+        tvTitle.setTextColor(0xFFE6E0E9);
         tvTitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(15));
         tvTitle.setGravity(Gravity.CENTER);
         tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -97,7 +97,7 @@ public class AlbumDetailActivity extends AppCompatActivity {
 
         tvAlbumName = new TextView(this);
         tvAlbumName.setText(albumName != null ? albumName : "");
-        tvAlbumName.setTextColor(0xFFFFFFFF);
+        tvAlbumName.setTextColor(0xFFE6E0E9);
         tvAlbumName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
         tvAlbumName.setTypeface(null, android.graphics.Typeface.BOLD);
         tvAlbumName.setMaxLines(2);
@@ -114,7 +114,7 @@ public class AlbumDetailActivity extends AppCompatActivity {
         // Status text
         tvStatus = new TextView(this);
         tvStatus.setText("正在加载...");
-        tvStatus.setTextColor(0x80FFFFFF);
+        tvStatus.setTextColor(0xFFCAC4D0);
         tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
         tvStatus.setGravity(Gravity.CENTER);
         tvStatus.setPadding(0, px(4), 0, px(4));

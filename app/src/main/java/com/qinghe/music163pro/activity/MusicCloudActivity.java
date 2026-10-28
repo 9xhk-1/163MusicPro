@@ -58,7 +58,7 @@ public class MusicCloudActivity extends BaseWatchActivity {
                     TextView name = view.findViewById(R.id.tv_cloud_name);
                     TextView detail = view.findViewById(R.id.tv_cloud_detail);
                     icon.setImageResource(item.isMusic() ? R.drawable.ic_music_note : R.drawable.ic_insert_drive_file);
-                    icon.setColorFilter(item.isMusic() ? 0xFFBB86FC : 0x80FFFFFF);
+                    icon.setColorFilter(item.isMusic() ? 0xFFD0BCFF : 0x80FFFFFF);
                     name.setSelected(true);
                     detail.setSelected(true);
                     String display = item.getDisplayName();
@@ -265,6 +265,6 @@ public class MusicCloudActivity extends BaseWatchActivity {
 
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
-                new WatchConfirmDialog.Options(0xFF424242, 0xFFBB86FC, true));
+                new WatchConfirmDialog.Options(0xFF2B2930, 0xFFD0BCFF, true));
     }
 }

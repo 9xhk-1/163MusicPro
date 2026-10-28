@@ -147,18 +147,22 @@ public class UpdateActivity extends AppCompatActivity {
         root.addView(makeSpacer(px(14)));
 
         // Cancel button
-        TextView btnCancel = new TextView(this);
+        com.google.android.material.button.MaterialButton btnCancel =
+                new com.google.android.material.button.MaterialButton(this);
         btnCancel.setText("取消");
-        btnCancel.setTextColor(0xB3FFFFFF);
+        btnCancel.setAllCaps(false);
+        btnCancel.setTextColor(0xFFE6E0E9);
         btnCancel.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(15));
-        btnCancel.setGravity(Gravity.CENTER);
-        btnCancel.setBackgroundColor(getResources().getColor(R.color.surface_variant));
+        btnCancel.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                getResources().getColor(R.color.surface_variant)));
+        btnCancel.setCornerRadius(px(16));
+        btnCancel.setInsetTop(0);
+        btnCancel.setInsetBottom(0);
+        btnCancel.setMinimumHeight(px(44));
+        btnCancel.setPadding(0, px(10), 0, px(10));
         LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         btnCancel.setLayoutParams(cancelParams);
-        btnCancel.setPadding(0, px(12), 0, px(12));
-        btnCancel.setClickable(true);
-        btnCancel.setFocusable(true);
         btnCancel.setOnClickListener(v -> finish());
         root.addView(btnCancel);
 
@@ -279,7 +283,10 @@ public class UpdateActivity extends AppCompatActivity {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
+            android.graphics.drawable.GradientDrawable rowBg = new android.graphics.drawable.GradientDrawable();
+            rowBg.setColor(getResources().getColor(R.color.surface_elevated));
+            rowBg.setCornerRadius(px(12));
+            row.setBackground(rowBg);
             LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             rowParams.setMargins(0, 0, 0, px(6));
@@ -287,10 +294,11 @@ public class UpdateActivity extends AppCompatActivity {
             row.setPadding(px(12), px(10), px(12), px(10));
             row.setClickable(true);
             row.setFocusable(true);
+            row.setMinimumHeight(px(44));
 
             TextView tvIndex = new TextView(this);
             tvIndex.setText(String.valueOf(index + 1));
-            tvIndex.setTextColor(0xFFBB86FC);
+            tvIndex.setTextColor(0xFFD0BCFF);
             tvIndex.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
             tvIndex.setTypeface(tvIndex.getTypeface(), Typeface.BOLD);
             tvIndex.setGravity(Gravity.CENTER);
@@ -299,7 +307,7 @@ public class UpdateActivity extends AppCompatActivity {
 
             TextView tvDomain = new TextView(this);
             tvDomain.setText(domain);
-            tvDomain.setTextColor(0xFFFFFFFF);
+            tvDomain.setTextColor(0xFFE6E0E9);
             tvDomain.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
             tvDomain.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
             LinearLayout.LayoutParams domainParams = new LinearLayout.LayoutParams(0,
@@ -309,7 +317,7 @@ public class UpdateActivity extends AppCompatActivity {
 
             TextView tvDownload = new TextView(this);
             tvDownload.setText("下载");
-            tvDownload.setTextColor(0xFFBB86FC);
+            tvDownload.setTextColor(0xFFD0BCFF);
             tvDownload.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
             tvDownload.setGravity(Gravity.CENTER);
 

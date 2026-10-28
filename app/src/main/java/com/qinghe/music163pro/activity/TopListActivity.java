@@ -69,7 +69,7 @@ public class TopListActivity extends AppCompatActivity {
         // Title
         TextView title = new TextView(this);
         title.setText("排行榜");
-        title.setTextColor(0xFFFFFFFF);
+        title.setTextColor(0xFFE6E0E9);
         title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(15));
         title.setGravity(Gravity.CENTER);
         title.setPadding(0, 0, 0, px(6));

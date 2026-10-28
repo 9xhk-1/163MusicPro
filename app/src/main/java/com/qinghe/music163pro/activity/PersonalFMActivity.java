@@ -49,7 +49,7 @@ public class PersonalFMActivity extends AppCompatActivity {
         // Title
         TextView tvTitle = new TextView(this);
         tvTitle.setText("私人漫游");
-        tvTitle.setTextColor(0xFFFFFFFF);
+        tvTitle.setTextColor(0xFFE6E0E9);
         tvTitle.setTextSize(16);
         tvTitle.setGravity(Gravity.CENTER);
         tvTitle.setPadding(0, 0, 0, dp(16));
@@ -59,7 +59,7 @@ public class PersonalFMActivity extends AppCompatActivity {
         // Description
         TextView tvDesc = new TextView(this);
         tvDesc.setText("选择漫游模式开始播放");
-        tvDesc.setTextColor(0x80FFFFFF);
+        tvDesc.setTextColor(0xFFCAC4D0);
         tvDesc.setTextSize(12);
         tvDesc.setGravity(Gravity.CENTER);
         tvDesc.setPadding(0, 0, 0, dp(20));
@@ -101,7 +101,7 @@ public class PersonalFMActivity extends AppCompatActivity {
         // Back button
         TextView btnBack = new TextView(this);
         btnBack.setText("返回");
-        btnBack.setTextColor(0x80FFFFFF);
+        btnBack.setTextColor(0xFFCAC4D0);
         btnBack.setTextSize(13);
         btnBack.setGravity(Gravity.CENTER);
         btnBack.setPadding(0, dp(16), 0, dp(8));
@@ -118,7 +118,7 @@ public class PersonalFMActivity extends AppCompatActivity {
         btn.setPadding(dp(12), dp(14), dp(12), dp(14));
         btn.setClickable(true);
         btn.setFocusable(true);
-        btn.setBackground(makeRoundBackground(0xFF2D2D2D));
+        btn.setBackground(makeRoundBackground(0xFF2B2930));
         LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         btnParams.bottomMargin = dp(8);
@@ -126,14 +126,14 @@ public class PersonalFMActivity extends AppCompatActivity {
 
         TextView tvTitle = new TextView(this);
         tvTitle.setText(title);
-        tvTitle.setTextColor(0xFFFFFFFF);
+        tvTitle.setTextColor(0xFFE6E0E9);
         tvTitle.setTextSize(14);
         tvTitle.setGravity(Gravity.CENTER);
         btn.addView(tvTitle);
 
         TextView tvSub = new TextView(this);
         tvSub.setText(subtitle);
-        tvSub.setTextColor(0x80FFFFFF);
+        tvSub.setTextColor(0xFFCAC4D0);
         tvSub.setTextSize(11);
         tvSub.setGravity(Gravity.CENTER);
         tvSub.setPadding(0, dp(3), 0, 0);

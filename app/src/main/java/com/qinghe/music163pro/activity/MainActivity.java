@@ -916,7 +916,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Centered title
         TextView title = new TextView(this);
         title.setText(titleText);
-        title.setTextColor(0xFFFFFFFF);
+        title.setTextColor(0xFFE6E0E9);
         title.setTextSize(12);
         title.setMaxLines(2);
         title.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -1626,7 +1626,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         for (String line : playerManager.getCurrentPlayerInfoLines()) {
             TextView textView = new TextView(this);
             textView.setText(line);
-            textView.setTextColor(0xFFFFFFFF);
+            textView.setTextColor(0xFFE6E0E9);
             textView.setTextSize(12);
             textView.setPadding(dp(10), dp(8), dp(10), dp(8));
             textView.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
@@ -1796,7 +1796,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Song name at top (leave right padding for the toggle button)
         tvLyricsSongLabel = new TextView(this);
         tvLyricsSongLabel.setText(song.getDisplayName() + " - " + song.getArtist());
-        tvLyricsSongLabel.setTextColor(0xFFFFFFFF);
+        tvLyricsSongLabel.setTextColor(0xFFE6E0E9);
         tvLyricsSongLabel.setTextSize(13);
         tvLyricsSongLabel.setGravity(Gravity.CENTER);
         tvLyricsSongLabel.setPadding(dp(30), dp(6), dp(30), dp(4));
@@ -1840,7 +1840,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         // Time display - shown below title
         tvLyricsTimeRef = new TextView(this);
-        tvLyricsTimeRef.setTextColor(0x80FFFFFF);
+        tvLyricsTimeRef.setTextColor(0xFFCAC4D0);
         tvLyricsTimeRef.setTextSize(10);
         tvLyricsTimeRef.setGravity(Gravity.CENTER);
         tvLyricsTimeRef.setPadding(0, dp(2), 0, dp(4));
@@ -1941,7 +1941,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         lyricsContainer.removeAllViews();
         TextView tvLoading = new TextView(this);
         tvLoading.setText("加载歌词中...");
-        tvLoading.setTextColor(0xB3FFFFFF);
+        tvLoading.setTextColor(0xFFCAC4D0);
         tvLoading.setTextSize(13);
         tvLoading.setGravity(Gravity.CENTER);
         lyricsContainer.addView(tvLoading);
@@ -2503,7 +2503,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Custom speed input
         TextView customLabel = new TextView(this);
         customLabel.setText("自定义（0.1-5.0）");
-        customLabel.setTextColor(0xB3FFFFFF);
+        customLabel.setTextColor(0xFFCAC4D0);
         customLabel.setTextSize(13);
         customLabel.setGravity(Gravity.CENTER);
         customLabel.setPadding(0, dp(12), 0, dp(4));
@@ -2667,7 +2667,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         if (localQualities.isEmpty()) {
             TextView empty = new TextView(this);
             empty.setText("暂无本地音质列表");
-            empty.setTextColor(0x80FFFFFF);
+            empty.setTextColor(0xFFCAC4D0);
             empty.setTextSize(13);
             empty.setGravity(Gravity.CENTER);
             empty.setPadding(0, dp(8), 0, dp(8));
@@ -2697,7 +2697,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
             TextView tvDesc = new TextView(this);
             tvDesc.setText("本地已下载");
-            tvDesc.setTextColor(0x80FFFFFF);
+            tvDesc.setTextColor(0xFFCAC4D0);
             tvDesc.setTextSize(11);
             leftCol.addView(tvDesc);
             row.addView(leftCol);
@@ -3040,7 +3040,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Song name
         TextView tvSong = new TextView(this);
         tvSong.setText(songTitle);
-        tvSong.setTextColor(0xB3FFFFFF);
+        tvSong.setTextColor(0xFFCAC4D0);
         tvSong.setTextSize(12);
         tvSong.setGravity(Gravity.CENTER);
         tvSong.setPadding(0, 0, 0, dp(8));
@@ -3052,7 +3052,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         TextView tvStart = new TextView(this);
         tvStart.setText("起始: " + startSec[0] + "s");
-        tvStart.setTextColor(0xFFFFFFFF);
+        tvStart.setTextColor(0xFFE6E0E9);
         tvStart.setTextSize(12);
         tvStart.setPadding(0, dp(4), 0, 0);
         contentLayout.addView(tvStart);
@@ -3068,7 +3068,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // End seekbar
         TextView tvEnd = new TextView(this);
         tvEnd.setText("结束: " + endSec[0] + "s");
-        tvEnd.setTextColor(0xFFFFFFFF);
+        tvEnd.setTextColor(0xFFE6E0E9);
         tvEnd.setTextSize(12);
         tvEnd.setPadding(0, dp(4), 0, 0);
         contentLayout.addView(tvEnd);
@@ -3082,7 +3082,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Duration display
         TextView tvDuration = new TextView(this);
         tvDuration.setText("节选: " + startSec[0] + "s - " + endSec[0] + "s (" + (endSec[0] - startSec[0]) + "秒)");
-        tvDuration.setTextColor(0xB3FFFFFF);
+        tvDuration.setTextColor(0xFFCAC4D0);
         tvDuration.setTextSize(12);
         tvDuration.setGravity(Gravity.CENTER);
         tvDuration.setPadding(0, dp(8), 0, dp(8));
@@ -3469,7 +3469,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Custom seconds label
         TextView customLabel = new TextView(this);
         customLabel.setText("自定义（秒）");
-        customLabel.setTextColor(0xB3FFFFFF);
+        customLabel.setTextColor(0xFFCAC4D0);
         customLabel.setTextSize(13);
         customLabel.setGravity(Gravity.CENTER);
         customLabel.setPadding(0, dp(12), 0, dp(4));
@@ -3539,7 +3539,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         // Remaining time display
         TextView tvRemaining = new TextView(this);
-        tvRemaining.setTextColor(0xFFFFFFFF);
+        tvRemaining.setTextColor(0xFFE6E0E9);
         tvRemaining.setTextSize(20);
         tvRemaining.setGravity(Gravity.CENTER);
         tvRemaining.setPadding(0, dp(8), 0, dp(16));
