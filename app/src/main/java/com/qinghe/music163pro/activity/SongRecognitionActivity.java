@@ -111,7 +111,7 @@ public class SongRecognitionActivity extends AppCompatActivity {
 
         TextView title = new TextView(this);
         title.setText("听歌识曲");
-        title.setTextColor(0xFFFFFFFF);
+        title.setTextColor(getResources().getColor(R.color.text_primary));
         title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(20));
         title.setTypeface(title.getTypeface(), Typeface.BOLD);
         title.setGravity(Gravity.CENTER);
@@ -120,7 +120,7 @@ public class SongRecognitionActivity extends AppCompatActivity {
         addSpacer(root, px(10));
 
         tvMode = new TextView(this);
-        tvMode.setTextColor(0xFFBB86FC);
+        tvMode.setTextColor(getResources().getColor(R.color.colorPrimary));
         tvMode.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
         tvMode.setTypeface(tvMode.getTypeface(), Typeface.BOLD);
         tvMode.setGravity(Gravity.CENTER);
@@ -148,7 +148,7 @@ public class SongRecognitionActivity extends AppCompatActivity {
         addSpacer(btnRecord, px(10));
 
         tvRecordLabel = new TextView(this);
-        tvRecordLabel.setTextColor(0xFFFFFFFF);
+        tvRecordLabel.setTextColor(getResources().getColor(R.color.on_primary));
         tvRecordLabel.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(15));
         tvRecordLabel.setTypeface(tvRecordLabel.getTypeface(), Typeface.BOLD);
         tvRecordLabel.setGravity(Gravity.CENTER);
@@ -157,7 +157,7 @@ public class SongRecognitionActivity extends AppCompatActivity {
         addSpacer(root, px(18));
 
         tvHint = new TextView(this);
-        tvHint.setTextColor(0xD9FFFFFF);
+        tvHint.setTextColor(getResources().getColor(R.color.text_secondary));
         tvHint.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
         tvHint.setGravity(Gravity.CENTER);
         root.addView(tvHint);
@@ -520,7 +520,7 @@ public class SongRecognitionActivity extends AppCompatActivity {
     }
 
     private void updateIdleUi() {
-        setCircleButtonState(0xFFBB86FC, true, "开始录音");
+        setCircleButtonState(getResources().getColor(R.color.colorPrimary), true, "开始录音");
         tvMode.setText(isAutoMode() ? "当前模式：自动识别" : "当前模式：手动暂停");
         if (isAutoMode()) {
             tvHint.setText("点一下开始持续监听\n每三秒自动识别一次");
@@ -533,19 +533,19 @@ public class SongRecognitionActivity extends AppCompatActivity {
     }
 
     private void updateManualRecordingUi(int remainingSeconds) {
-        setCircleButtonState(0xFFD32F2F, true, "结束录音");
+        setCircleButtonState(0xFFE53935, true, "结束录音");
         tvHint.setText("请让手表靠近声源\n录音时已暂停手表播放");
         tvStatus.setText("录音中 " + remainingSeconds + "s");
     }
 
     private void updateAutoRecordingUi() {
-        setCircleButtonState(0xFFD32F2F, true, "停止识别");
+        setCircleButtonState(0xFFE53935, true, "停止识别");
         tvHint.setText("正在持续监听\n每三秒自动识别一次");
         tvStatus.setText("自动识别中，等待结果...");
     }
 
     private void updateProcessingUi() {
-        setCircleButtonState(0xFF616161, false, "识别中");
+        setCircleButtonState(getResources().getColor(R.color.surface_variant), false, "识别中");
         tvHint.setText("正在生成指纹并请求接口");
         tvStatus.setText("请稍候...");
     }
