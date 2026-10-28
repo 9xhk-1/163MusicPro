@@ -2,21 +2,18 @@ package com.qinghe.music163pro.activity;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
-import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
-
+import com.google.android.material.card.MaterialCardView;
+import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.util.NetworkImageLoader;
@@ -33,7 +30,7 @@ import java.io.InputStream;
  * with larger rows; other info (age, follows, fans, register time, VIP) is
  * shown read-only.
  */
-public class ProfileActivity extends AppCompatActivity {
+public class ProfileActivity extends BaseWatchActivity {
 
     private static final String PREFS_NAME = "music163_settings";
     private static final int REQ_PICK_AVATAR = 4001;
@@ -50,36 +47,32 @@ public class ProfileActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        if (prefs.getBoolean("keep_screen_on", false)) {
-            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        }
         cookie = MusicPlayerManager.getInstance().getCookie();
         if (cookie == null) cookie = "";
 
         ScrollView scrollView = new ScrollView(this);
-        scrollView.setBackgroundColor(0xFF121212);
+        scrollView.setBackgroundColor(getResources().getColor(R.color.bg_dark));
         scrollView.setFillViewport(true);
         contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
-        contentLayout.setPadding(px(10), px(10), px(10), px(10));
+        contentLayout.setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8));
         scrollView.addView(contentLayout);
         setContentView(scrollView);
 
         TextView title = new TextView(this);
         title.setText("个人中心");
-        title.setTextColor(0xFFFFFFFF);
-        title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(15));
+        title.setTextColor(getResources().getColor(R.color.text_primary));
+        title.setTextSize(15);
         title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, px(8));
+        title.setPadding(0, 0, 0, dpToPx(8));
         contentLayout.addView(title);
 
         buildAvatarHeader();
 
         TextView loading = new TextView(this);
         loading.setText("加载中...");
-        loading.setTextColor(0xFF757575);
-        loading.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
+        loading.setTextColor(getResources().getColor(R.color.text_secondary));
+        loading.setTextSize(13);
         loading.setGravity(Gravity.CENTER);
         loading.setTag("loading");
         contentLayout.addView(loading);
@@ -91,16 +84,13 @@ public class ProfileActivity extends AppCompatActivity {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(0, 0, 0, px(8));
+        header.setPadding(0, 0, 0, dpToPx(8));
 
         avatarView = new ImageView(this);
-        int avatarSize = px(64);
+        int avatarSize = dpToPx(64);
         avatarView.setLayoutParams(new LinearLayout.LayoutParams(avatarSize, avatarSize));
         avatarView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        GradientDrawable avatarBg = new GradientDrawable();
-        avatarBg.setShape(GradientDrawable.OVAL);
-        avatarBg.setColor(0xFF333333);
-        avatarView.setBackground(avatarBg);
+        avatarView.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
         avatarView.setClipToOutline(true);
         avatarView.setClickable(true);
         avatarView.setFocusable(true);
@@ -109,9 +99,9 @@ public class ProfileActivity extends AppCompatActivity {
 
         TextView hint = new TextView(this);
         hint.setText("点头像可更换\n登录后显示信息");
-        hint.setTextColor(0x80FFFFFF);
-        hint.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
-        hint.setPadding(px(12), 0, 0, 0);
+        hint.setTextColor(getResources().getColor(R.color.text_secondary));
+        hint.setTextSize(12);
+        hint.setPadding(dpToPx(12), 0, 0, 0);
         header.addView(hint);
 
         contentLayout.addView(header);
@@ -251,16 +241,16 @@ public class ProfileActivity extends AppCompatActivity {
         contentLayout.removeAllViews();
         TextView title = new TextView(this);
         title.setText("个人中心");
-        title.setTextColor(0xFFFFFFFF);
-        title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(15));
+        title.setTextColor(getResources().getColor(R.color.text_primary));
+        title.setTextSize(15);
         title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, px(8));
+        title.setPadding(0, 0, 0, dpToPx(8));
         contentLayout.addView(title);
         buildAvatarHeader();
         TextView loading = new TextView(this);
         loading.setText("加载中...");
-        loading.setTextColor(0xFF757575);
-        loading.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
+        loading.setTextColor(getResources().getColor(R.color.text_secondary));
+        loading.setTextSize(13);
         loading.setGravity(Gravity.CENTER);
         loading.setTag("loading");
         contentLayout.addView(loading);
@@ -319,52 +309,48 @@ public class ProfileActivity extends AppCompatActivity {
     private void addSectionTitle(String title) {
         TextView tv = new TextView(this);
         tv.setText("── " + title + " ──");
-        tv.setTextColor(0xFFBB86FC);
-        tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
+        tv.setTextColor(getResources().getColor(R.color.colorPrimary));
+        tv.setTextSize(12);
         tv.setGravity(Gravity.CENTER);
-        tv.setPadding(0, px(8), 0, px(4));
+        tv.setPadding(0, dpToPx(8), 0, dpToPx(4));
         contentLayout.addView(tv);
     }
 
     private void addInfoRow(String label, String value) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(px(12), px(14), px(12), px(14));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xFF1E1E1E);
-        bg.setCornerRadius(px(6));
-        row.setBackground(bg);
+        MaterialCardView row = new MaterialCardView(this);
+        row.setCardBackgroundColor(getResources().getColor(R.color.surface_elevated));
+        row.setRadius(dpToPx(14));
+        row.setCardElevation(0);
+        LinearLayout inner = new LinearLayout(this);
+        inner.setOrientation(LinearLayout.HORIZONTAL);
+        inner.setGravity(Gravity.CENTER_VERTICAL);
+        inner.setPadding(dpToPx(12), dpToPx(10), dpToPx(12), dpToPx(10));
+        row.addView(inner);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        params.bottomMargin = px(3);
+        params.bottomMargin = dpToPx(3);
         row.setLayoutParams(params);
 
         TextView tvLabel = new TextView(this);
         tvLabel.setText(label);
-        tvLabel.setTextColor(0xFF999999);
-        tvLabel.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
-        row.addView(tvLabel);
+        tvLabel.setTextColor(getResources().getColor(R.color.text_secondary));
+        tvLabel.setTextSize(13);
+        inner.addView(tvLabel);
 
         TextView tvValue = new TextView(this);
         tvValue.setText(value);
-        tvValue.setTextColor(0xFFFFFFFF);
-        tvValue.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
+        tvValue.setTextColor(getResources().getColor(R.color.text_primary));
+        tvValue.setTextSize(13);
         tvValue.setGravity(Gravity.END);
-        tvValue.setPadding(px(8), 0, 0, 0);
+        tvValue.setPadding(dpToPx(8), 0, 0, 0);
         tvValue.setSingleLine(true);
         tvValue.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
         tvValue.setMarqueeRepeatLimit(-1);
         tvValue.setSelected(true);
         tvValue.setLayoutParams(new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        row.addView(tvValue);
+        inner.addView(tvValue);
 
         contentLayout.addView(row);
-    }
-
-    private int px(int baseValue) {
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        return (int) (baseValue * screenWidth / 320f + 0.5f);
     }
 }
