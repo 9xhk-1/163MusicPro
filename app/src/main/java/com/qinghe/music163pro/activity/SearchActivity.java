@@ -372,6 +372,13 @@ public class SearchActivity extends BaseWatchActivity {
             return;
         }
 
+        android.view.inputmethod.InputMethodManager keyboard =
+                (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (keyboard != null) {
+            keyboard.hideSoftInputFromWindow(etSearch.getWindowToken(), 0);
+        }
+        etSearch.clearFocus();
+
         currentKeyword = keyword;
         addToSearchHistory(keyword);
 
