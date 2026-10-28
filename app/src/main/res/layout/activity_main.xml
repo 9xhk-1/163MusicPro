@@ -14,6 +14,10 @@
         android:layout_height="48dp"
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
+        android:insetLeft="6dp"
+        android:insetRight="6dp"
+        android:insetTop="6dp"
+        android:insetBottom="6dp"
         android:contentDescription="打开当前歌单"
         app:icon="@drawable/ic_queue_music"
         android:visibility="gone" />
@@ -26,6 +30,10 @@
         android:layout_height="48dp"
         android:layout_alignParentEnd="true"
         android:layout_alignParentTop="true"
+        android:insetLeft="6dp"
+        android:insetRight="6dp"
+        android:insetTop="6dp"
+        android:insetBottom="6dp"
         android:contentDescription="打开菜单"
         app:icon="@drawable/ic_more_vert" />
 
@@ -39,9 +47,9 @@
 
         <!-- Song name with marquee + VIP badge -->
         <LinearLayout
+            android:id="@+id/player_title_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="48dp"
             android:layout_marginEnd="48dp"
             android:gravity="center"
             android:orientation="horizontal">
@@ -83,7 +91,6 @@
             android:id="@+id/tv_artist"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="48dp"
             android:layout_marginEnd="48dp"
             android:layout_marginTop="2dp"
             android:ellipsize="marquee"
@@ -141,10 +148,10 @@
                 style="@style/Widget.App.PlayerIcon"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:insetLeft="2dp"
-                android:insetRight="2dp"
-                android:insetTop="2dp"
-                android:insetBottom="2dp"
+                android:insetLeft="6dp"
+                android:insetRight="6dp"
+                android:insetTop="6dp"
+                android:insetBottom="6dp"
                 android:contentDescription="上一首"
                 app:icon="@drawable/ic_skip_previous" />
 
@@ -153,6 +160,10 @@
                 style="@style/Widget.App.PlayerIcon.Primary"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
+                android:insetLeft="3dp"
+                android:insetRight="3dp"
+                android:insetTop="3dp"
+                android:insetBottom="3dp"
                 android:contentDescription="播放"
                 app:icon="@drawable/ic_play_arrow" />
 
@@ -161,10 +172,10 @@
                 style="@style/Widget.App.PlayerIcon"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:insetLeft="2dp"
-                android:insetRight="2dp"
-                android:insetTop="2dp"
-                android:insetBottom="2dp"
+                android:insetLeft="6dp"
+                android:insetRight="6dp"
+                android:insetTop="6dp"
+                android:insetBottom="6dp"
                 android:contentDescription="下一首"
                 app:icon="@drawable/ic_skip_next" />
         </LinearLayout>
@@ -182,10 +193,10 @@
                 style="@style/Widget.App.PlayerIcon"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:insetLeft="2dp"
-                android:insetRight="2dp"
-                android:insetTop="2dp"
-                android:insetBottom="2dp"
+                android:insetLeft="6dp"
+                android:insetRight="6dp"
+                android:insetTop="6dp"
+                android:insetBottom="6dp"
                 android:contentDescription="降低音量"
                 app:icon="@drawable/ic_volume_down" />
 
@@ -194,10 +205,10 @@
                 style="@style/Widget.App.PlayerIcon"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:insetLeft="2dp"
-                android:insetRight="2dp"
-                android:insetTop="2dp"
-                android:insetBottom="2dp"
+                android:insetLeft="6dp"
+                android:insetRight="6dp"
+                android:insetTop="6dp"
+                android:insetBottom="6dp"
                 android:contentDescription="歌曲功能"
                 app:icon="@drawable/ic_more_horiz" />
 
@@ -206,10 +217,10 @@
                 style="@style/Widget.App.PlayerIcon"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:insetLeft="2dp"
-                android:insetRight="2dp"
-                android:insetTop="2dp"
-                android:insetBottom="2dp"
+                android:insetLeft="6dp"
+                android:insetRight="6dp"
+                android:insetTop="6dp"
+                android:insetBottom="6dp"
                 android:contentDescription="提高音量"
                 app:icon="@drawable/ic_volume_up" />
         </LinearLayout>

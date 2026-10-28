@@ -917,11 +917,13 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         TextView title = new TextView(this);
         title.setText(titleText);
         title.setTextColor(0xFFFFFFFF);
-        title.setTextSize(15);
-        title.setGravity(Gravity.CENTER);
+        title.setTextSize(12);
+        title.setMaxLines(2);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        title.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         FrameLayout.LayoutParams titleParams = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        titleParams.gravity = Gravity.CENTER;
+        titleParams.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
         titleParams.setMarginEnd(dp(48));
         title.setLayoutParams(titleParams);
         titleBar.addView(title);
@@ -929,10 +931,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Close button on the right
         MaterialButton btnClose = new MaterialButton(this);
         btnClose.setIconResource(R.drawable.ic_close);
-        btnClose.setIconTint(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.on_primary_container)));
-        btnClose.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.primary_container)));
+        btnClose.setIconTint(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.text_primary)));
+        btnClose.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT));
         btnClose.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
-        btnClose.setIconSize(dp(20));
+        btnClose.setIconSize(dp(18));
         btnClose.setIconPadding(0);
         btnClose.setInsetTop(0);
         btnClose.setInsetBottom(0);
@@ -3669,6 +3671,14 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 btnPlaylistIndicator.setVisibility(View.VISIBLE);
             } else {
                 btnPlaylistIndicator.setVisibility(View.GONE);
+            }
+            int startInset = btnPlaylistIndicator.getVisibility() == View.VISIBLE ? dp(48) : 0;
+            for (View text : new View[]{findViewById(R.id.player_title_row), tvArtist}) {
+                LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) text.getLayoutParams();
+                if (params.getMarginStart() != startInset) {
+                    params.setMarginStart(startInset);
+                    text.setLayoutParams(params);
+                }
             }
         }
     }

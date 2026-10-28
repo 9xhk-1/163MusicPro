@@ -1,6 +1,8 @@
 package com.qinghe.music163pro.activity;
 
 import android.os.Bundle;
+import android.view.View;
+import android.widget.LinearLayout;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -55,6 +57,21 @@ public abstract class BaseWatchActivity extends AppCompatActivity {
         int minHeightPx = dpToPx(36);
         button.setMinHeight(minHeightPx);
         button.setMinimumHeight(minHeightPx);
+        return button;
+    }
+
+    /** A Material destination row with a 48dp target on the compact watch. */
+    protected final MaterialButton createWatchMenuButton(int icon, String label,
+                                                          View.OnClickListener listener) {
+        MaterialButton button = (MaterialButton) getLayoutInflater()
+                .inflate(R.layout.item_watch_menu_button, null, false);
+        button.setIconResource(icon);
+        button.setText(label);
+        button.setOnClickListener(listener);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dpToPx(48));
+        params.bottomMargin = dpToPx(4);
+        button.setLayoutParams(params);
         return button;
     }
 }

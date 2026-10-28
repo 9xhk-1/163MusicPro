@@ -1,7 +1,6 @@
 package com.qinghe.music163pro.activity;
 
 import android.content.SharedPreferences;
-import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.Gravity;
@@ -13,6 +12,9 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
+import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.util.MoreMenuPreferences;
 
 import java.util.ArrayList;
@@ -55,7 +57,7 @@ public class EditMoreActivity extends BaseWatchActivity {
         prefs = MoreMenuPreferences.getPrefs(this);
 
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(0xFF121212);
+        scroll.setBackgroundColor(getResources().getColor(R.color.bg_dark));
         scroll.setFillViewport(true);
 
         LinearLayout root = new LinearLayout(this);
@@ -66,8 +68,8 @@ public class EditMoreActivity extends BaseWatchActivity {
 
         TextView title = new TextView(this);
         title.setText("编辑更多页面");
-        title.setTextColor(0xFFFFFFFF);
-        title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(15));
+        title.setTextColor(getResources().getColor(R.color.text_primary));
+        title.setTextSize(15);
         title.setGravity(Gravity.CENTER);
         title.setPadding(0, 0, 0, px(8));
         root.addView(title);
@@ -89,8 +91,8 @@ public class EditMoreActivity extends BaseWatchActivity {
     private View makeSectionTitle(String label) {
         TextView tv = new TextView(this);
         tv.setText(label);
-        tv.setTextColor(0xFFBB86FC);
-        tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
+        tv.setTextColor(getResources().getColor(R.color.colorPrimary));
+        tv.setTextSize(12);
         tv.setPadding(0, px(8), 0, px(4));
         return tv;
     }
@@ -113,39 +115,43 @@ public class EditMoreActivity extends BaseWatchActivity {
     }
 
     private View buildEnabledRow(final String key) {
-        FrameLayout row = new FrameLayout(this);
-        row.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, px(52)));
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xFF1E1E1E);
-        bg.setCornerRadius(px(6));
-        row.setBackground(bg);
+        MaterialCardView row = new MaterialCardView(this);
+        row.setCardBackgroundColor(getResources().getColor(R.color.surface_elevated));
+        row.setRadius(dpToPx(16));
+        row.setCardElevation(0);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, px(52));
-        params.bottomMargin = px(4);
+                ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(56));
+        params.bottomMargin = dpToPx(4);
         row.setLayoutParams(params);
 
         TextView label = new TextView(this);
         label.setText(itemLabels.get(key));
-        label.setTextColor(0xFFFFFFFF);
-        label.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
+        label.setTextColor(getResources().getColor(R.color.text_primary));
+        label.setTextSize(13);
         label.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-        label.setPadding(px(12), 0, px(32), 0);
+        label.setPadding(dpToPx(12), 0, dpToPx(48), 0);
         label.setLayoutParams(new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         row.addView(label);
 
-        TextView remove = new TextView(this);
-        remove.setText("×");
-        remove.setTextColor(0xFFCF6679);
-        remove.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(18));
-        remove.setGravity(Gravity.CENTER);
-        remove.setPadding(px(8), px(4), px(8), px(4));
+        MaterialButton remove = new MaterialButton(this);
+        remove.setIconResource(R.drawable.ic_close);
+        remove.setIconTint(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.colorError)));
+        remove.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.surface_elevated)));
+        remove.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+        remove.setIconSize(dpToPx(20));
+        remove.setIconPadding(0);
+        remove.setInsetTop(0);
+        remove.setInsetBottom(0);
+        remove.setMinWidth(0);
+        remove.setMinimumWidth(0);
+        remove.setPadding(0, 0, 0, 0);
+        remove.setContentDescription("移除" + itemLabels.get(key));
         remove.setClickable(true);
         remove.setFocusable(true);
         FrameLayout.LayoutParams removeParams = new FrameLayout.LayoutParams(
-                px(36), px(30));
-        removeParams.gravity = Gravity.TOP | Gravity.END;
+                dpToPx(48), dpToPx(48));
+        removeParams.gravity = Gravity.CENTER_VERTICAL | Gravity.END;
         remove.setLayoutParams(removeParams);
         remove.setOnClickListener(v -> {
             MoreMenuPreferences.setEnabled(prefs, key, false);
@@ -158,38 +164,7 @@ public class EditMoreActivity extends BaseWatchActivity {
     }
 
     private View buildDisabledRow(final String key) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(px(12), 0, px(12), 0);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xFF1A1A1A);
-        bg.setCornerRadius(px(6));
-        row.setBackground(bg);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, px(52));
-        params.bottomMargin = px(4);
-        row.setLayoutParams(params);
-        row.setClickable(true);
-        row.setFocusable(true);
-
-        TextView label = new TextView(this);
-        label.setText(itemLabels.get(key));
-        label.setTextColor(0x80FFFFFF);
-        label.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
-        label.setLayoutParams(new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        row.addView(label);
-
-        TextView check = new TextView(this);
-        check.setText("＋");
-        check.setTextColor(0xFFBB86FC);
-        check.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(18));
-        check.setGravity(Gravity.CENTER);
-        check.setPadding(px(6), 0, 0, 0);
-        row.addView(check);
-
-        row.setOnClickListener(v -> {
+        MaterialButton row = createWatchMenuButton(R.drawable.ic_add_box, itemLabels.get(key), v -> {
             MoreMenuPreferences.setEnabled(prefs, key, true);
             rebuild();
         });
@@ -198,7 +173,7 @@ public class EditMoreActivity extends BaseWatchActivity {
 
     private void attachDrag(final View dragHandle, final View row, final String key) {
         final int touchSlop = px(8);
-        final int rowStep = px(52) + px(4);
+        final int rowStep = dpToPx(56) + dpToPx(4);
         dragHandle.setOnTouchListener(new View.OnTouchListener() {
             float fingerOffsetInRow;
             float downRawY;
