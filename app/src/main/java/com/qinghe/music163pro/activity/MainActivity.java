@@ -155,7 +155,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private String currentTlyricText; // Raw translated LRC text for current song
     private String currentRomalrcText; // Raw romanization LRC text for current song
     private int translateMode; // 0=off, 1=translation (意), 2=romanization (音)
-    private TextView btnTranslationToggle; // Toggle button in lyrics overlay
+    private MaterialButton btnTranslationToggle; // Toggle button in lyrics overlay
     private final java.util.Map<Long, String> translationMap = new java.util.HashMap<>(); // timeMs -> translated text
     private final java.util.Map<Long, String> romanizationMap = new java.util.HashMap<>(); // timeMs -> romanization text
     private long currentChorusSongId = -1L;
@@ -285,7 +285,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                                 volumeSafeConfirmed = true;
                                 adjustVolumeUp();
                             },
-                            new WatchConfirmDialog.Options(0xFF1E1E1E, 0xFFBB86FC, true));
+                            new WatchConfirmDialog.Options(0xFF2B2930, 0xFFD0BCFF, true));
                 } else {
                     adjustVolumeUp();
                 }
@@ -508,7 +508,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private void clearCurrentLyricHighlight() {
         if (currentHighlightIndex >= 0 && currentHighlightIndex < lyricViews.size()) {
             TextView currentView = lyricViews.get(currentHighlightIndex);
-            currentView.setTextColor(0xB3FFFFFF);
+            currentView.setTextColor(getResources().getColor(R.color.text_secondary));
             currentView.setTextSize(13);
         }
         currentHighlightIndex = -1;
@@ -1815,16 +1815,21 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         } else {
             translateMode = transPrefs.getBoolean("lyrics_translation", false) ? 1 : 0;
         }
-        btnTranslationToggle = new TextView(this);
+        btnTranslationToggle = new MaterialButton(this);
         btnTranslationToggle.setTextSize(12);
-        btnTranslationToggle.setGravity(Gravity.CENTER);
-        btnTranslationToggle.setPadding(dp(6), dp(4), dp(6), dp(4));
-        btnTranslationToggle.setClickable(true);
-        btnTranslationToggle.setFocusable(true);
+        btnTranslationToggle.setAllCaps(false);
+        btnTranslationToggle.setMinWidth(0);
+        btnTranslationToggle.setMinimumWidth(0);
+        btnTranslationToggle.setMinHeight(0);
+        btnTranslationToggle.setMinimumHeight(0);
+        btnTranslationToggle.setInsetTop(0);
+        btnTranslationToggle.setInsetBottom(0);
+        btnTranslationToggle.setPadding(dp(10), 0, dp(10), 0);
+        btnTranslationToggle.setCornerRadius(dp(16));
         btnTranslationToggle.setVisibility(View.GONE); // Hidden until translation is available
         updateTranslationButton();
         FrameLayout.LayoutParams toggleParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+                FrameLayout.LayoutParams.WRAP_CONTENT, dp(32));
         toggleParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
         toggleParams.setMarginEnd(dp(2));
         btnTranslationToggle.setLayoutParams(toggleParams);
@@ -2197,22 +2202,26 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private void updateTranslationButton() {
         if (btnTranslationToggle == null) return;
         boolean hasRoma = !romanizationMap.isEmpty();
+        boolean active;
         if (hasRoma) {
             if (translateMode == 1) {
                 btnTranslationToggle.setText("意✓");
-                btnTranslationToggle.setTextColor(0xFFBB86FC);
+                active = true;
             } else if (translateMode == 2) {
                 btnTranslationToggle.setText("音✓");
-                btnTranslationToggle.setTextColor(0xFFBB86FC);
+                active = true;
             } else {
                 btnTranslationToggle.setText("译");
-                btnTranslationToggle.setTextColor(0x80FFFFFF);
+                active = false;
             }
         } else {
-            boolean on = translateMode == 1;
-            btnTranslationToggle.setText(on ? "译✓" : "译");
-            btnTranslationToggle.setTextColor(on ? 0xFFBB86FC : 0x80FFFFFF);
+            active = translateMode == 1;
+            btnTranslationToggle.setText(active ? "译✓" : "译");
         }
+        btnTranslationToggle.setTextColor(getResources().getColor(active
+                ? R.color.on_primary_container : R.color.text_secondary));
+        btnTranslationToggle.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                getResources().getColor(active ? R.color.primary_container : R.color.surface_elevated)));
     }
 
     private void displayLyricsInOverlay() {
@@ -2236,7 +2245,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             // Original lyrics text
             TextView tv = new TextView(this);
             tv.setText(line.text);
-            tv.setTextColor(0xB3FFFFFF);
+            tv.setTextColor(getResources().getColor(R.color.text_secondary));
             tv.setTextSize(13);
             tv.setGravity(Gravity.CENTER);
             lineLayout.addView(tv);
@@ -2252,7 +2261,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             if (subText != null) {
                 TextView tvTrans = new TextView(this);
                 tvTrans.setText(subText);
-                tvTrans.setTextColor(0x61FFFFFF);
+                tvTrans.setTextColor(getResources().getColor(R.color.text_disabled));
                 tvTrans.setTextSize(11);
                 tvTrans.setGravity(Gravity.CENTER);
                 tvTrans.setPadding(0, dp(1), 0, 0);
@@ -2269,7 +2278,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         lyricViews.clear();
         TextView tv = new TextView(this);
         tv.setText("暂无歌词");
-        tv.setTextColor(0xB3FFFFFF);
+        tv.setTextColor(getResources().getColor(R.color.text_secondary));
         tv.setTextSize(14);
         tv.setGravity(Gravity.CENTER);
         tv.setPadding(0, dp(40), 0, 0);
@@ -2309,7 +2318,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                         currentHighlightIndex = newIndex;
                         if (currentHighlightIndex < lyricViews.size()) {
                             TextView currentView = lyricViews.get(currentHighlightIndex);
-                            currentView.setTextColor(0xFFFFFFFF);
+                            currentView.setTextColor(getResources().getColor(R.color.text_primary));
                             currentView.setTextSize(14);
 
                             if (lyricScrollMode == LYRIC_MODE_FOLLOW || !lyricsUserScrolled) {
