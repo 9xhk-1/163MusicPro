@@ -1,6 +1,6 @@
 package com.qinghe.music163pro.activity;
 
-import android.app.AlertDialog;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -241,7 +241,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
     }
 
     private void showOwnPlaylistOptions(PlaylistInfo pl, String cookie) {
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle(pl.getName())
                 .setItems(new String[]{"改名", "删除"}, (dialog, which) -> {
                     if (which == 0) {
@@ -270,7 +270,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("改名")
                 .setView(container)
                 .setPositiveButton("确认", (d, w) -> {
@@ -304,7 +304,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
     }
 
     private void showDeletePlaylistDialog(PlaylistInfo pl, String cookie) {
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("删除歌单")
                 .setMessage("确定删除「" + pl.getName() + "」？此操作不可撤销。")
                 .setPositiveButton("删除", (d, w) -> {
@@ -333,7 +333,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
     }
 
     private void showUnsubscribeDialog(PlaylistInfo pl, String cookie) {
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("取消收藏")
                 .setMessage("确定取消收藏歌单「" + pl.getName() + "」？")
                 .setPositiveButton("确认", (d, w) -> {
@@ -381,7 +381,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
         container.addView(input, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("创建歌单")
                 .setView(container)
                 .setPositiveButton("创建", (d, w) -> {

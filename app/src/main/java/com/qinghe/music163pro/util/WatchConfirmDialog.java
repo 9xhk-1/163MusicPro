@@ -2,10 +2,12 @@ package com.qinghe.music163pro.util;
 
 import android.app.Activity;
 import android.content.res.ColorStateList;
-import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.KeyEvent;
+import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.core.graphics.ColorUtils;
@@ -47,6 +49,12 @@ public final class WatchConfirmDialog {
         overlay.setBackgroundColor(DEFAULT_OVERLAY_COLOR);
         overlay.setClickable(true);
         overlay.setFocusable(true);
+        overlay.setFocusableInTouchMode(true);
+        overlay.setOnKeyListener((v, keyCode, event) -> {
+            if (keyCode != KeyEvent.KEYCODE_BACK) return false;
+            if (event.getAction() == KeyEvent.ACTION_UP) rootView.removeView(overlay);
+            return true;
+        });
 
         MaterialCardView card = new MaterialCardView(activity);
         card.setCardBackgroundColor(resolvedOptions.dialogBackgroundColor);
@@ -68,7 +76,21 @@ public final class WatchConfirmDialog {
         card.setLayoutParams(dialogParams);
 
         dialog.addView(createTitleView(activity, title));
-        dialog.addView(createMessageView(activity, message));
+        int contentHeight = rootView.getHeight() > 0 ? rootView.getHeight()
+                : activity.getResources().getDisplayMetrics().heightPixels;
+        final int maxMessageHeight = Math.max(dp(activity, 32), contentHeight - dp(activity, 120));
+        ScrollView messageScroll = new ScrollView(activity) {
+            @Override
+            protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+                int limit = View.MeasureSpec.getMode(heightMeasureSpec) == View.MeasureSpec.UNSPECIFIED
+                        ? maxMessageHeight
+                        : Math.min(maxMessageHeight, View.MeasureSpec.getSize(heightMeasureSpec));
+                super.onMeasure(widthMeasureSpec,
+                        View.MeasureSpec.makeMeasureSpec(limit, View.MeasureSpec.AT_MOST));
+            }
+        };
+        messageScroll.addView(createMessageView(activity, message));
+        dialog.addView(messageScroll);
         dialog.addView(createButtonRow(activity, rootView, overlay, onConfirm, resolvedOptions));
 
         card.addView(dialog);
@@ -84,13 +106,16 @@ public final class WatchConfirmDialog {
             // Consume dialog taps so they do not propagate to the overlay.
         });
         rootView.addView(overlay);
+        overlay.requestFocus();
     }
 
     private static TextView createTitleView(Activity activity, String title) {
         TextView titleView = new TextView(activity);
         titleView.setText(title != null ? title : "");
         titleView.setTextColor(DEFAULT_TITLE_TEXT_COLOR);
-        titleView.setTextSize(TypedValue.COMPLEX_UNIT_PX, WatchUiUtils.px(activity, 18));
+        titleView.setTextSize(15);
+        titleView.setMaxLines(2);
+        titleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
         titleView.setGravity(Gravity.CENTER);
         titleView.setPadding(0, 0, 0, WatchUiUtils.px(activity, 6));
         return titleView;
@@ -100,7 +125,7 @@ public final class WatchConfirmDialog {
         TextView messageView = new TextView(activity);
         messageView.setText(message != null ? message : "");
         messageView.setTextColor(DEFAULT_MESSAGE_TEXT_COLOR);
-        messageView.setTextSize(TypedValue.COMPLEX_UNIT_PX, WatchUiUtils.px(activity, 15));
+        messageView.setTextSize(13);
         messageView.setGravity(Gravity.CENTER);
         messageView.setPadding(0, 0, 0, WatchUiUtils.px(activity, 12));
         return messageView;
@@ -127,12 +152,12 @@ public final class WatchConfirmDialog {
         button.setText(label);
         button.setTextColor(ColorUtils.calculateLuminance(backgroundColor) > 0.4
                 ? 0xFF1D1B20 : DEFAULT_TITLE_TEXT_COLOR);
-        button.setTextSize(TypedValue.COMPLEX_UNIT_PX, WatchUiUtils.px(activity, 16));
+        button.setTextSize(12);
         button.setAllCaps(false);
         button.setMinWidth(0);
         button.setMinimumWidth(0);
-        button.setMinHeight(0);
-        button.setMinimumHeight(0);
+        button.setMinHeight(dp(activity, 48));
+        button.setMinimumHeight(dp(activity, 48));
         button.setInsetTop(0);
         button.setInsetBottom(0);
         button.setCornerRadius(WatchUiUtils.px(activity, 20));
@@ -168,6 +193,10 @@ public final class WatchConfirmDialog {
         if (existingOverlay != null) {
             rootView.removeView(existingOverlay);
         }
+    }
+
+    private static int dp(Activity activity, int value) {
+        return (int) (value * activity.getResources().getDisplayMetrics().density + 0.5f);
     }
 
     public static final class Options {

@@ -11,7 +11,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AlertDialog;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.qinghe.music163pro.R;
@@ -144,7 +144,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void confirmSaveCookie() {
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.save_cookie_confirm_title)
                 .setMessage(R.string.save_cookie_confirm_message)
                 .setPositiveButton(R.string.confirm, (dialog, which) -> saveCookie())
@@ -178,7 +178,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void confirmLogout() {
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.logout_confirm_title)
                 .setMessage(R.string.logout_confirm_message)
                 .setPositiveButton(R.string.confirm, (dialog, which) -> logout())

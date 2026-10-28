@@ -1691,7 +1691,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         for (int i = 0; i < playlists.size(); i++) {
             names[i] = playlists.get(i).getName() + " (" + playlists.get(i).getTrackCount() + "首)";
         }
-        new android.app.AlertDialog.Builder(this)
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setTitle("添加到歌单")
                 .setItems(names, (dialog, which) -> {
                     com.qinghe.music163pro.model.PlaylistInfo selected = playlists.get(which);
