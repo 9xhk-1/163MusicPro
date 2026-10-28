@@ -3621,11 +3621,15 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             } else {
                 btnPlaylistIndicator.setVisibility(View.GONE);
             }
-            int startInset = btnPlaylistIndicator.getVisibility() == View.VISIBLE ? dp(48) : 0;
+            int inset = btnPlaylistIndicator.getVisibility() == View.VISIBLE ? dp(48) : 0;
             for (View text : new View[]{findViewById(R.id.player_title_row), tvArtist}) {
                 LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) text.getLayoutParams();
-                if (params.getMarginStart() != startInset) {
-                    params.setMarginStart(startInset);
+                if (params.getMarginStart() != inset || params.getMarginEnd() != inset) {
+                    // Keep start/end margins equal so the centered title and
+                    // artist stay on the screen midline with or without the
+                    // playlist button.
+                    params.setMarginStart(inset);
+                    params.setMarginEnd(inset);
                     text.setLayoutParams(params);
                 }
             }
