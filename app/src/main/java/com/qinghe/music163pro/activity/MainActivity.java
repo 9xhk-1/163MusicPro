@@ -1619,12 +1619,15 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         FrameLayout.LayoutParams scrollParams = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
         scrollParams.gravity = Gravity.CENTER;
+        scrollParams.setMargins(dp(16), dp(24), dp(16), dp(24));
         scrollView.setLayoutParams(scrollParams);
 
+        // Rounded M3 panel holding the whole info sheet.
         LinearLayout contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
         contentLayout.setGravity(Gravity.CENTER);
-        contentLayout.setPadding(dp(16), dp(12), dp(16), dp(12));
+        contentLayout.setBackgroundResource(R.drawable.bg_panel_rounded);
+        contentLayout.setPadding(dp(12), dp(4), dp(12), dp(12));
         contentLayout.addView(createOverlayTitleBar("播放器信息"));
 
         for (String line : playerManager.getCurrentPlayerInfoLines()) {
@@ -1632,11 +1635,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             textView.setText(line);
             textView.setTextColor(0xFFE6E0E9);
             textView.setTextSize(12);
-            textView.setPadding(dp(10), dp(8), dp(10), dp(8));
-            textView.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
+            textView.setPadding(dp(10), dp(6), dp(10), dp(6));
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            params.bottomMargin = dp(4);
             textView.setLayoutParams(params);
             contentLayout.addView(textView);
         }
