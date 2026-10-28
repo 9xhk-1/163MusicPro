@@ -1,11 +1,17 @@
 package com.qinghe.music163pro.util;
 
 import android.app.Activity;
+import android.content.res.ColorStateList;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import androidx.core.graphics.ColorUtils;
+
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
 
 /**
  * Shared confirm dialog builder adapted to the watch UI.
@@ -42,9 +48,12 @@ public final class WatchConfirmDialog {
         overlay.setClickable(true);
         overlay.setFocusable(true);
 
+        MaterialCardView card = new MaterialCardView(activity);
+        card.setCardBackgroundColor(resolvedOptions.dialogBackgroundColor);
+        card.setRadius(WatchUiUtils.px(activity, 20));
+        card.setCardElevation(0);
         LinearLayout dialog = new LinearLayout(activity);
         dialog.setOrientation(LinearLayout.VERTICAL);
-        dialog.setBackgroundColor(resolvedOptions.dialogBackgroundColor);
         dialog.setPadding(
                 WatchUiUtils.px(activity, 16),
                 WatchUiUtils.px(activity, 12),
@@ -56,13 +65,14 @@ public final class WatchConfirmDialog {
         dialogParams.gravity = Gravity.CENTER;
         dialogParams.leftMargin = WatchUiUtils.px(activity, 16);
         dialogParams.rightMargin = WatchUiUtils.px(activity, 16);
-        dialog.setLayoutParams(dialogParams);
+        card.setLayoutParams(dialogParams);
 
         dialog.addView(createTitleView(activity, title));
         dialog.addView(createMessageView(activity, message));
         dialog.addView(createButtonRow(activity, rootView, overlay, onConfirm, resolvedOptions));
 
-        overlay.addView(dialog);
+        card.addView(dialog);
+        overlay.addView(card);
         if (resolvedOptions.dismissOnOutsideTap) {
             overlay.setOnClickListener(v -> rootView.removeView(overlay));
         } else {
@@ -70,7 +80,7 @@ public final class WatchConfirmDialog {
                 // Consume outside taps without dismissing the dialog.
             });
         }
-        dialog.setOnClickListener(v -> {
+        card.setOnClickListener(v -> {
             // Consume dialog taps so they do not propagate to the overlay.
         });
         rootView.addView(overlay);
@@ -109,21 +119,30 @@ public final class WatchConfirmDialog {
         return buttonRow;
     }
 
-    private static TextView createButton(Activity activity, FrameLayout rootView,
+    private static MaterialButton createButton(Activity activity, FrameLayout rootView,
                                          FrameLayout overlay, String label,
                                          int backgroundColor, boolean isConfirm,
                                          Runnable onConfirm) {
-        TextView button = new TextView(activity);
+        MaterialButton button = new MaterialButton(activity);
         button.setText(label);
-        button.setTextColor(DEFAULT_TITLE_TEXT_COLOR);
+        button.setTextColor(ColorUtils.calculateLuminance(backgroundColor) > 0.4
+                ? 0xFF1D1B20 : DEFAULT_TITLE_TEXT_COLOR);
         button.setTextSize(TypedValue.COMPLEX_UNIT_PX, WatchUiUtils.px(activity, 16));
+        button.setAllCaps(false);
+        button.setMinWidth(0);
+        button.setMinimumWidth(0);
+        button.setMinHeight(0);
+        button.setMinimumHeight(0);
+        button.setInsetTop(0);
+        button.setInsetBottom(0);
+        button.setCornerRadius(WatchUiUtils.px(activity, 20));
         button.setGravity(Gravity.CENTER);
         button.setPadding(
                 WatchUiUtils.px(activity, 12),
                 WatchUiUtils.px(activity, 8),
                 WatchUiUtils.px(activity, 12),
                 WatchUiUtils.px(activity, 8));
-        button.setBackgroundColor(backgroundColor);
+        button.setBackgroundTintList(ColorStateList.valueOf(backgroundColor));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         if (isConfirm) {
@@ -164,7 +183,7 @@ public final class WatchConfirmDialog {
         }
 
         public static Options defaultOptions() {
-            return new Options(0xFF1E1E1E, 0xFFBB86FC, true);
+            return new Options(0xFF2B2930, 0xFFD0BCFF, true);
         }
     }
 }
