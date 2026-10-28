@@ -28,11 +28,11 @@
 
         <ImageButton
             android:id="@+id/btn_mv_player_back"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/back"
-            android:padding="4dp"
+            android:padding="12dp"
             android:src="@drawable/ic_arrow_back"
             android:tint="@color/text_primary" />
 
