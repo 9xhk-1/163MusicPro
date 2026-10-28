@@ -1288,8 +1288,14 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         seekBar.getLocationInWindow(seekLocation);
 
         float fraction = Math.min(1f, Math.max(0f, (float) currentChorusStartMs / (float) durationMs));
-        float trackLeft = seekLocation[0] - rootLocation[0] + seekBar.getPaddingLeft();
-        float trackRight = seekLocation[0] - rootLocation[0] + seekWidth - seekBar.getPaddingRight();
+        // The Slider draws its track inset from the view edges by the thumb
+        // clearance (thumb radius plus an 8dp gap, ~14dp total) — unlike the
+        // old SeekBar whose track spanned the full padded width. Using the
+        // raw view bounds put the chorus marker dot visibly off the track.
+        int thumbRadiusPx = seekBar.getThumbRadius();
+        int trackInset = thumbRadiusPx + dp(8);
+        float trackLeft = seekLocation[0] - rootLocation[0] + trackInset;
+        float trackRight = seekLocation[0] - rootLocation[0] + seekWidth - trackInset;
         float markerCenterX = trackLeft + (trackRight - trackLeft) * fraction;
         float markerCenterY = seekLocation[1] - rootLocation[1] + seekHeight / 2f;
         chorusMarkerDot.setX(markerCenterX - chorusMarkerDot.getWidth() / 2f);
