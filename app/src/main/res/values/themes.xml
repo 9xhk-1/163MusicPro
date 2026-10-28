@@ -46,7 +46,9 @@
     </style>
 
     <!-- Icon controls sized for a 160dp-wide watch; the icon is centered in its touch area. -->
-    <style name="Widget.App.PlayerIcon" parent="Widget.Material3.Button.IconButton.FilledTonal">
+    <style name="Widget.App.PlayerIcon" parent="Widget.Material3.Button.IconButton.Filled">
+        <item name="backgroundTint">@color/primary_container</item>
+        <item name="iconTint">@color/on_primary_container</item>
         <item name="android:minWidth">0dp</item>
         <item name="android:minHeight">0dp</item>
         <item name="android:insetLeft">0dp</item>

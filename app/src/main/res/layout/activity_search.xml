@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_dark"
@@ -12,30 +13,45 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal">
 
-        <EditText
-            android:id="@+id/et_search"
+        <com.google.android.material.textfield.TextInputLayout
             android:layout_width="0dp"
-            android:layout_height="36dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:background="@color/surface_elevated"
-            android:hint="@string/search_hint"
-            android:inputType="text"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp"
-            android:singleLine="true"
-            android:textColor="@color/text_primary"
-            android:textColorHint="@color/text_disabled"
-            android:textSize="13sp" />
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            app:hintEnabled="false"
+            app:boxCornerRadiusTopStart="16dp"
+            app:boxCornerRadiusTopEnd="16dp"
+            app:boxCornerRadiusBottomStart="16dp"
+            app:boxCornerRadiusBottomEnd="16dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_search"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:hint="@string/search_hint"
+                android:inputType="text"
+                android:imeOptions="actionSearch"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:singleLine="true"
+                android:textSize="13sp" />
+        </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_search"
-            android:layout_width="52dp"
-            android:layout_height="36dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:layout_marginStart="4dp"
             android:text="@string/search"
             android:textSize="12sp"
             android:textAllCaps="false"
-            android:minHeight="36dp"
+            android:minHeight="0dp"
+            android:minWidth="0dp"
+            android:insetLeft="0dp"
+            android:insetRight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="0dp"
             style="@style/Widget.App.Button" />
     </LinearLayout>
 
@@ -43,13 +59,14 @@
     <LinearLayout
         android:id="@+id/ll_search_tabs"
         android:layout_width="match_parent"
-        android:layout_height="32dp"
+        android:layout_height="40dp"
         android:orientation="horizontal"
         android:layout_marginTop="4dp"
         android:visibility="gone">
 
-        <TextView
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/tab_songs"
+            style="@style/Widget.App.Button.Text"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
@@ -57,12 +74,16 @@
             android:text="单曲"
             android:textColor="@color/colorPrimary"
             android:textSize="13sp"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true" />
+            android:minWidth="0dp"
+            android:insetLeft="0dp"
+            android:insetRight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="0dp" />
 
-        <TextView
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/tab_playlists"
+            style="@style/Widget.App.Button.Text"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
@@ -70,12 +91,16 @@
             android:text="歌单"
             android:textColor="@color/text_secondary"
             android:textSize="13sp"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true" />
+            android:minWidth="0dp"
+            android:insetLeft="0dp"
+            android:insetRight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="0dp" />
 
-        <TextView
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/tab_mvs"
+            style="@style/Widget.App.Button.Text"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
@@ -83,9 +108,12 @@
             android:text="@string/search_mv"
             android:textColor="@color/text_secondary"
             android:textSize="13sp"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true" />
+            android:minWidth="0dp"
+            android:insetLeft="0dp"
+            android:insetRight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="0dp" />
     </LinearLayout>
 
     <!-- Song list -->
