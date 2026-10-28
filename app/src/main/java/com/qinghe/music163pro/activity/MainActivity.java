@@ -2394,7 +2394,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         LinearLayout contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
         contentLayout.setPadding(dp(8), dp(8), dp(8), dp(8));
-        contentLayout.setBackgroundColor(0xFF1E1E1E);
+        contentLayout.setBackgroundColor(getResources().getColor(R.color.surface));
         FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
         contentLayout.setLayoutParams(contentParams);
@@ -2403,110 +2403,43 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Title bar
         contentLayout.addView(createOverlayTitleBar("播放列表 (" + playlist.size() + "首)"));
 
-        // Song list in a ScrollView
-        ScrollView scrollView = new ScrollView(this);
-        scrollView.setLayoutParams(new LinearLayout.LayoutParams(
+        // Recycle rows instead of eagerly creating a view and image request for
+        // every song in a potentially very large queue.
+        android.widget.ListView listView = new android.widget.ListView(this);
+        listView.setDividerHeight(0);
+        listView.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
-
-        LinearLayout listLayout = new LinearLayout(this);
-        listLayout.setOrientation(LinearLayout.VERTICAL);
-        scrollView.addView(listLayout);
-
         int currentIndex = playerManager.getCurrentIndex();
-        for (int i = 0; i < playlist.size(); i++) {
-            final int index = i;
-            Song song = playlist.get(i);
-
-            LinearLayout itemLayout = new LinearLayout(this);
-            itemLayout.setOrientation(LinearLayout.HORIZONTAL);
-            itemLayout.setPadding(dp(8), dp(6), dp(8), dp(6));
-            itemLayout.setClickable(true);
-            itemLayout.setFocusable(true);
-
-            // Highlight current playing song
-            if (i == currentIndex) {
-                itemLayout.setBackgroundColor(0xFF2D2D2D);
+        android.widget.ArrayAdapter<Song> adapter = new android.widget.ArrayAdapter<Song>(
+                this, R.layout.item_song, R.id.tv_item_name, playlist) {
+            @Override
+            public View getView(int position, View convertView, android.view.ViewGroup parent) {
+                View row = convertView != null ? convertView
+                        : getLayoutInflater().inflate(R.layout.item_song, parent, false);
+                Song song = getItem(position);
+                TextView name = row.findViewById(R.id.tv_item_name);
+                TextView artist = row.findViewById(R.id.tv_item_artist);
+                ImageView cover = row.findViewById(R.id.iv_cover);
+                View vip = row.findViewById(R.id.tv_vip_badge);
+                name.setText((position == currentIndex ? "▶ " : "") + song.getDisplayName());
+                name.setTextColor(getResources().getColor(position == currentIndex
+                        ? R.color.colorPrimary : R.color.text_primary));
+                name.setSelected(true);
+                artist.setText(song.getArtist());
+                artist.setSelected(true);
+                vip.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
+                NetworkImageLoader.load(cover, song.getCoverUrl());
+                return row;
             }
-
-            // Cover thumbnail
-            ImageView ivCover = new ImageView(this);
-            int coverSize = dp(36);
-            LinearLayout.LayoutParams coverLp = new LinearLayout.LayoutParams(coverSize, coverSize);
-            coverLp.gravity = Gravity.CENTER_VERTICAL;
-            ivCover.setLayoutParams(coverLp);
-            ivCover.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            android.graphics.drawable.GradientDrawable coverBg = new android.graphics.drawable.GradientDrawable();
-            coverBg.setColor(0xFF333333);
-            coverBg.setCornerRadius(dp(2));
-            ivCover.setBackground(coverBg);
-            NetworkImageLoader.load(ivCover, song.getCoverUrl());
-            itemLayout.addView(ivCover);
-
-            // Text column
-            LinearLayout textLayout = new LinearLayout(this);
-            textLayout.setOrientation(LinearLayout.VERTICAL);
-            LinearLayout.LayoutParams textLp = new LinearLayout.LayoutParams(0,
-                    LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-            textLp.gravity = Gravity.CENTER_VERTICAL;
-            textLp.setMarginStart(dp(8));
-            textLayout.setLayoutParams(textLp);
-
-            TextView tvName = new TextView(this);
-            String prefix = (i == currentIndex) ? "▶ " : "";
-            tvName.setText(prefix + song.getDisplayName());
-            tvName.setTextColor(i == currentIndex ? 0xFFBB86FC : 0xFFFFFFFF);
-            tvName.setTextSize(13);
-            tvName.setSingleLine(true);
-            tvName.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
-            tvName.setMarqueeRepeatLimit(-1);
-            tvName.setSelected(true);
-
-            LinearLayout nameRow = new LinearLayout(this);
-            nameRow.setOrientation(LinearLayout.HORIZONTAL);
-            nameRow.setGravity(Gravity.CENTER_VERTICAL);
-            TextView tvVip = createVipBadge();
-            tvVip.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
-            LinearLayout.LayoutParams vipLp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            vipLp.setMarginEnd(dp(4));
-            nameRow.addView(tvVip, vipLp);
-            nameRow.addView(tvName, new LinearLayout.LayoutParams(0,
-                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-            textLayout.addView(nameRow);
-
-            TextView tvArtist = new TextView(this);
-            tvArtist.setText(song.getArtist());
-            tvArtist.setTextColor(0x80FFFFFF);
-            tvArtist.setTextSize(11);
-            tvArtist.setSingleLine(true);
-            tvArtist.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
-            tvArtist.setMarqueeRepeatLimit(-1);
-            tvArtist.setSelected(true);
-            textLayout.addView(tvArtist);
-
-            itemLayout.addView(textLayout);
-
-            itemLayout.setOnClickListener(v -> {
-                playerManager.playFromCurrentPlaylist(index);
-                dismissOverlay();
-            });
-
-            listLayout.addView(itemLayout);
-        }
-
-        contentLayout.addView(scrollView);
+        };
+        listView.setAdapter(adapter);
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            playerManager.playFromCurrentPlaylist(position);
+            dismissOverlay();
+        });
+        if (currentIndex > 0) listView.setSelection(currentIndex);
+        contentLayout.addView(listView);
         overlayContainer.addView(contentLayout);
-
-        // Scroll to current song
-        if (currentIndex > 0) {
-            scrollView.post(() -> {
-                View child = listLayout.getChildAt(currentIndex);
-                if (child != null) {
-                    scrollView.smoothScrollTo(0, child.getTop());
-                }
-            });
-        }
-
         rootView.addView(overlayContainer);
     }
 
@@ -3688,18 +3621,6 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 }
             }
         }
-    }
-
-    private TextView createVipBadge() {
-        TextView badge = new TextView(this);
-        badge.setText(R.string.vip_badge);
-        badge.setTextColor(0xFFF44336);
-        badge.setTextSize(9);
-        badge.setTypeface(badge.getTypeface(), android.graphics.Typeface.BOLD);
-        badge.setBackgroundResource(R.drawable.bg_vip_badge);
-        badge.setPadding(dp(3), dp(1), dp(3), dp(1));
-        badge.setVisibility(View.GONE);
-        return badge;
     }
 
     /**
