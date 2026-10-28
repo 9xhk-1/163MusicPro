@@ -266,29 +266,20 @@ public class CommentActivity extends BaseWatchActivity {
         bottomBar.setPadding(px(6), px(4), px(6), px(4));
         bottomBar.setGravity(Gravity.CENTER_VERTICAL);
 
-        inputField = new EditText(this);
-        inputField.setHint("写评论...");
-        inputField.setHintTextColor(0xFFCAC4D0);
-        inputField.setTextColor(COLOR_TEXT_PRIMARY);
-        inputField.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
-        inputField.setSingleLine(true);
-        inputField.setBackgroundColor(COLOR_INPUT_BG);
-        inputField.setPadding(px(8), px(6), px(8), px(6));
-
-        GradientDrawable inputBg = new GradientDrawable();
-        inputBg.setColor(COLOR_INPUT_BG);
-        inputBg.setCornerRadius(px(12));
-        inputField.setBackground(inputBg);
-
+        com.google.android.material.textfield.TextInputLayout inputWrap =
+                com.qinghe.music163pro.util.WatchUiUtils.createWatchTextInput(this, "写评论...");
+        inputField = (com.google.android.material.textfield.TextInputEditText) inputWrap.getEditText();
         LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        inputField.setLayoutParams(inputParams);
-        bottomBar.addView(inputField);
+        inputWrap.setLayoutParams(inputParams);
+        bottomBar.addView(inputWrap);
 
         sendButton = new MaterialButton(this);
         sendButton.setText("发送");
         sendButton.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
         sendButton.setAllCaps(false);
+        sendButton.setMinWidth(0);
+        sendButton.setMinimumWidth(0);
         sendButton.setTextColor(0xFFEADDFF); // on_primary_container
         sendButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF4F378B)); // primary_container
         sendButton.setCornerRadius(px(16));
@@ -638,63 +629,26 @@ public class CommentActivity extends BaseWatchActivity {
     }
 
     private void showCommentActions(long commentId, String content, boolean isOwn) {
-        FrameLayout overlay = buildActionSheet(isOwn, commentId, content);
-        if (overlay != null) {
-            ((FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content)).addView(overlay);
-        }
-    }
-
-    private FrameLayout buildActionSheet(boolean isOwn, long commentId, String content) {
-        FrameLayout overlay = new FrameLayout(this);
-        overlay.setLayoutParams(new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        overlay.setBackgroundColor(0x99000000);
-        overlay.setClickable(true);
-        overlay.setFocusable(true);
-
-        LinearLayout sheet = new LinearLayout(this);
-        sheet.setOrientation(LinearLayout.VERTICAL);
-        sheet.setBackgroundColor(getResources().getColor(R.color.surface));
-        sheet.setPadding(0, px(6), 0, px(6));
-        FrameLayout.LayoutParams sheetParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        sheetParams.gravity = Gravity.BOTTOM;
-        sheet.setLayoutParams(sheetParams);
-        sheet.addView(makeActionRow("复制", 0xFFFFFFFF, v -> {
-            copyToClipboard(content);
-            ((ViewGroup) overlay.getParent()).removeView(overlay);
-        }));
+        java.util.List<String> options = new java.util.ArrayList<>();
+        options.add("复制");
         if (isOwn) {
-            sheet.addView(makeActionRow("删除", 0xFFCF6679, v -> {
-                ((ViewGroup) overlay.getParent()).removeView(overlay);
-                showConfirmDialog("删除评论", "确定删除这条评论吗？\n\n"
-                        + (content.length() > 40 ? content.substring(0, 40) + "..." : content),
-                        () -> deleteOwnComment(commentId));
-            }));
+            options.add("删除");
         }
-        sheet.addView(makeActionRow("取消", 0xFF999999, v ->
-                ((ViewGroup) overlay.getParent()).removeView(overlay)));
-        overlay.addView(sheet);
-        overlay.setOnClickListener(v -> {
-            // consume
-        });
-        sheet.setOnClickListener(v -> {
-            // consume so taps don't dismiss
-        });
-        return overlay;
-    }
-
-    private View makeActionRow(String label, int color, View.OnClickListener listener) {
-        TextView tv = new TextView(this);
-        tv.setText(label);
-        tv.setTextColor(color);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(15));
-        tv.setGravity(Gravity.CENTER);
-        tv.setPadding(px(12), px(14), px(12), px(14));
-        tv.setClickable(true);
-        tv.setFocusable(true);
-        tv.setOnClickListener(listener);
-        return tv;
+        String[] items = options.toArray(new String[0]);
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("评论操作")
+                .setItems(items, (dialog, which) -> {
+                    String action = items[which];
+                    if ("复制".equals(action)) {
+                        copyToClipboard(content);
+                    } else if ("删除".equals(action)) {
+                        showConfirmDialog("删除评论", "确定删除这条评论吗？\n\n"
+                                + (content.length() > 40 ? content.substring(0, 40) + "..." : content),
+                                () -> deleteOwnComment(commentId));
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     private void copyToClipboard(String text) {

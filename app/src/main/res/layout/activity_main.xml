@@ -120,15 +120,20 @@
                 android:textColor="@color/text_secondary"
                 android:textSize="9sp" />
 
-            <SeekBar
+            <com.google.android.material.slider.Slider
                 android:id="@+id/seek_bar"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:max="100"
-                android:progress="0"
-                android:progressTint="@color/colorPrimary"
-                android:thumbTint="@color/colorPrimary" />
+                android:valueFrom="0"
+                android:valueTo="1000"
+                app:labelBehavior="gone"
+                app:tickVisible="false"
+                app:thumbColor="@color/colorPrimary"
+                app:thumbRadius="6dp"
+                app:trackColorActive="@color/colorPrimary"
+                app:trackColorInactive="@color/surface_variant"
+                app:trackHeight="4dp" />
 
             <TextView
                 android:id="@+id/tv_total_time"

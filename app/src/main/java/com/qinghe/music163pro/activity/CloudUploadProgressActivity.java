@@ -4,7 +4,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
-import android.widget.ProgressBar;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,7 +22,7 @@ import java.io.InputStream;
  */
 public class CloudUploadProgressActivity extends BaseWatchActivity {
 
-    private ProgressBar progressBar;
+    private LinearProgressIndicator progressBar;
     private TextView tvProgress;
     private TextView tvStatus;
     private File cacheFile;

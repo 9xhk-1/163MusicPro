@@ -41,15 +41,17 @@
             android:textColor="@color/text_primary"
             android:textSize="13sp" />
 
-        <ProgressBar
+        <com.google.android.material.progressindicator.LinearProgressIndicator
             android:id="@+id/progress_upload"
-            style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
             android:max="100"
             android:progress="0"
-            android:progressTint="@color/colorPrimary" />
+            app:indicatorColor="@color/colorPrimary"
+            app:trackColor="@color/surface_variant"
+            app:trackCornerRadius="4dp"
+            app:trackThickness="8dp" />
 
         <TextView
             android:id="@+id/tv_upload_progress"

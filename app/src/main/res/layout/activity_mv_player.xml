@@ -26,15 +26,18 @@
         android:paddingEnd="8dp"
         android:paddingBottom="6dp">
 
-        <ImageButton
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_mv_player_back"
+            style="@style/Widget.App.PlayerIcon"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:insetLeft="6dp"
+            android:insetRight="6dp"
+            android:insetTop="6dp"
+            android:insetBottom="6dp"
             android:contentDescription="@string/back"
-            android:padding="12dp"
-            android:src="@drawable/ic_arrow_back"
-            android:tint="@color/text_primary" />
+            app:icon="@drawable/ic_arrow_back"
+            app:iconTint="@color/text_primary" />
 
         <TextView
             android:id="@+id/tv_mv_player_title"

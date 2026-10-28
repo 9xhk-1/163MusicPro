@@ -28,9 +28,7 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.ScrollView;
-import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -53,6 +51,9 @@ import com.qinghe.music163pro.util.UpdateChecker;
 import com.qinghe.music163pro.util.WatchConfirmDialog;
 import com.qinghe.music163pro.util.BackgroundUtil;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.progressindicator.CircularProgressIndicator;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
+import com.google.android.material.slider.Slider;
 
 import org.json.JSONObject;
 
@@ -82,7 +83,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private TextView tvPlayerVipBadge;
     private MaterialButton btnPlay;
     private MaterialButton btnFuncMore;
-    private SeekBar seekBar;
+    private Slider seekBar;
     private View chorusMarkerDot;
     private TextView tvCurrentTime;
     private TextView tvTotalTime;
@@ -106,7 +107,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
     // Volume indicator
     private View volumeIndicator;
-    private ProgressBar volumeProgressBar;
+    private com.google.android.material.progressindicator.LinearProgressIndicator volumeProgressBar;
     private TextView volumePercentView;
     private final Handler volumeHandler = new Handler();
 
@@ -294,27 +295,25 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Changed: "more functions" overlay instead of toggle favorite
         btnFuncMore.setOnClickListener(v -> showFunctionsOverlay());
 
-        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
-                if (fromUser) {
-                    int duration = playerManager.getDuration();
-                    if (duration > 0) {
-                        tvCurrentTime.setText(formatTime((int) ((long) progress * duration / 1000)));
-                    }
+        seekBar.addOnChangeListener((slider, value, fromUser) -> {
+            if (fromUser) {
+                int duration = playerManager.getDuration();
+                if (duration > 0) {
+                    tvCurrentTime.setText(formatTime((int) ((long) value * duration / 1000)));
                 }
             }
-
+        });
+        seekBar.addOnSliderTouchListener(new Slider.OnSliderTouchListener() {
             @Override
-            public void onStartTrackingTouch(SeekBar bar) {
+            public void onStartTrackingTouch(Slider slider) {
                 isUserSeeking = true;
             }
 
             @Override
-            public void onStopTrackingTouch(SeekBar bar) {
+            public void onStopTrackingTouch(Slider slider) {
                 int duration = playerManager.getDuration();
                 if (duration > 0) {
-                    int seekPos = (int) ((long) bar.getProgress() * duration / 1000);
+                    int seekPos = (int) ((long) slider.getValue() * duration / 1000);
                     playerManager.seekTo(seekPos);
                 }
                 isUserSeeking = false;
@@ -1110,11 +1109,14 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         card.setClickable(false);
         card.setFocusable(false);
 
-        ProgressBar progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        LinearProgressIndicator progressBar = new LinearProgressIndicator(this);
+        progressBar.setTrackThickness(dp(8));
+        progressBar.setTrackCornerRadius(dp(4));
+        progressBar.setIndicatorColor(ContextCompat.getColor(this, R.color.colorPrimary));
+        progressBar.setTrackColor(ContextCompat.getColor(this, R.color.surface_variant));
         LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
-                0, dp(8), 1f);
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         progressBar.setLayoutParams(progressParams);
-        progressBar.setProgressDrawable(ContextCompat.getDrawable(this, R.drawable.progress_volume_indicator));
         progressBar.setMax(hasVolumeInfo ? max : 1);
         progressBar.setProgress(hasVolumeInfo ? current : 0);
 
@@ -1321,8 +1323,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private boolean applySmartClipRange(int totalSec,
                                         int[] startSec,
                                         int[] endSec,
-                                        SeekBar sbStart,
-                                        SeekBar sbEnd,
+                                        Slider sbStart,
+                                        Slider sbEnd,
                                         TextView tvStart,
                                         TextView tvEnd,
                                         Runnable updateDuration,
@@ -1342,8 +1344,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         }
         startSec[0] = smartStart;
         endSec[0] = smartEnd;
-        sbStart.setProgress(smartStart);
-        sbEnd.setProgress(smartEnd);
+        sbStart.setValue((float) smartStart);
+        sbEnd.setValue((float) smartEnd);
         tvStart.setText("起始: " + smartStart + "s");
         tvEnd.setText("结束: " + smartEnd + "s");
         if (tvChorusRange != null) {
@@ -2205,10 +2207,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         boolean active;
         if (hasRoma) {
             if (translateMode == 1) {
-                btnTranslationToggle.setText("意✓");
+                btnTranslationToggle.setText("意");
                 active = true;
             } else if (translateMode == 2) {
-                btnTranslationToggle.setText("音✓");
+                btnTranslationToggle.setText("音");
                 active = true;
             } else {
                 btnTranslationToggle.setText("译");
@@ -2216,7 +2218,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             }
         } else {
             active = translateMode == 1;
-            btnTranslationToggle.setText(active ? "译✓" : "译");
+            btnTranslationToggle.setText("译");
         }
         btnTranslationToggle.setTextColor(getResources().getColor(active
                 ? R.color.on_primary_container : R.color.text_secondary));
@@ -2606,7 +2608,12 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         contentLayout.addView(qualityListLayout);
 
         // Loading indicator
-        android.widget.ProgressBar loading = new android.widget.ProgressBar(this);
+        com.google.android.material.progressindicator.CircularProgressIndicator loading =
+                new com.google.android.material.progressindicator.CircularProgressIndicator(this);
+        loading.setIndicatorSize(dp(32));
+        loading.setIndicatorColor(ContextCompat.getColor(this, R.color.colorPrimary));
+        loading.setTrackColor(ContextCompat.getColor(this, R.color.surface_variant));
+        loading.setIndeterminate(true);
         LinearLayout.LayoutParams loadParams = new LinearLayout.LayoutParams(
                 dp(32), dp(32));
         loadParams.gravity = Gravity.CENTER_HORIZONTAL;
@@ -3057,9 +3064,13 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         tvStart.setPadding(0, dp(4), 0, 0);
         contentLayout.addView(tvStart);
 
-        SeekBar sbStart = new SeekBar(this);
-        sbStart.setMax(totalSec);
-        sbStart.setProgress(startSec[0]);
+        Slider sbStart = new Slider(this);
+        sbStart.setValueFrom(0f);
+        sbStart.setValueTo((float) totalSec);
+        sbStart.setStepSize(1f);
+        sbStart.setValue((float) startSec[0]);
+        sbStart.setLabelBehavior(Slider.LABEL_GONE);
+        sbStart.setTickVisible(false);
         LinearLayout.LayoutParams seekParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         sbStart.setLayoutParams(seekParams);
@@ -3073,9 +3084,13 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         tvEnd.setPadding(0, dp(4), 0, 0);
         contentLayout.addView(tvEnd);
 
-        SeekBar sbEnd = new SeekBar(this);
-        sbEnd.setMax(totalSec);
-        sbEnd.setProgress(endSec[0]);
+        Slider sbEnd = new Slider(this);
+        sbEnd.setValueFrom(0f);
+        sbEnd.setValueTo((float) totalSec);
+        sbEnd.setStepSize(1f);
+        sbEnd.setValue((float) endSec[0]);
+        sbEnd.setLabelBehavior(Slider.LABEL_GONE);
+        sbEnd.setTickVisible(false);
         sbEnd.setLayoutParams(seekParams);
         contentLayout.addView(sbEnd);
 
@@ -3104,36 +3119,32 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             tvDuration.setText("节选: " + startSec[0] + "s - " + endSec[0] + "s (" + dur + "秒)");
         };
 
-        sbStart.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser) {
-                    if (progress >= endSec[0]) progress = endSec[0] - 1;
-                    if (progress < 0) progress = 0;
-                    seekBar.setProgress(progress);
-                    startSec[0] = progress;
-                    tvStart.setText("起始: " + progress + "s");
-                    updateDuration.run();
+        sbStart.addOnChangeListener((slider, value, fromUser) -> {
+            if (fromUser) {
+                int progress = Math.round(value);
+                if (progress >= endSec[0]) progress = endSec[0] - 1;
+                if (progress < 0) progress = 0;
+                if (Math.round(slider.getValue()) != progress) {
+                    slider.setValue((float) progress);
                 }
+                startSec[0] = progress;
+                tvStart.setText("起始: " + progress + "s");
+                updateDuration.run();
             }
-            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
-            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        sbEnd.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser) {
-                    if (progress <= startSec[0]) progress = startSec[0] + 1;
-                    if (progress > totalSec) progress = totalSec;
-                    seekBar.setProgress(progress);
-                    endSec[0] = progress;
-                    tvEnd.setText("结束: " + progress + "s");
-                    updateDuration.run();
+        sbEnd.addOnChangeListener((slider, value, fromUser) -> {
+            if (fromUser) {
+                int progress = Math.round(value);
+                if (progress <= startSec[0]) progress = startSec[0] + 1;
+                if (progress > totalSec) progress = totalSec;
+                if (Math.round(slider.getValue()) != progress) {
+                    slider.setValue((float) progress);
                 }
+                endSec[0] = progress;
+                tvEnd.setText("结束: " + progress + "s");
+                updateDuration.run();
             }
-            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
-            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
         int grayButtonColor = ContextCompat.getColor(this, R.color.surface_elevated);
@@ -3822,8 +3833,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 int current = playerManager.getCurrentPosition();
                 int duration = playerManager.getDuration();
                 if (duration > 0) {
-                    seekBar.setMax(1000);
-                    seekBar.setProgress((int) (1000L * current / duration));
+                    seekBar.setValue((float) (1000L * current / duration));
                     tvCurrentTime.setText(formatTime(current));
                     tvTotalTime.setText(formatTime(duration));
                     updateChorusMarker(duration);

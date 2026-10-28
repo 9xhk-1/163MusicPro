@@ -73,18 +73,14 @@ public class BilibiliBvidActivity extends BaseWatchActivity {
         tvLabel.setPadding(0, 0, 0, px(4));
         inputCard.addView(tvLabel);
 
-        etBvid = new EditText(this);
-        etBvid.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, px(44)));
-        etBvid.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
-        etBvid.setHint("BV1xxxxxxxxx");
-        etBvid.setTextColor(getResources().getColor(R.color.text_primary));
-        etBvid.setHintTextColor(getResources().getColor(R.color.text_disabled));
-        etBvid.setTextSize(12);
+        com.google.android.material.textfield.TextInputLayout bvidWrap =
+                com.qinghe.music163pro.util.WatchUiUtils.createWatchTextInput(this, "BV1xxxxxxxxx");
+        etBvid = (com.google.android.material.textfield.TextInputEditText) bvidWrap.getEditText();
         etBvid.setInputType(InputType.TYPE_CLASS_TEXT);
-        etBvid.setPadding(px(8), px(4), px(8), px(4));
-        etBvid.setSingleLine(true);
-        inputCard.addView(etBvid);
+        LinearLayout.LayoutParams bvidParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, px(46));
+        bvidWrap.setLayoutParams(bvidParams);
+        inputCard.addView(bvidWrap);
 
         btnFetch = createWatchButton("解析视频", false);
         LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
@@ -291,13 +287,21 @@ public class BilibiliBvidActivity extends BaseWatchActivity {
     private LinearLayout createTitleBar() {
         LinearLayout bar = new LinearLayout(this);
         bar.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, px(38)));
+                ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(48)));
         bar.setGravity(Gravity.CENTER_VERTICAL);
 
-        ImageView back = new ImageView(this);
-        back.setLayoutParams(new LinearLayout.LayoutParams(px(22), px(22)));
-        back.setImageResource(R.drawable.ic_arrow_back);
-        back.setColorFilter(getResources().getColor(R.color.text_primary));
+        MaterialButton back = new MaterialButton(this);
+        back.setLayoutParams(new LinearLayout.LayoutParams(dpToPx(48), dpToPx(48)));
+        back.setIconResource(R.drawable.ic_arrow_back);
+        back.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+        back.setIconSize(dpToPx(20));
+        back.setIconPadding(0);
+        back.setInsetTop(0);
+        back.setInsetBottom(0);
+        back.setMinWidth(0);
+        back.setMinimumWidth(0);
+        back.setPadding(0, 0, 0, 0);
+        back.setContentDescription("返回");
         back.setOnClickListener(v -> finish());
         bar.addView(back);
 

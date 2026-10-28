@@ -305,16 +305,23 @@ public class ToggleSettingsActivity extends AppCompatActivity {
 
     private void editLyricResumeInterval() {
         int current = prefs.getInt(PREF_LYRIC_RESUME_INTERVAL, 3);
-        EditText input = new EditText(this);
+        com.google.android.material.textfield.TextInputLayout inputWrap =
+                com.qinghe.music163pro.util.WatchUiUtils.createWatchTextInput(this, "恢复间隔（秒）");
+        EditText input = (com.google.android.material.textfield.TextInputEditText) inputWrap.getEditText();
         input.setInputType(InputType.TYPE_CLASS_NUMBER);
         input.setText(String.valueOf(current));
         input.setSelectAllOnFocus(true);
+
+        android.widget.LinearLayout dialogWrap = new android.widget.LinearLayout(this);
         int pad = (int) (8 * getResources().getDisplayMetrics().density);
-        input.setPadding(pad * 3, pad * 2, pad * 3, pad * 2);
+        dialogWrap.setPadding(pad * 2, pad, pad * 2, 0);
+        dialogWrap.addView(inputWrap, new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
 
         new MaterialAlertDialogBuilder(this)
                 .setTitle("歌词恢复间隔（秒）")
-                .setView(input)
+                .setView(dialogWrap)
                 .setPositiveButton("确定", (dialog, which) -> {
                     String val = input.getText().toString().trim();
                     int seconds = 3;

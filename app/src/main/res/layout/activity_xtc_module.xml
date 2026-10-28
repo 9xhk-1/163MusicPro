@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_dark"
@@ -43,14 +44,17 @@
             android:textAllCaps="false"
             android:textSize="14sp" />
 
-        <ProgressBar
+        <com.google.android.material.progressindicator.LinearProgressIndicator
             android:id="@+id/progress_download_xtc_module"
-            style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
-            android:layout_height="8dp"
+            android:layout_height="wrap_content"
             android:layout_marginTop="14dp"
             android:max="100"
-            android:visibility="gone" />
+            android:visibility="gone"
+            app:indicatorColor="@color/colorPrimary"
+            app:trackColor="@color/surface_variant"
+            app:trackCornerRadius="4dp"
+            app:trackThickness="8dp" />
 
         <TextView
             android:id="@+id/tv_xtc_module_status"

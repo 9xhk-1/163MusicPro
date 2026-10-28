@@ -12,7 +12,7 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -44,7 +44,7 @@ public class UpdateActivity extends AppCompatActivity {
     private static final String UPDATE_BULLET = "•";
 
     private TextView tvProgress;
-    private ProgressBar progressBar;
+    private LinearProgressIndicator progressBar;
     private LinearLayout sourcesContainer;
     private TextView tvSourceHint;
     private TextView tvVersionInfo;
@@ -128,11 +128,16 @@ public class UpdateActivity extends AppCompatActivity {
         root.addView(makeSpacer(px(12)));
 
         // Progress bar (hidden initially)
-        progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        com.google.android.material.progressindicator.LinearProgressIndicator progressBar =
+                new com.google.android.material.progressindicator.LinearProgressIndicator(this);
+        progressBar.setTrackThickness(px(8));
+        progressBar.setTrackCornerRadius(px(4));
+        progressBar.setIndicatorColor(getResources().getColor(R.color.colorPrimary));
+        progressBar.setTrackColor(getResources().getColor(R.color.surface_variant));
         progressBar.setMax(100);
         progressBar.setProgress(0);
         LinearLayout.LayoutParams pbParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, px(8));
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         progressBar.setLayoutParams(pbParams);
         progressBar.setVisibility(android.view.View.GONE);
         root.addView(progressBar);

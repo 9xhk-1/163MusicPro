@@ -255,18 +255,15 @@ public class MyPlaylistsActivity extends AppCompatActivity {
     }
 
     private void showRenamePlaylistDialog(PlaylistInfo pl, String cookie) {
-        EditText input = new EditText(this);
+        com.google.android.material.textfield.TextInputLayout inputWrap =
+                com.qinghe.music163pro.util.WatchUiUtils.createWatchTextInput(this, "歌单名称");
+        EditText input = (com.google.android.material.textfield.TextInputEditText) inputWrap.getEditText();
         input.setText(pl.getName());
-        input.setTextColor(0xFFE6E0E9);
-        input.setHintTextColor(0xFF888888);
-        input.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
-        input.setPadding(px(8), px(4), px(8), px(4));
-        input.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
         input.setSelectAllOnFocus(true);
 
         android.widget.LinearLayout container = new android.widget.LinearLayout(this);
         container.setPadding(px(12), px(8), px(12), px(4));
-        container.addView(input, new android.widget.LinearLayout.LayoutParams(
+        container.addView(inputWrap, new android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
 
@@ -368,17 +365,13 @@ public class MyPlaylistsActivity extends AppCompatActivity {
             return;
         }
 
-        EditText input = new EditText(this);
-        input.setHint("输入歌单名称");
-        input.setTextColor(0xFFE6E0E9);
-        input.setHintTextColor(0xFF888888);
-        input.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
-        input.setPadding(px(8), px(4), px(8), px(4));
-        input.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
+        com.google.android.material.textfield.TextInputLayout inputWrap =
+                com.qinghe.music163pro.util.WatchUiUtils.createWatchTextInput(this, "输入歌单名称");
+        EditText input = (com.google.android.material.textfield.TextInputEditText) inputWrap.getEditText();
 
         LinearLayout container = new LinearLayout(this);
         container.setPadding(px(12), px(8), px(12), px(4));
-        container.addView(input, new LinearLayout.LayoutParams(
+        container.addView(inputWrap, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         new MaterialAlertDialogBuilder(this)
