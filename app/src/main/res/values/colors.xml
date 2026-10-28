@@ -1,20 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Material Design 2 Dark Theme Baseline Colors -->
-    <color name="colorPrimary">#BB86FC</color>
-    <color name="colorPrimaryDark">#3700B3</color>
-    <color name="colorAccent">#03DAC6</color>
-    <color name="colorError">#CF6679</color>
+    <!-- Material 3 dark tonal roles -->
+    <color name="colorPrimary">#D0BCFF</color>
+    <color name="colorPrimaryDark">#141218</color>
+    <color name="colorAccent">#CCC2DC</color>
+    <color name="colorError">#F2B8B5</color>
+    <color name="on_primary">#381E72</color>
+    <color name="primary_container">#4F378B</color>
+    <color name="on_primary_container">#EADDFF</color>
+    <color name="surface_variant">#49454F</color>
 
     <!-- Surface / Background -->
-    <color name="bg_dark">#121212</color>
-    <color name="surface">#1E1E1E</color>
-    <color name="surface_elevated">#252525</color>
+    <color name="bg_dark">#141218</color>
+    <color name="surface">#211F26</color>
+    <color name="surface_elevated">#2B2930</color>
     <color name="surface_overlay">#CC000000</color>
 
     <!-- Text -->
-    <color name="text_primary">#FFFFFFFF</color>
-    <color name="text_secondary">#B3FFFFFF</color>
+    <color name="text_primary">#E6E0E9</color>
+    <color name="text_secondary">#CAC4D0</color>
     <color name="text_disabled">#61FFFFFF</color>
     <color name="text_hint">#80FFFFFF</color>
 

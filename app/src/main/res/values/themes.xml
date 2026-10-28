@@ -1,10 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Material Design 2 Dark Theme -->
-    <style name="AppTheme" parent="Theme.MaterialComponents.NoActionBar">
+    <!-- The watch runs Android 6+, so use Material Components' static M3 palette. -->
+    <style name="AppTheme" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorPrimaryContainer">@color/primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/on_primary_container</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorSurfaceVariant">@color/surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/text_secondary</item>
         <item name="colorError">@color/colorError</item>
         <item name="android:colorBackground">@color/bg_dark</item>
         <item name="android:textColorPrimary">@color/text_primary</item>
@@ -13,7 +20,7 @@
         <item name="android:navigationBarColor">@color/surface</item>
         <item name="android:windowBackground">@color/bg_dark</item>
         <!-- Ripple / selection -->
-        <item name="android:colorControlHighlight">#33BB86FC</item>
+        <item name="android:colorControlHighlight">#33D0BCFF</item>
     </style>
 
     <!-- MainActivity theme: disables system swipe-to-dismiss -->
@@ -22,19 +29,44 @@
     </style>
 
     <!-- Filled primary button -->
-    <style name="Widget.App.Button" parent="Widget.MaterialComponents.Button">
+    <style name="Widget.App.Button" parent="Widget.Material3.Button">
         <item name="android:textAllCaps">false</item>
-        <item name="cornerRadius">8dp</item>
+        <item name="cornerRadius">20dp</item>
     </style>
 
     <!-- Outlined button -->
-    <style name="Widget.App.Button.Outlined" parent="Widget.MaterialComponents.Button.OutlinedButton">
+    <style name="Widget.App.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
         <item name="android:textAllCaps">false</item>
-        <item name="cornerRadius">8dp</item>
+        <item name="cornerRadius">20dp</item>
     </style>
 
     <!-- Text-only button -->
-    <style name="Widget.App.Button.Text" parent="Widget.MaterialComponents.Button.TextButton">
+    <style name="Widget.App.Button.Text" parent="Widget.Material3.Button.TextButton">
         <item name="android:textAllCaps">false</item>
+    </style>
+
+    <!-- Icon controls sized for a 160dp-wide watch; the icon is centered in its touch area. -->
+    <style name="Widget.App.PlayerIcon" parent="Widget.Material3.Button.IconButton.FilledTonal">
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconSize">22dp</item>
+        <item name="iconPadding">0dp</item>
+    </style>
+
+    <style name="Widget.App.PlayerIcon.Primary" parent="Widget.Material3.Button.IconButton.Filled">
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconSize">24dp</item>
+        <item name="iconPadding">0dp</item>
     </style>
 </resources>

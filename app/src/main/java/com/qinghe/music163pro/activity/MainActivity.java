@@ -80,8 +80,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private TextView tvSongName;
     private TextView tvArtist;
     private TextView tvPlayerVipBadge;
-    private ImageView btnPlay;
-    private ImageView btnFuncMore;
+    private MaterialButton btnPlay;
+    private MaterialButton btnFuncMore;
     private SeekBar seekBar;
     private View chorusMarkerDot;
     private TextView tvCurrentTime;
@@ -94,7 +94,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private boolean serviceStarted = false;
 
     // Playlist indicator (top-left)
-    private ImageView btnPlaylistIndicator;
+    private MaterialButton btnPlaylistIndicator;
 
     // Song ids whose fee detail lookup was already requested this session
     private final java.util.Set<Long> feeEnrichRequested = new java.util.HashSet<>();
@@ -194,11 +194,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         seekBar = findViewById(R.id.seek_bar);
         tvCurrentTime = findViewById(R.id.tv_current_time);
         tvTotalTime = findViewById(R.id.tv_total_time);
-        ImageView btnPrev = findViewById(R.id.btn_prev);
-        ImageView btnNext = findViewById(R.id.btn_next);
-        ImageView btnVolDown = findViewById(R.id.btn_vol_down);
-        ImageView btnVolUp = findViewById(R.id.btn_vol_up);
-        ImageView btnMore = findViewById(R.id.btn_more);
+        MaterialButton btnPrev = findViewById(R.id.btn_prev);
+        MaterialButton btnNext = findViewById(R.id.btn_next);
+        MaterialButton btnVolDown = findViewById(R.id.btn_vol_down);
+        MaterialButton btnVolUp = findViewById(R.id.btn_vol_up);
+        MaterialButton btnMore = findViewById(R.id.btn_more);
         btnPlaylistIndicator = findViewById(R.id.btn_playlist_indicator);
         ensureChorusMarkerDot();
 
@@ -3668,7 +3668,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             }
             clearChorusInfo();
         }
-        btnPlay.setImageResource(playerManager.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play_arrow);
+        btnPlay.setIconResource(playerManager.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play_arrow);
+        btnPlay.setContentDescription(playerManager.isPlaying() ? "暂停" : "播放");
         // btnFuncMore image is static in layout
         // Update playlist indicator visibility
         updatePlaylistIndicator();
@@ -3854,7 +3855,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
     @Override
     public void onPlayStateChanged(boolean isPlaying) {
-        btnPlay.setImageResource(isPlaying ? R.drawable.ic_pause : R.drawable.ic_play_arrow);
+        btnPlay.setIconResource(isPlaying ? R.drawable.ic_pause : R.drawable.ic_play_arrow);
+        btnPlay.setContentDescription(isPlaying ? "暂停" : "播放");
         if (isPlaying) {
             startSeekBarUpdate();
         } else {
