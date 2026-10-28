@@ -1,6 +1,5 @@
 package com.qinghe.music163pro.activity;
 
-import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.InputType;
@@ -12,7 +11,8 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.material.switchmaterial.SwitchMaterial;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.materialswitch.MaterialSwitch;
 import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
@@ -50,12 +50,12 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private static final int FAV_MODE_LOCAL = 0;
     private static final int FAV_MODE_CLOUD = 1;
 
-    private SwitchMaterial switchKeepScreenOn;
-    private SwitchMaterial switchSleepTimerExitApp;
-    private SwitchMaterial switchSkipTrialSongs;
-    private SwitchMaterial switchUseWatchApi;
-    private SwitchMaterial switchDisplaySongAlias;
-    private SwitchMaterial switchBackGesture;
+    private MaterialSwitch switchKeepScreenOn;
+    private MaterialSwitch switchSleepTimerExitApp;
+    private MaterialSwitch switchSkipTrialSongs;
+    private MaterialSwitch switchUseWatchApi;
+    private MaterialSwitch switchDisplaySongAlias;
+    private MaterialSwitch switchBackGesture;
     private TextView tvFavModeValue;
     private TextView tvSleepTimerModeValue;
     private TextView tvSpeedModeValue;
@@ -87,6 +87,12 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         switchUseWatchApi = findViewById(R.id.switch_use_watch_api);
         switchDisplaySongAlias = findViewById(R.id.switch_display_song_alias);
         switchBackGesture = findViewById(R.id.switch_back_gesture);
+        // Make the entire row a target; tapping the switch itself still toggles once.
+        for (MaterialSwitch control : new MaterialSwitch[]{switchKeepScreenOn,
+                switchSleepTimerExitApp, switchSkipTrialSongs, switchUseWatchApi,
+                switchDisplaySongAlias, switchBackGesture}) {
+            ((android.view.View) control.getParent()).setOnClickListener(v -> control.toggle());
+        }
         tvFavModeValue = findViewById(R.id.tv_fav_mode_value);
         tvSleepTimerModeValue = findViewById(R.id.tv_sleep_timer_mode_value);
         tvSpeedModeValue = findViewById(R.id.tv_speed_mode_value);
@@ -306,7 +312,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         int pad = (int) (8 * getResources().getDisplayMetrics().density);
         input.setPadding(pad * 3, pad * 2, pad * 3, pad * 2);
 
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("歌词恢复间隔（秒）")
                 .setView(input)
                 .setPositiveButton("确定", (dialog, which) -> {

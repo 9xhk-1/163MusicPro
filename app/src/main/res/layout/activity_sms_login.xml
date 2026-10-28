@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_dark"
@@ -32,24 +33,26 @@
             android:textSize="11sp"
             android:paddingBottom="2dp" />
 
-        <EditText
-            android:id="@+id/et_phone"
+        <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
-            android:layout_height="36dp"
-            android:background="@color/surface_elevated"
-            android:hint="@string/phone_hint"
-            android:inputType="phone"
-            android:padding="6dp"
-            android:singleLine="true"
-            android:textColor="@color/text_primary"
-            android:textColorHint="@color/text_disabled"
-            android:textSize="13sp" />
+            android:layout_height="wrap_content"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            app:hintEnabled="false">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_phone"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:hint="@string/phone_hint"
+                android:inputType="phone"
+                android:singleLine="true"
+                android:textSize="13sp" />
+        </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Send code button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_send_code"
             android:layout_width="match_parent"
-            android:layout_height="36dp"
+            android:layout_height="48dp"
             android:layout_marginTop="6dp"
             android:text="@string/send_code"
             android:textSize="13sp"
@@ -66,24 +69,26 @@
             android:textSize="11sp"
             android:paddingBottom="2dp" />
 
-        <EditText
-            android:id="@+id/et_code"
+        <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
-            android:layout_height="36dp"
-            android:background="@color/surface_elevated"
-            android:hint="@string/code_hint"
-            android:inputType="number"
-            android:padding="6dp"
-            android:singleLine="true"
-            android:textColor="@color/text_primary"
-            android:textColorHint="@color/text_disabled"
-            android:textSize="13sp" />
+            android:layout_height="wrap_content"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            app:hintEnabled="false">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_code"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:hint="@string/code_hint"
+                android:inputType="number"
+                android:singleLine="true"
+                android:textSize="13sp" />
+        </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Login button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_sms_login"
             android:layout_width="match_parent"
-            android:layout_height="36dp"
+            android:layout_height="48dp"
             android:layout_marginTop="6dp"
             android:text="@string/login"
             android:textSize="13sp"

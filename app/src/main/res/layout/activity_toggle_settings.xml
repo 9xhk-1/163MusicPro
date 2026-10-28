@@ -63,8 +63,9 @@
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <com.google.android.material.switchmaterial.SwitchMaterial
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/switch_keep_screen_on"
+                android:contentDescription="屏幕常亮"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
         </LinearLayout>
@@ -110,8 +111,9 @@
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <com.google.android.material.switchmaterial.SwitchMaterial
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/switch_skip_trial_songs"
+                android:contentDescription="跳过试听歌曲"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
         </LinearLayout>
@@ -157,8 +159,9 @@
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <com.google.android.material.switchmaterial.SwitchMaterial
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/switch_use_watch_api"
+                android:contentDescription="手表接口解析"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
         </LinearLayout>
@@ -204,8 +207,9 @@
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <com.google.android.material.switchmaterial.SwitchMaterial
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/switch_display_song_alias"
+                android:contentDescription="显示歌曲别名"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
         </LinearLayout>
@@ -250,8 +254,9 @@
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <com.google.android.material.switchmaterial.SwitchMaterial
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/switch_sleep_timer_exit_app"
+                android:contentDescription="定时结束后退出应用"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
         </LinearLayout>
@@ -297,8 +302,9 @@
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <com.google.android.material.switchmaterial.SwitchMaterial
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/switch_back_gesture"
+                android:contentDescription="应用内返回手势"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
         </LinearLayout>
