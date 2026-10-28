@@ -918,8 +918,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         TextView title = new TextView(this);
         title.setText(titleText);
         title.setTextColor(0xFFE6E0E9);
-        title.setTextSize(12);
-        title.setMaxLines(2);
+        title.setTextSize(11);
+        title.setMaxLines(1);
         title.setEllipsize(android.text.TextUtils.TruncateAt.END);
         title.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         FrameLayout.LayoutParams titleParams = new FrameLayout.LayoutParams(
@@ -1637,17 +1637,38 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         LinearLayout lines = new LinearLayout(this);
         lines.setOrientation(LinearLayout.VERTICAL);
         for (String line : playerManager.getCurrentPlayerInfoLines()) {
-            TextView textView = new TextView(this);
-            textView.setText(line);
-            textView.setTextColor(0xFFE6E0E9);
-            textView.setTextSize(12);
-            textView.setPadding(dp(10), dp(6), dp(10), dp(6));
-            textView.setSingleLine(true);
-            textView.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
-            textView.setMarqueeRepeatLimit(-1);
-            textView.setSelected(true);
-            lines.addView(textView, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            // "label: value" pairs render as a small secondary label row
+            // above the value; only values too long for the panel (URLs)
+            // marquee, short values stay static.
+            int sep = line.indexOf(": ");
+            if (sep > 0) {
+                TextView label = new TextView(this);
+                label.setText(line.substring(0, sep));
+                label.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
+                label.setTextSize(10);
+                label.setPadding(dp(10), dp(6), dp(10), 0);
+                lines.addView(label, new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+                TextView value = new TextView(this);
+                value.setText(line.substring(sep + 2));
+                value.setTextColor(0xFFE6E0E9);
+                value.setTextSize(12);
+                value.setPadding(dp(10), 0, dp(10), dp(4));
+                value.setSingleLine(true);
+                value.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
+                value.setMarqueeRepeatLimit(-1);
+                value.setSelected(true);
+                lines.addView(value, new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            } else {
+                TextView textView = new TextView(this);
+                textView.setText(line);
+                textView.setTextColor(0xFFE6E0E9);
+                textView.setTextSize(12);
+                textView.setPadding(dp(10), dp(6), dp(10), dp(6));
+                lines.addView(textView, new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            }
         }
 
         ScrollView scrollView = new ScrollView(this);
