@@ -68,7 +68,7 @@
                 android:paddingEnd="3dp"
                 android:paddingBottom="1dp"
                 android:text="@string/vip_badge"
-                android:textColor="@color/favorite_red"
+                android:textColor="@color/colorError"
                 android:textSize="9sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
@@ -125,6 +125,9 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp"
+                android:minHeight="0dp"
                 android:valueFrom="0"
                 android:valueTo="1000"
                 app:labelBehavior="gone"
@@ -148,7 +151,7 @@
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="0dp"
             android:gravity="center"
             android:orientation="horizontal">
 

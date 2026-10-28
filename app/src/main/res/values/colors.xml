@@ -5,6 +5,7 @@
     <color name="colorPrimaryDark">#141218</color>
     <color name="colorAccent">#CCC2DC</color>
     <color name="colorError">#F2B8B5</color>
+    <color name="colorErrorContainer">#5C1A1A</color>
     <color name="on_primary">#381E72</color>
     <color name="primary_container">#4F378B</color>
     <color name="on_primary_container">#EADDFF</color>

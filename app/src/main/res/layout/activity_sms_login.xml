@@ -36,7 +36,7 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            style="@style/Widget.App.TextInputLayout"
             app:hintEnabled="false">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_phone"
@@ -72,7 +72,7 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            style="@style/Widget.App.TextInputLayout"
             app:hintEnabled="false">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_code"

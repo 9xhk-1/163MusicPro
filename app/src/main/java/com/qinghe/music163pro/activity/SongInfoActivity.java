@@ -1030,7 +1030,7 @@ public class SongInfoActivity extends AppCompatActivity {
     private TextView createVipBadge() {
         TextView badge = new TextView(this);
         badge.setText(R.string.vip_badge);
-        badge.setTextColor(0xFFF44336);
+        badge.setTextColor(getResources().getColor(R.color.colorError));
         badge.setTextSize(9);
         badge.setTypeface(badge.getTypeface(), Typeface.BOLD);
         badge.setBackgroundResource(R.drawable.bg_vip_badge);

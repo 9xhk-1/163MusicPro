@@ -164,10 +164,61 @@ public class EditMoreActivity extends BaseWatchActivity {
     }
 
     private View buildDisabledRow(final String key) {
-        MaterialButton row = createWatchMenuButton(R.drawable.ic_add_box, itemLabels.get(key), v -> {
+        // Same card structure as buildEnabledRow: label at the start, an
+        // icon-only MaterialButton at the end — the plus mirrors the remove X.
+        MaterialCardView row = new MaterialCardView(this);
+        row.setCardBackgroundColor(getResources().getColor(R.color.surface_elevated));
+        row.setRadius(dpToPx(16));
+        row.setCardElevation(0);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(56));
+        params.bottomMargin = dpToPx(4);
+        row.setLayoutParams(params);
+
+        TextView label = new TextView(this);
+        label.setText(itemLabels.get(key));
+        label.setTextColor(getResources().getColor(R.color.text_primary));
+        label.setTextSize(13);
+        label.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        label.setPadding(dpToPx(12), 0, dpToPx(48), 0);
+        label.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        row.addView(label);
+
+        MaterialButton add = new MaterialButton(this);
+        add.setIconResource(R.drawable.ic_add_box);
+        add.setIconTint(android.content.res.ColorStateList.valueOf(
+                getResources().getColor(R.color.colorPrimary)));
+        add.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                getResources().getColor(R.color.surface_elevated)));
+        add.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+        add.setIconSize(dpToPx(20));
+        add.setIconPadding(0);
+        add.setInsetTop(0);
+        add.setInsetBottom(0);
+        add.setMinWidth(0);
+        add.setMinimumWidth(0);
+        add.setPadding(0, 0, 0, 0);
+        add.setContentDescription("添加" + itemLabels.get(key));
+        add.setClickable(true);
+        add.setFocusable(true);
+        FrameLayout.LayoutParams addParams = new FrameLayout.LayoutParams(
+                dpToPx(48), dpToPx(48));
+        addParams.gravity = Gravity.CENTER_VERTICAL | Gravity.END;
+        add.setLayoutParams(addParams);
+        add.setOnClickListener(v -> {
             MoreMenuPreferences.setEnabled(prefs, key, true);
             rebuild();
         });
+        row.addView(add);
+
+        // Tapping anywhere on the row also adds the entry.
+        row.setOnClickListener(v -> {
+            MoreMenuPreferences.setEnabled(prefs, key, true);
+            rebuild();
+        });
+        row.setClickable(true);
+        row.setFocusable(true);
         return row;
     }
 
