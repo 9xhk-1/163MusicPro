@@ -101,11 +101,24 @@
         <item name="iconPadding">0dp</item>
     </style>
 
-    <!-- Compact Material 3 alert dialog chrome for the 160x180dp display. -->
+    <!-- Compact Material 3 alert dialog chrome for the 160x180dp display:
+         default title/button-bar sizes leave no room for the message or list
+         content in the ~132dp-tall dialog window. -->
     <style name="ThemeOverlay.App.MaterialAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="alertDialogStyle">@style/MaterialAlertDialog.App</item>
+        <item name="dialogPreferredPadding">12dp</item>
         <item name="materialAlertDialogTitleTextStyle">@style/MaterialAlertDialog.App.Title.Text</item>
         <item name="materialAlertDialogBodyTextStyle">@style/MaterialAlertDialog.App.Body.Text</item>
-        <item name="buttonBarButtonStyle">@style/Widget.App.DialogButton.Text</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.App.DialogButton.Text</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.App.DialogButton.Text</item>
+        <item name="buttonBarNeutralButtonStyle">@style/Widget.App.DialogButton.Text</item>
+    </style>
+
+    <style name="MaterialAlertDialog.App" parent="MaterialAlertDialog.Material3">
+        <item name="backgroundInsetStart">12dp</item>
+        <item name="backgroundInsetTop">12dp</item>
+        <item name="backgroundInsetEnd">12dp</item>
+        <item name="backgroundInsetBottom">12dp</item>
     </style>
 
     <style name="MaterialAlertDialog.App.Title.Text" parent="MaterialAlertDialog.Material3.Title.Text">
