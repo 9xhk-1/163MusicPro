@@ -96,7 +96,7 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
         tvTitle.setTextColor(getResources().getColor(R.color.text_primary));
         tvTitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
         tvTitle.setGravity(Gravity.CENTER);
-        tvTitle.setPadding(dpToPx(48), 0, dpToPx(48), px(4));
+        tvTitle.setPadding(dpToPx(36), 0, dpToPx(36), px(2));
         tvTitle.setSingleLine(true);
         tvTitle.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
         tvTitle.setMarqueeRepeatLimit(-1);
@@ -112,7 +112,7 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
         btnDelete = createTitleIconButton(R.drawable.ic_delete, "删除歌单");
         btnDelete.setId(View.generateViewId());
         android.widget.RelativeLayout.LayoutParams delParams = new android.widget.RelativeLayout.LayoutParams(
-                dpToPx(48), dpToPx(48));
+                dpToPx(32), dpToPx(32));
         delParams.addRule(android.widget.RelativeLayout.ALIGN_PARENT_END);
         delParams.addRule(android.widget.RelativeLayout.CENTER_VERTICAL);
         btnDelete.setLayoutParams(delParams);
@@ -123,7 +123,7 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
         // Heart button - left of delete
         btnFav = createTitleIconButton(R.drawable.ic_favorite_border, "收藏歌单");
         android.widget.RelativeLayout.LayoutParams favParams = new android.widget.RelativeLayout.LayoutParams(
-                dpToPx(48), dpToPx(48));
+                dpToPx(32), dpToPx(32));
         favParams.addRule(android.widget.RelativeLayout.LEFT_OF, btnDelete.getId());
         favParams.addRule(android.widget.RelativeLayout.CENTER_VERTICAL);
         btnFav.setLayoutParams(favParams);
@@ -137,7 +137,7 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
         tvCreatorLabel.setTextColor(getResources().getColor(R.color.text_secondary));
         tvCreatorLabel.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(11));
         tvCreatorLabel.setGravity(Gravity.CENTER);
-        tvCreatorLabel.setPadding(0, 0, 0, px(2));
+        tvCreatorLabel.setPadding(0, 0, 0, px(1));
         updateCreatorLabel();
         root.addView(tvCreatorLabel);
 
@@ -145,9 +145,9 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
         tvStatus = new TextView(this);
         tvStatus.setText("正在加载...");
         tvStatus.setTextColor(getResources().getColor(R.color.text_secondary));
-        tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
+        tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
         tvStatus.setGravity(Gravity.CENTER);
-        tvStatus.setPadding(0, px(4), 0, px(4));
+        tvStatus.setPadding(0, px(2), 0, px(1));
         root.addView(tvStatus);
 
         lvSongs = new ListView(this);

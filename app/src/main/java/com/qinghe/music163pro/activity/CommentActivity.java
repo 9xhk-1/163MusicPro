@@ -522,6 +522,11 @@ public class CommentActivity extends BaseWatchActivity {
         footer.setGravity(Gravity.CENTER_VERTICAL);
         footer.setPadding(px(27), px(2), 0, 0);
 
+        // Floor link gets its own row so it never clips off the actions row
+        LinearLayout floorRow = new LinearLayout(this);
+        floorRow.setOrientation(LinearLayout.HORIZONTAL);
+        floorRow.setVisibility(View.GONE);
+
         // Like button
         final boolean[] isLiked = {liked};
         final int[] currentLikeCount = {likedCount};
@@ -566,7 +571,7 @@ public class CommentActivity extends BaseWatchActivity {
         replyTv.setText("回复");
         replyTv.setTextColor(COLOR_TEXT_SECONDARY);
         replyTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
-        replyTv.setPadding(px(12), px(4), px(12), px(4));
+        replyTv.setPadding(px(6), px(4), px(6), px(4));
         replyTv.setMinHeight(px(30));
         replyTv.setGravity(Gravity.CENTER_VERTICAL);
         replyTv.setOnClickListener(v -> enterReplyMode(commentId, finalNickname));
@@ -579,17 +584,19 @@ public class CommentActivity extends BaseWatchActivity {
             if (replyCount > 0) {
                 TextView floorTv = new TextView(this);
                 floorTv.setText("查看" + replyCount + "条回复 >");
-                floorTv.setTextColor(0xFF82B1FF);
+                floorTv.setTextColor(getResources().getColor(R.color.colorPrimary));
                 floorTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
-                floorTv.setPadding(px(12), px(4), 0, px(4));
+                floorTv.setPadding(px(6), px(4), 0, px(4));
                 floorTv.setMinHeight(px(30));
                 floorTv.setGravity(Gravity.CENTER_VERTICAL);
                 floorTv.setOnClickListener(v -> openFloorComments(commentId));
-                footer.addView(floorTv);
+                floorRow.addView(floorTv);
+                floorRow.setVisibility(View.VISIBLE);
             }
         }
 
         item.addView(footer);
+        item.addView(floorRow);
 
         // Long-press: copy (always) + delete (own comments only)
         final long finalCommentId = commentId;

@@ -21,6 +21,7 @@ import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.util.NetworkImageLoader;
+import com.qinghe.music163pro.util.WatchUiUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -82,14 +83,14 @@ public class AlbumDetailActivity extends AppCompatActivity {
         LinearLayout albumInfoRow = new LinearLayout(this);
         albumInfoRow.setOrientation(LinearLayout.HORIZONTAL);
         albumInfoRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        albumInfoRow.setPadding(0, px(8), 0, px(8));
+        albumInfoRow.setPadding(0, px(3), 0, px(3));
         albumInfoRow.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         root.addView(albumInfoRow);
 
-        ivAlbumCover = new ImageView(this);
-        LinearLayout.LayoutParams coverParams = new LinearLayout.LayoutParams(px(52), px(52));
-        coverParams.setMarginEnd(px(8));
+        ivAlbumCover = WatchUiUtils.createRoundedImage(this);
+        LinearLayout.LayoutParams coverParams = new LinearLayout.LayoutParams(px(40), px(40));
+        coverParams.setMarginEnd(px(6));
         ivAlbumCover.setLayoutParams(coverParams);
         ivAlbumCover.setScaleType(ImageView.ScaleType.CENTER_CROP);
         ivAlbumCover.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
@@ -117,7 +118,7 @@ public class AlbumDetailActivity extends AppCompatActivity {
         tvStatus.setTextColor(0xFFCAC4D0);
         tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
         tvStatus.setGravity(Gravity.CENTER);
-        tvStatus.setPadding(0, px(4), 0, px(4));
+        tvStatus.setPadding(0, px(2), 0, px(1));
         root.addView(tvStatus);
 
         lvSongs = new ListView(this);
