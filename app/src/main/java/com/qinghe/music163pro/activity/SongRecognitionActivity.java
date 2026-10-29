@@ -535,15 +535,13 @@ public class SongRecognitionActivity extends AppCompatActivity {
     }
 
     private void updateManualRecordingUi(int remainingSeconds) {
-        setCircleButtonState(getResources().getColor(R.color.colorTertiaryContainer),
-                getResources().getColor(R.color.colorOnTertiaryContainer), true, "结束录音");
+        setCircleButtonState(0xFFFFD8E4, 0xFF633B48, true, "结束录音");
         tvHint.setText("请让手表靠近声源\n录音时已暂停手表播放");
         tvStatus.setText("录音中 " + remainingSeconds + "s");
     }
 
     private void updateAutoRecordingUi() {
-        setCircleButtonState(getResources().getColor(R.color.colorTertiaryContainer),
-                getResources().getColor(R.color.colorOnTertiaryContainer), true, "停止识别");
+        setCircleButtonState(0xFFFFD8E4, 0xFF633B48, true, "停止识别");
         tvHint.setText("正在持续监听\n每三秒自动识别一次");
         tvStatus.setText("自动识别中，等待结果...");
     }
