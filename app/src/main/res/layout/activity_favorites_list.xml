@@ -15,15 +15,15 @@
         android:textStyle="bold"
         android:letterSpacing="0.05"
         android:gravity="center"
-        android:paddingBottom="6dp" />
+        android:paddingBottom="2dp" />
 
     <!-- Tabs: 单曲 / 歌单 -->
     <LinearLayout
         android:id="@+id/ll_fav_tabs"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="36dp"
         android:orientation="horizontal"
-        android:layout_marginBottom="4dp">
+        android:layout_marginBottom="2dp">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/tab_fav_songs"

@@ -53,11 +53,11 @@ public class AboutActivity extends AppCompatActivity {
         content.setPadding(px(12), px(10), px(12), px(16));
 
         // Title
-        content.addView(makeText("关于", 0xFFFFFFFF, px(22), true, Gravity.CENTER));
+        content.addView(makeText("关于", 0xFFFFFFFF, px(14), true, Gravity.CENTER));
 
         // App name
         content.addView(makeSpacer(px(10)));
-        content.addView(makeText("163音乐Pro", 0xFFFFFFFF, px(20), true, Gravity.CENTER));
+        content.addView(makeText("163音乐Pro", 0xFFFFFFFF, px(14), true, Gravity.CENTER));
 
         // Version
         content.addView(makeSpacer(px(4)));
@@ -65,14 +65,14 @@ public class AboutActivity extends AppCompatActivity {
         try {
             versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (Exception ignored) {}
-        content.addView(makeText("版本: " + versionName, 0xFFCCCCCC, px(16), false, Gravity.CENTER));
+        content.addView(makeText("版本: " + versionName, 0xFFCCCCCC, px(12), false, Gravity.CENTER));
 
         // Developer
         content.addView(makeSpacer(px(4)));
-        content.addView(makeText("开发者: Qinghe", 0xFFCCCCCC, px(16), false, Gravity.CENTER));
+        content.addView(makeText("开发者: Qinghe", 0xFFCCCCCC, px(12), false, Gravity.CENTER));
         content.addView(makeSpacer(px(4)));
-        content.addView(makeText("官网: ", 0xFFCCCCCC, px(16), false, Gravity.CENTER));
-        TextView linkTv = makeText("https://163.imoow.com", 0xFF5599CC, px(16), false, Gravity.CENTER);
+        content.addView(makeText("官网: ", 0xFFCCCCCC, px(12), false, Gravity.CENTER));
+        TextView linkTv = makeText("https://163.imoow.com", 0xFF5599CC, px(12), false, Gravity.CENTER);
         Linkify.addLinks(linkTv, Linkify.WEB_URLS);
         content.addView(linkTv);
 
@@ -82,9 +82,9 @@ public class AboutActivity extends AppCompatActivity {
 
         // Description
         content.addView(makeSpacer(px(8)));
-        content.addView(makeText("软件概述", 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeText("软件概述", 0xFFFFFFFF, px(13), true, Gravity.START));
         content.addView(makeSpacer(px(4)));
-        overviewTextView = makeText(DEFAULT_OVERVIEW, 0xFFAAAAAA, px(15), false, Gravity.START);
+        overviewTextView = makeText(DEFAULT_OVERVIEW, 0xFFAAAAAA, px(13), false, Gravity.START);
         content.addView(overviewTextView);
 
         // Divider
@@ -93,18 +93,18 @@ public class AboutActivity extends AppCompatActivity {
 
         // Feedback section
         content.addView(makeSpacer(px(8)));
-        content.addView(makeText("问题反馈", 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeText("问题反馈", 0xFFFFFFFF, px(13), true, Gravity.START));
         content.addView(makeSpacer(px(4)));
         content.addView(makeText("遇到问题或有建议，欢迎通过以下方式反馈：",
-                0xFFAAAAAA, px(14), false, Gravity.START));
+                0xFFAAAAAA, px(13), false, Gravity.START));
         content.addView(makeSpacer(px(6)));
         // Email row
         content.addView(makeIconTextRow(R.drawable.ic_email, "邮箱：mail@9x.hk",
-                0xFF5599CC, px(14), true));
+                0xFF5599CC, px(13), true));
         content.addView(makeSpacer(px(4)));
         // QQ row
         content.addView(makeIconTextRow(R.drawable.ic_chat_bubble, "QQ：3686072365",
-                0xFF5599CC, px(14), false));
+                0xFF5599CC, px(13), false));
 
         // Divider
         content.addView(makeSpacer(px(8)));
@@ -148,7 +148,7 @@ public class AboutActivity extends AppCompatActivity {
 
         if (updateItems == null || updateItems.isEmpty()) {
             updateContainer.addView(makeSpacer(px(8)));
-            updateContainer.addView(makeText("暂无更新日志", 0xFFAAAAAA, px(15), false, Gravity.START));
+            updateContainer.addView(makeText("暂无更新日志", 0xFFAAAAAA, px(13), false, Gravity.START));
             return;
         }
 
@@ -160,10 +160,10 @@ public class AboutActivity extends AppCompatActivity {
             }
             updateContainer.addView(makeSpacer(px(8)));
             updateContainer.addView(makeText(item.getVersion() + " 更新内容",
-                    0xFFFFFFFF, px(18), true, Gravity.START));
+                    0xFFFFFFFF, px(13), true, Gravity.START));
             updateContainer.addView(makeSpacer(px(4)));
             updateContainer.addView(makeText(formatUpdateContent(item.getContent()),
-                    0xFFAAAAAA, px(15), false, Gravity.START));
+                    0xFFAAAAAA, px(13), false, Gravity.START));
         }
     }
 

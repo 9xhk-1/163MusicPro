@@ -103,11 +103,11 @@ public class SongInfoActivity extends AppCompatActivity {
         scrollView.addView(contentLayout);
 
         // Title
-        contentLayout.addView(makeText("音乐信息", COLOR_TEXT_PRIMARY, px(18), true, Gravity.CENTER));
+        contentLayout.addView(makeText("音乐信息", COLOR_TEXT_PRIMARY, px(13), true, Gravity.CENTER));
         contentLayout.addView(makeSpacer(px(8)));
 
         // Loading indicator
-        tvLoading = makeText("加载中...", COLOR_TEXT_SECONDARY, px(14), false, Gravity.CENTER);
+        tvLoading = makeText("加载中...", COLOR_TEXT_SECONDARY, px(13), false, Gravity.CENTER);
         contentLayout.addView(tvLoading);
 
         setContentView(scrollView);
@@ -153,7 +153,7 @@ public class SongInfoActivity extends AppCompatActivity {
         // Song name
         String name = song.optString("name", "");
         if (!name.isEmpty()) {
-            contentLayout.addView(makeText(name, COLOR_TEXT_PRIMARY, px(17), true, Gravity.START));
+            contentLayout.addView(makeText(name, COLOR_TEXT_PRIMARY, px(13), true, Gravity.START));
             contentLayout.addView(makeSpacer(px(4)));
         }
 
@@ -314,7 +314,7 @@ public class SongInfoActivity extends AppCompatActivity {
     // ─── Step 2: Fetch song wiki ──────────────────────────────────────
 
     private void fetchSongWiki() {
-        final TextView tvWikiLoading = makeText("加载歌曲百科...", COLOR_TEXT_SECONDARY, px(13), false, Gravity.CENTER);
+        final TextView tvWikiLoading = makeText("加载歌曲百科...", COLOR_TEXT_SECONDARY, px(12), false, Gravity.CENTER);
         contentLayout.addView(makeSpacer(px(4)));
         contentLayout.addView(tvWikiLoading);
 
@@ -450,11 +450,11 @@ public class SongInfoActivity extends AppCompatActivity {
         String desc = creative.optString("desc", "");
 
         if (!headline.isEmpty()) {
-            contentLayout.addView(makeText(headline, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
+            contentLayout.addView(makeText(headline, COLOR_TEXT_PRIMARY, px(13), true, Gravity.START));
             contentLayout.addView(makeSpacer(px(2)));
         }
         if (!desc.isEmpty()) {
-            contentLayout.addView(makeText(desc, COLOR_TEXT_DESC, px(14), false, Gravity.START));
+            contentLayout.addView(makeText(desc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
             contentLayout.addView(makeSpacer(px(3)));
         }
 
@@ -519,7 +519,7 @@ public class SongInfoActivity extends AppCompatActivity {
                         final int idx = currentBlockSongs.size() - blockSongList.size() + i;
                         LinearLayout row = new LinearLayout(this);
                         row.setOrientation(LinearLayout.HORIZONTAL);
-                        TextView tv = makeText("▶ " + display, COLOR_ACCENT, px(14), false, Gravity.START);
+                        TextView tv = makeText("▶ " + display, COLOR_ACCENT, px(13), false, Gravity.START);
                         tv.setPadding(0, px(2), 0, px(2));
                         tv.setLayoutParams(new LinearLayout.LayoutParams(0,
                                 LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -535,7 +535,7 @@ public class SongInfoActivity extends AppCompatActivity {
                         row.setOnClickListener(v -> playSimilarSongs(currentBlockSongs, idx));
                         contentLayout.addView(row);
                     } else {
-                        contentLayout.addView(makeText("• " + display, COLOR_TEXT_DESC, px(14), false, Gravity.START));
+                        contentLayout.addView(makeText("• " + display, COLOR_TEXT_DESC, px(13), false, Gravity.START));
                     }
                     contentLayout.addView(makeSpacer(px(2)));
                 }
@@ -562,14 +562,14 @@ public class SongInfoActivity extends AppCompatActivity {
                             final long plId = pl.optLong("id", 0);
                             final String fPlName = plName;
                             final int fTrackCount = pl.optInt("trackCount", 0);
-                            TextView tv = makeText("" + display, COLOR_ACCENT, px(14), false, Gravity.START);
+                            TextView tv = makeText("" + display, COLOR_ACCENT, px(13), false, Gravity.START);
                             tv.setPadding(0, px(2), 0, px(2));
                             if (plId > 0) {
                                 tv.setOnClickListener(v -> openPlaylistDetail(plId, fPlName, fTrackCount, ""));
                             }
                             contentLayout.addView(tv);
                         } else {
-                            contentLayout.addView(makeText("• " + display, COLOR_TEXT_DESC, px(14), false, Gravity.START));
+                            contentLayout.addView(makeText("• " + display, COLOR_TEXT_DESC, px(13), false, Gravity.START));
                         }
                         contentLayout.addView(makeSpacer(px(2)));
                     }
@@ -580,7 +580,7 @@ public class SongInfoActivity extends AppCompatActivity {
             // Some extInfo has direct text content (回忆坐标 etc.)
             String text = extInfo.optString("text", "");
             if (!text.isEmpty()) {
-                contentLayout.addView(makeText(text, COLOR_TEXT_DESC, px(14), false, Gravity.START));
+                contentLayout.addView(makeText(text, COLOR_TEXT_DESC, px(13), false, Gravity.START));
                 return;
             }
 
@@ -594,7 +594,7 @@ public class SongInfoActivity extends AppCompatActivity {
                 if (valStr.isEmpty() || "null".equals(valStr)) continue;
                 if (valStr.startsWith("{") || valStr.startsWith("[")) continue;
                 if (valStr.length() > 300) continue;
-                contentLayout.addView(makeText(valStr, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                contentLayout.addView(makeText(valStr, COLOR_TEXT_DESC, px(12), false, Gravity.START));
                 contentLayout.addView(makeSpacer(px(2)));
             }
         } catch (Exception e) {
@@ -693,7 +693,7 @@ public class SongInfoActivity extends AppCompatActivity {
             if (mainTitle != null) {
                 String title = mainTitle.optString("title", "");
                 if (!title.isEmpty()) {
-                    rightLayout.addView(makeText(title, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
+                    rightLayout.addView(makeText(title, COLOR_TEXT_PRIMARY, px(13), true, Gravity.START));
                 }
             }
             // subTitles is an array in the API response
@@ -718,7 +718,7 @@ public class SongInfoActivity extends AppCompatActivity {
             }
             String ueDesc = resUiElement.optString("description", "");
             if (!ueDesc.isEmpty()) {
-                rightLayout.addView(makeText(ueDesc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                rightLayout.addView(makeText(ueDesc, COLOR_TEXT_DESC, px(12), false, Gravity.START));
             }
             // Image text (used by some blocks)
             JSONArray imgArr = resUiElement.optJSONArray("images");
@@ -748,7 +748,7 @@ public class SongInfoActivity extends AppCompatActivity {
             if (!name.isEmpty()) {
                 // Avoid duplicate if uiElement already showed a title
                 if (resUiElement == null || resUiElement.optJSONObject("mainTitle") == null) {
-                    rightLayout.addView(makeText(name, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
+                    rightLayout.addView(makeText(name, COLOR_TEXT_PRIMARY, px(13), true, Gravity.START));
                 }
             }
 
@@ -783,7 +783,7 @@ public class SongInfoActivity extends AppCompatActivity {
             String desc = resInfo.optString("desc", "");
             if (!desc.isEmpty()) {
                 rightLayout.addView(makeSpacer(px(3)));
-                rightLayout.addView(makeText(desc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                rightLayout.addView(makeText(desc, COLOR_TEXT_DESC, px(12), false, Gravity.START));
             }
         }
 
@@ -936,19 +936,19 @@ public class SongInfoActivity extends AppCompatActivity {
         if (mainTitle != null) {
             String title = mainTitle.optString("title", "");
             if (!title.isEmpty()) {
-                contentLayout.addView(makeText(title, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
+                contentLayout.addView(makeText(title, COLOR_TEXT_PRIMARY, px(13), true, Gravity.START));
             }
         }
         JSONObject subTitle = uiElement.optJSONObject("subTitle");
         if (subTitle != null) {
             String title = subTitle.optString("title", "");
             if (!title.isEmpty()) {
-                contentLayout.addView(makeText(title, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                contentLayout.addView(makeText(title, COLOR_TEXT_DESC, px(12), false, Gravity.START));
             }
         }
         String description = uiElement.optString("description", "");
         if (!description.isEmpty()) {
-            contentLayout.addView(makeText(description, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+            contentLayout.addView(makeText(description, COLOR_TEXT_DESC, px(12), false, Gravity.START));
         }
     }
 
@@ -966,7 +966,7 @@ public class SongInfoActivity extends AppCompatActivity {
         contentLayout.addView(makeSpacer(px(6)));
         addSectionHeader(R.drawable.ic_mic, "歌手百科");
 
-        final TextView tvArtistLoading = makeText("加载歌手详情...", COLOR_TEXT_SECONDARY, px(13), false, Gravity.START);
+        final TextView tvArtistLoading = makeText("加载歌手详情...", COLOR_TEXT_SECONDARY, px(12), false, Gravity.START);
         contentLayout.addView(tvArtistLoading);
 
         MusicLog.op(TAG, "请求歌手百科", "artistId=" + artistId);
@@ -993,15 +993,15 @@ public class SongInfoActivity extends AppCompatActivity {
     private void displayArtistDesc(String briefDesc, JSONArray introduction) {
         if ((briefDesc == null || briefDesc.isEmpty())
                 && (introduction == null || introduction.length() == 0)) {
-            contentLayout.addView(makeText("暂无歌手百科信息", COLOR_TEXT_SECONDARY, px(13), false, Gravity.START));
+            contentLayout.addView(makeText("暂无歌手百科信息", COLOR_TEXT_SECONDARY, px(12), false, Gravity.START));
             contentLayout.addView(makeSpacer(px(16)));
             return;
         }
 
         if (briefDesc != null && !briefDesc.isEmpty()) {
-            contentLayout.addView(makeText("简介", COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
+            contentLayout.addView(makeText("简介", COLOR_TEXT_PRIMARY, px(13), true, Gravity.START));
             contentLayout.addView(makeSpacer(px(3)));
-            contentLayout.addView(makeText(briefDesc, COLOR_TEXT_DESC, px(14), false, Gravity.START));
+            contentLayout.addView(makeText(briefDesc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
         }
 
         if (introduction != null && introduction.length() > 0) {
@@ -1014,11 +1014,11 @@ public class SongInfoActivity extends AppCompatActivity {
 
                 if (!ti.isEmpty()) {
                     contentLayout.addView(makeSpacer(px(8)));
-                    contentLayout.addView(makeText(ti, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
+                    contentLayout.addView(makeText(ti, COLOR_TEXT_PRIMARY, px(13), true, Gravity.START));
                 }
                 if (!txt.isEmpty()) {
                     contentLayout.addView(makeSpacer(px(3)));
-                    contentLayout.addView(makeText(txt, COLOR_TEXT_DESC, px(14), false, Gravity.START));
+                    contentLayout.addView(makeText(txt, COLOR_TEXT_DESC, px(13), false, Gravity.START));
                 }
             }
         }
@@ -1129,7 +1129,7 @@ public class SongInfoActivity extends AppCompatActivity {
         TextView tv = new TextView(this);
         tv.setText(title);
         tv.setTextColor(COLOR_ACCENT);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(16));
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
         tv.setTypeface(null, Typeface.BOLD);
         row.addView(tv);
 
@@ -1148,12 +1148,12 @@ public class SongInfoActivity extends AppCompatActivity {
         TextView tvLabel = new TextView(this);
         tvLabel.setText(label + "：");
         tvLabel.setTextColor(COLOR_TEXT_SECONDARY);
-        tvLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
+        tvLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
 
         TextView tvValue = new TextView(this);
         tvValue.setText(value);
         tvValue.setTextColor(COLOR_TEXT_PRIMARY);
-        tvValue.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
+        tvValue.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
         tvValue.setLayoutParams(new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
@@ -1166,7 +1166,7 @@ public class SongInfoActivity extends AppCompatActivity {
         TextView tv = new TextView(this);
         tv.setText(text);
         tv.setTextColor(COLOR_TEXT_SECONDARY);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(11));
         tv.setPadding(0, px(1), 0, 0);
         return tv;
     }

@@ -64,7 +64,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
         TextView tvTitle = new TextView(this);
         tvTitle.setText("我的歌单");
         tvTitle.setTextColor(0xFFE6E0E9);
-        tvTitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(15));
+        tvTitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
         tvTitle.setGravity(Gravity.CENTER);
         tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
         tvTitle.setPadding(px(28), 0, px(28), px(4));
@@ -95,7 +95,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
         tvStatus = new TextView(this);
         tvStatus.setText("正在加载...");
         tvStatus.setTextColor(0xFFCAC4D0);
-        tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
+        tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
         tvStatus.setGravity(Gravity.CENTER);
         tvStatus.setPadding(0, px(4), 0, px(4));
         root.addView(tvStatus);
@@ -145,7 +145,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
                     }
                     tvName.setSelected(true);
                     tvName.setTextColor(0xFFE6E0E9);
-                    tvName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
+                    tvName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
 
                     String detail = pl.getTrackCount() + "首";
                     if (pl.getCreator() != null && !pl.getCreator().isEmpty()) {
@@ -156,7 +156,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
                     }
                     tvDetail.setSelected(true);
                     tvDetail.setTextColor(0xFFCAC4D0);
-                    tvDetail.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(11));
+                    tvDetail.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(10));
                 }
                 return view;
             }

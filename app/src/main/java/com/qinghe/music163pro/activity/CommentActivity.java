@@ -136,7 +136,7 @@ public class CommentActivity extends BaseWatchActivity {
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.VERTICAL);
         topBar.setBackgroundColor(getResources().getColor(R.color.surface));
-        topBar.setPadding(px(8), px(6), px(8), px(4));
+        topBar.setPadding(px(6), px(3), px(6), px(2));
 
         // Song name row
         LinearLayout nameRow = new LinearLayout(this);
@@ -146,7 +146,7 @@ public class CommentActivity extends BaseWatchActivity {
         TextView songTitle = new TextView(this);
         songTitle.setText(songName);
         songTitle.setTextColor(COLOR_TEXT_PRIMARY);
-        songTitle.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(16));
+        songTitle.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
         songTitle.setTypeface(songTitle.getTypeface(), Typeface.BOLD);
         songTitle.setSingleLine(true);
         songTitle.setEllipsize(TextUtils.TruncateAt.MARQUEE);
@@ -160,7 +160,7 @@ public class CommentActivity extends BaseWatchActivity {
 
         totalCountText = new TextView(this);
         totalCountText.setTextColor(COLOR_TEXT_SECONDARY);
-        totalCountText.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
+        totalCountText.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
         totalCountText.setPadding(px(6), 0, 0, 0);
         nameRow.addView(totalCountText);
 
@@ -170,7 +170,7 @@ public class CommentActivity extends BaseWatchActivity {
         LinearLayout tabRow = new LinearLayout(this);
         tabRow.setOrientation(LinearLayout.HORIZONTAL);
         tabRow.setGravity(Gravity.CENTER_VERTICAL);
-        tabRow.setPadding(0, px(4), 0, px(2));
+        tabRow.setPadding(0, px(2), 0, px(1));
 
         tabRecommend = makeSortTab("推荐", 99);
         tabHot = makeSortTab("最热", 2);
@@ -191,13 +191,13 @@ public class CommentActivity extends BaseWatchActivity {
     private TextView makeSortTab(String label, int sortType) {
         TextView tab = new TextView(this);
         tab.setText(label);
-        tab.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
-        tab.setPadding(px(10), px(4), px(10), px(4));
+        tab.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
+        tab.setPadding(px(6), px(3), px(6), px(3));
         tab.setGravity(Gravity.CENTER);
 
-        int minTouchTarget = px(40);
-        tab.setMinHeight(minTouchTarget);
-        tab.setMinWidth(minTouchTarget);
+        tab.setMinHeight(px(30));
+        tab.setMinWidth(0);
+        tab.setMinimumWidth(0);
 
         tab.setOnClickListener(v -> {
             if (currentSortType == sortType || isLoading) return;
@@ -269,7 +269,7 @@ public class CommentActivity extends BaseWatchActivity {
         LinearLayout bottomBar = new LinearLayout(this);
         bottomBar.setOrientation(LinearLayout.HORIZONTAL);
         bottomBar.setBackgroundColor(getResources().getColor(R.color.surface));
-        bottomBar.setPadding(px(6), px(4), px(6), px(4));
+        bottomBar.setPadding(px(4), px(3), px(4), px(3));
         bottomBar.setGravity(Gravity.CENTER_VERTICAL);
 
         com.google.android.material.textfield.TextInputLayout inputWrap =
@@ -282,7 +282,7 @@ public class CommentActivity extends BaseWatchActivity {
 
         sendButton = new MaterialButton(this);
         sendButton.setText("发送");
-        sendButton.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
+        sendButton.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
         sendButton.setAllCaps(false);
         sendButton.setMinWidth(0);
         sendButton.setMinimumWidth(0);
@@ -291,9 +291,9 @@ public class CommentActivity extends BaseWatchActivity {
         sendButton.setCornerRadius(px(16));
         sendButton.setInsetTop(0);
         sendButton.setInsetBottom(0);
-        sendButton.setMinHeight(px(40));
-        sendButton.setMinimumHeight(px(40));
-        sendButton.setPadding(px(12), 0, px(12), 0);
+        sendButton.setMinHeight(px(30));
+        sendButton.setMinimumHeight(px(30));
+        sendButton.setPadding(px(8), 0, px(8), 0);
         sendButton.setOnClickListener(v -> submitComment());
         bottomBar.addView(sendButton);
 
@@ -451,7 +451,7 @@ public class CommentActivity extends BaseWatchActivity {
         TextView nickTv = new TextView(this);
         nickTv.setText(nickname);
         nickTv.setTextColor(getResources().getColor(R.color.colorPrimary));
-        nickTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
+        nickTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
         nickTv.setSingleLine(true);
         nickTv.setEllipsize(TextUtils.TruncateAt.MARQUEE);
         nickTv.setMarqueeRepeatLimit(-1);
@@ -465,7 +465,7 @@ public class CommentActivity extends BaseWatchActivity {
         TextView timeTv = new TextView(this);
         timeTv.setText(timeAndIp);
         timeTv.setTextColor(COLOR_TEXT_SECONDARY);
-        timeTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
+        timeTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(11));
         timeTv.setSingleLine(true);
         nameTimeCol.addView(timeTv);
 
@@ -476,7 +476,7 @@ public class CommentActivity extends BaseWatchActivity {
         TextView contentTv = new TextView(this);
         contentTv.setText(content);
         contentTv.setTextColor(COLOR_TEXT_PRIMARY);
-        contentTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(15));
+        contentTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
         contentTv.setPadding(px(27), px(4), 0, px(2));
         contentTv.setLineSpacing(px(2), 1f);
         item.addView(contentTv);
@@ -495,7 +495,7 @@ public class CommentActivity extends BaseWatchActivity {
                     TextView repliedTv = new TextView(this);
                     repliedTv.setText("@" + repliedNick + ": " + repliedContent);
                     repliedTv.setTextColor(COLOR_TEXT_SECONDARY);
-                    repliedTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
+                    repliedTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
                     repliedTv.setPadding(px(27), px(2), px(4), px(2));
                     repliedTv.setMaxLines(2);
                     repliedTv.setEllipsize(TextUtils.TruncateAt.END);
@@ -528,7 +528,7 @@ public class CommentActivity extends BaseWatchActivity {
 
         TextView likeTv = new TextView(this);
         updateLikeText(likeTv, isLiked[0], currentLikeCount[0]);
-        likeTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
+        likeTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
         likeTv.setPadding(0, px(4), px(12), px(4));
         likeTv.setMinHeight(px(30));
         likeTv.setGravity(Gravity.CENTER_VERTICAL);
@@ -565,7 +565,7 @@ public class CommentActivity extends BaseWatchActivity {
         TextView replyTv = new TextView(this);
         replyTv.setText("回复");
         replyTv.setTextColor(COLOR_TEXT_SECONDARY);
-        replyTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
+        replyTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
         replyTv.setPadding(px(12), px(4), px(12), px(4));
         replyTv.setMinHeight(px(30));
         replyTv.setGravity(Gravity.CENTER_VERTICAL);
@@ -580,7 +580,7 @@ public class CommentActivity extends BaseWatchActivity {
                 TextView floorTv = new TextView(this);
                 floorTv.setText("查看" + replyCount + "条回复 >");
                 floorTv.setTextColor(0xFF82B1FF);
-                floorTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
+                floorTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
                 floorTv.setPadding(px(12), px(4), 0, px(4));
                 floorTv.setMinHeight(px(30));
                 floorTv.setGravity(Gravity.CENTER_VERTICAL);
@@ -736,7 +736,7 @@ public class CommentActivity extends BaseWatchActivity {
         TextView avatar = new TextView(this);
         avatar.setText(initial);
         avatar.setTextColor(Color.WHITE);
-        avatar.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
+        avatar.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
         avatar.setTypeface(avatar.getTypeface(), Typeface.BOLD);
         avatar.setGravity(Gravity.CENTER);
         avatar.setContentDescription(nickname + "的头像");
@@ -894,7 +894,7 @@ public class CommentActivity extends BaseWatchActivity {
         TextView loading = new TextView(this);
         loading.setText("加载中...");
         loading.setTextColor(COLOR_TEXT_SECONDARY);
-        loading.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
+        loading.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
         loading.setGravity(Gravity.CENTER);
         loading.setPadding(0, px(40), 0, px(40));
         loading.setTag("loading_indicator");
@@ -914,7 +914,7 @@ public class CommentActivity extends BaseWatchActivity {
         TextView empty = new TextView(this);
         empty.setText(hint);
         empty.setTextColor(COLOR_TEXT_SECONDARY);
-        empty.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
+        empty.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
         empty.setGravity(Gravity.CENTER);
         empty.setPadding(0, px(40), 0, px(40));
         empty.setTag("empty_hint");

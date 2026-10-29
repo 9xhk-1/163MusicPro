@@ -1251,7 +1251,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         dot.setLayoutParams(params);
         GradientDrawable background = new GradientDrawable();
         background.setShape(GradientDrawable.OVAL);
-        background.setColor(ContextCompat.getColor(this, R.color.colorAccent));
+        background.setColor(ContextCompat.getColor(this, R.color.colorTertiary));
         dot.setBackground(background);
         dot.setVisibility(View.GONE);
         dot.setClickable(false);

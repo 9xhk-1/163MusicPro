@@ -32,15 +32,15 @@ public class OpenSourceActivity extends AppCompatActivity {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(px(12), px(10), px(12), px(16));
 
-        content.addView(makeText("开源", 0xFFFFFFFF, px(22), true, Gravity.CENTER));
+        content.addView(makeText("开源", 0xFFFFFFFF, px(14), true, Gravity.CENTER));
         content.addView(makeSpacer(px(8)));
         content.addView(makeText(
                 "本仓库采用 MIT License 开源，以下为本项目和使用到的开源项目说明。",
-                0xFFAAAAAA, px(15), false, Gravity.START));
+                0xFFAAAAAA, px(13), false, Gravity.START));
         content.addView(makeSpacer(px(8)));
         content.addView(makeText(
                 "163MusicPro 代码部分可在 MIT 协议下使用、修改和分发；网易云音乐相关 API 与内容版权仍归网易公司所有。",
-                0xFFAAAAAA, px(15), false, Gravity.START));
+                0xFFAAAAAA, px(13), false, Gravity.START));
         addProject(content,
                 "163MusicPro",
                 "开发者：Qinghe",
@@ -62,11 +62,11 @@ public class OpenSourceActivity extends AppCompatActivity {
         content.addView(makeSpacer(px(8)));
         content.addView(makeDivider());
         content.addView(makeSpacer(px(8)));
-        content.addView(makeText(name, 0xFFFFFFFF, px(18), true, Gravity.START));
+        content.addView(makeText(name, 0xFFFFFFFF, px(13), true, Gravity.START));
         content.addView(makeSpacer(px(4)));
-        content.addView(makeText(developer, 0xFFCCCCCC, px(15), false, Gravity.START));
+        content.addView(makeText(developer, 0xFFCCCCCC, px(13), false, Gravity.START));
         content.addView(makeSpacer(px(2)));
-        TextView linkTv = makeText(githubUrl, 0xFF5599CC, px(15), false, Gravity.START);
+        TextView linkTv = makeText(githubUrl, 0xFF5599CC, px(13), false, Gravity.START);
         Linkify.addLinks(linkTv, Linkify.WEB_URLS);
         content.addView(linkTv);
     }

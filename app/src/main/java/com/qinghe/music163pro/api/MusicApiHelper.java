@@ -3530,6 +3530,9 @@ public class MusicApiHelper {
         }
         String album = albumObj != null ? albumObj.optString("name", "") : "";
         String coverUrl = albumObj != null ? albumObj.optString("picUrl", "") : "";
+        if (coverUrl.isEmpty()) {
+            coverUrl = pickFirstNonEmpty(songObj, "picUrl", "coverImg", "albumImg", "cover", "img");
+        }
         long albumId = albumObj != null ? albumObj.optLong("id", 0) : 0;
         if (songName.isEmpty()) {
             songName = pickFirstNonEmpty(songObj, "fileName");
