@@ -18,6 +18,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.qinghe.music163pro.R;
+import com.qinghe.music163pro.util.WatchUiUtils;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
@@ -161,8 +162,8 @@ public class SongInfoActivity extends AppCompatActivity {
         if (al != null) {
             String picUrl = al.optString("picUrl", "");
             if (!picUrl.isEmpty()) {
-                int coverSize = px(300);
-                ImageView coverView = new ImageView(this);
+                int coverSize = (int) (getResources().getDisplayMetrics().widthPixels * 0.9f);
+                ImageView coverView = WatchUiUtils.createRoundedImage(this);
                 coverView.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 GradientDrawable coverBg = new GradientDrawable();
                 coverBg.setColor(COLOR_CARD_BG);
@@ -662,7 +663,7 @@ public class SongInfoActivity extends AppCompatActivity {
         card.setLayoutParams(cardParams);
 
         // Cover thumbnail (40x40dp)
-        ImageView ivCover = new ImageView(this);
+        ImageView ivCover = WatchUiUtils.createRoundedImage(this);
         int coverSize = px(40);
         LinearLayout.LayoutParams coverLp = new LinearLayout.LayoutParams(coverSize, coverSize);
         coverLp.gravity = android.view.Gravity.CENTER_VERTICAL;
@@ -1199,7 +1200,6 @@ public class SongInfoActivity extends AppCompatActivity {
     }
 
     private int px(int baseValue) {
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        return (int) (baseValue * screenWidth / 320f + 0.5f);
+        return (int) (baseValue * getResources().getDisplayMetrics().density + 0.5f);
     }
 }

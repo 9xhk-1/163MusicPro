@@ -316,10 +316,6 @@ public class CommentFloorActivity extends BaseWatchActivity {
             for (int i = 0; i < comments.length(); i++) {
                 JSONObject comment = comments.getJSONObject(i);
                 subCommentListLayout.addView(buildSubCommentItem(comment));
-
-                if (i < comments.length() - 1) {
-                    subCommentListLayout.addView(makeDivider());
-                }
             }
 
         } catch (Exception e) {
@@ -335,12 +331,16 @@ public class CommentFloorActivity extends BaseWatchActivity {
     private View buildParentCommentView(JSONObject comment) {
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.VERTICAL);
-        item.setPadding(px(6), px(6), px(6), px(6));
+        item.setPadding(px(10), px(8), px(10), px(8));
 
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(COLOR_PARENT_BG);
-        bg.setCornerRadius(px(6));
+        bg.setColor(getResources().getColor(R.color.surface_elevated));
+        bg.setCornerRadius(px(12));
         item.setBackground(bg);
+        LinearLayout.LayoutParams itemParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        itemParams.setMargins(0, 0, 0, px(6));
+        item.setLayoutParams(itemParams);
 
         long commentId = comment.optLong("commentId", 0);
         String content = comment.optString("content", "");
@@ -459,7 +459,16 @@ public class CommentFloorActivity extends BaseWatchActivity {
     private View buildSubCommentItem(JSONObject comment) {
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.VERTICAL);
-        item.setPadding(px(4), px(6), px(4), px(6));
+        item.setPadding(px(10), px(8), px(10), px(8));
+
+        GradientDrawable subBg = new GradientDrawable();
+        subBg.setColor(getResources().getColor(R.color.surface_elevated));
+        subBg.setCornerRadius(px(12));
+        item.setBackground(subBg);
+        LinearLayout.LayoutParams subParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        subParams.setMargins(0, 0, 0, px(6));
+        item.setLayoutParams(subParams);
 
         long commentId = comment.optLong("commentId", 0);
         String content = comment.optString("content", "");

@@ -216,9 +216,7 @@ public class AlbumDetailActivity extends AppCompatActivity {
     }
 
     private int px(int baseValue) {
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        float scale = screenWidth / 320f;
-        return Math.round(baseValue * scale);
+        return Math.round(baseValue * getResources().getDisplayMetrics().density);
     }
 
     @Override

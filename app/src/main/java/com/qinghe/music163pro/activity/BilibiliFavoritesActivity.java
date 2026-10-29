@@ -13,6 +13,7 @@ import android.widget.TextView;
 
 import com.google.android.material.button.MaterialButton;
 import com.qinghe.music163pro.R;
+import com.qinghe.music163pro.util.WatchUiUtils;
 import com.qinghe.music163pro.manager.BilibiliFavoritesManager;
 import com.qinghe.music163pro.model.BilibiliFavorite;
 
@@ -95,7 +96,7 @@ public class BilibiliFavoritesActivity extends BaseWatchActivity {
         tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
         bar.addView(tvTitle);
 
-        ImageView placeholder = new ImageView(this);
+        ImageView placeholder = WatchUiUtils.createRoundedImage(this);
         placeholder.setLayoutParams(new LinearLayout.LayoutParams(px(22), px(22)));
         bar.addView(placeholder);
 

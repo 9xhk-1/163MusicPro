@@ -14,6 +14,7 @@ import android.widget.Toast;
 
 import com.google.android.material.card.MaterialCardView;
 import com.qinghe.music163pro.R;
+import com.qinghe.music163pro.util.WatchUiUtils;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.util.NetworkImageLoader;
@@ -86,7 +87,7 @@ public class ProfileActivity extends BaseWatchActivity {
         header.setGravity(Gravity.CENTER_VERTICAL);
         header.setPadding(0, 0, 0, dpToPx(8));
 
-        avatarView = new ImageView(this);
+        avatarView = WatchUiUtils.createRoundedImage(this);
         int avatarSize = dpToPx(64);
         avatarView.setLayoutParams(new LinearLayout.LayoutParams(avatarSize, avatarSize));
         avatarView.setScaleType(ImageView.ScaleType.CENTER_CROP);

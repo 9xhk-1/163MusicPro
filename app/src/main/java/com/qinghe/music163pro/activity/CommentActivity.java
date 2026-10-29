@@ -223,11 +223,16 @@ public class CommentActivity extends BaseWatchActivity {
 
     private void styleSortTab(TextView tab, boolean active) {
         if (active) {
-            tab.setTextColor(COLOR_ACCENT);
+            tab.setTextColor(0xFFEADDFF); // on_primary_container
             tab.setTypeface(tab.getTypeface(), Typeface.BOLD);
+            GradientDrawable pill = new GradientDrawable();
+            pill.setColor(0xFF4F378B); // primary_container
+            pill.setCornerRadius(px(16));
+            tab.setBackground(pill);
         } else {
             tab.setTextColor(COLOR_TEXT_SECONDARY);
             tab.setTypeface(Typeface.DEFAULT);
+            tab.setBackground(null);
         }
     }
 
@@ -377,11 +382,6 @@ public class CommentActivity extends BaseWatchActivity {
             for (int i = 0; i < comments.length(); i++) {
                 JSONObject comment = comments.getJSONObject(i);
                 commentListLayout.addView(buildCommentItem(comment));
-
-                // Divider between comments
-                if (i < comments.length() - 1) {
-                    commentListLayout.addView(makeDivider());
-                }
             }
 
             pageNo++;
@@ -399,7 +399,16 @@ public class CommentActivity extends BaseWatchActivity {
     private View buildCommentItem(JSONObject comment) {
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.VERTICAL);
-        item.setPadding(px(4), px(6), px(4), px(6));
+        item.setPadding(px(10), px(8), px(10), px(8));
+        // Unified M3 card surface, same as the list rows elsewhere
+        GradientDrawable cardBg = new GradientDrawable();
+        cardBg.setColor(getResources().getColor(R.color.surface_elevated));
+        cardBg.setCornerRadius(px(12));
+        item.setBackground(cardBg);
+        LinearLayout.LayoutParams itemParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        itemParams.setMargins(0, 0, 0, px(6));
+        item.setLayoutParams(itemParams);
 
         long commentId = comment.optLong("commentId", 0);
         String content = comment.optString("content", "");
@@ -441,7 +450,7 @@ public class CommentActivity extends BaseWatchActivity {
 
         TextView nickTv = new TextView(this);
         nickTv.setText(nickname);
-        nickTv.setTextColor(0xFF82B1FF);
+        nickTv.setTextColor(getResources().getColor(R.color.colorPrimary));
         nickTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
         nickTv.setSingleLine(true);
         nickTv.setEllipsize(TextUtils.TruncateAt.MARQUEE);

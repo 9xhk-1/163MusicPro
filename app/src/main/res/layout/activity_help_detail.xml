@@ -37,12 +37,9 @@
             android:textSize="14sp"
             android:textStyle="bold" />
 
-        <View
+        <Space
             android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="10dp"
-            android:background="@color/divider" />
+            android:layout_height="10dp" />
 
         <TextView
             android:layout_width="match_parent"

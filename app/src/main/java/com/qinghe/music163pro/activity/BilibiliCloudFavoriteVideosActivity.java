@@ -15,6 +15,7 @@ import android.widget.Toast;
 
 import com.google.android.material.button.MaterialButton;
 import com.qinghe.music163pro.R;
+import com.qinghe.music163pro.util.WatchUiUtils;
 import com.qinghe.music163pro.api.BilibiliApiHelper;
 
 import java.util.ArrayList;
@@ -193,7 +194,7 @@ public class BilibiliCloudFavoriteVideosActivity extends BaseWatchActivity {
         title.setSelected(true);
         bar.addView(title);
 
-        ImageView placeholder = new ImageView(this);
+        ImageView placeholder = WatchUiUtils.createRoundedImage(this);
         placeholder.setLayoutParams(new LinearLayout.LayoutParams(px(22), px(22)));
         bar.addView(placeholder);
         return bar;

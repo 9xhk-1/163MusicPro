@@ -62,6 +62,16 @@
         <item name="hintEnabled">false</item>
     </style>
 
+    <!-- Rounded corners for cover art and avatars. -->
+    <style name="ShapeAppearance.App.ImageRounded" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">8dp</item>
+    </style>
+
+    <style name="Widget.App.ShapeImage" parent="">
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.App.ImageRounded</item>
+    </style>
+
     <!-- A full-width destination on the watch's scrollable menus. -->
     <style name="Widget.App.MenuItem" parent="Widget.Material3.Button.TextButton">
         <item name="android:layout_width">match_parent</item>

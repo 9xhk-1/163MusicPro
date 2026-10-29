@@ -266,7 +266,6 @@ public class AboutActivity extends AppCompatActivity {
      * Convert a value scaled for a 320px-wide watch screen to actual pixels.
      */
     private int px(int baseValue) {
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        return (int) (baseValue * screenWidth / 320f + 0.5f);
+        return (int) (baseValue * getResources().getDisplayMetrics().density + 0.5f);
     }
 }

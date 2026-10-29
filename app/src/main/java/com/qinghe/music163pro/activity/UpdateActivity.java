@@ -81,33 +81,33 @@ public class UpdateActivity extends AppCompatActivity {
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         root.setPadding(px(16), px(24), px(16), px(20));
 
-        TextView tvTitle = makeText("发现新版本", 0xFFFFFFFF, px(20), true, Gravity.CENTER);
+        TextView tvTitle = makeText("发现新版本", 0xFFFFFFFF, px(15), true, Gravity.CENTER);
         root.addView(tvTitle);
 
         root.addView(makeSpacer(px(10)));
 
-        TextView tvMsg = makeText("请选择下载源进行更新", 0xFFCCCCCC, px(15), false, Gravity.CENTER);
+        TextView tvMsg = makeText("请选择下载源进行更新", 0xFFCCCCCC, px(13), false, Gravity.CENTER);
         root.addView(tvMsg);
 
         root.addView(makeSpacer(px(6)));
 
-        tvVersionInfo = makeText("最新版本：获取中...", 0xFFAAAAAA, px(13), false, Gravity.CENTER);
+        tvVersionInfo = makeText("最新版本：获取中...", 0xFFAAAAAA, px(12), false, Gravity.CENTER);
         root.addView(tvVersionInfo);
 
         root.addView(makeSpacer(px(10)));
 
-        TextView tvUpdateTitle = makeText("更新日志", 0xFFFFFFFF, px(16), true, Gravity.START);
+        TextView tvUpdateTitle = makeText("更新日志", 0xFFFFFFFF, px(13), true, Gravity.START);
         root.addView(tvUpdateTitle);
 
         root.addView(makeSpacer(px(4)));
 
-        tvUpdateLog = makeText("正在获取更新日志...", 0xFFAAAAAA, px(13), false, Gravity.START);
+        tvUpdateLog = makeText("正在获取更新日志...", 0xFFAAAAAA, px(12), false, Gravity.START);
         root.addView(tvUpdateLog);
 
         root.addView(makeSpacer(px(10)));
 
         // Hint
-        tvSourceHint = makeText("建议优先选择上面的下载源", 0xFF888888, px(12), false, Gravity.CENTER);
+        tvSourceHint = makeText("建议优先选择上面的下载源", 0xFF888888, px(11), false, Gravity.CENTER);
         tvSourceHint.setVisibility(android.view.View.GONE);
         root.addView(tvSourceHint);
 
@@ -121,15 +121,14 @@ public class UpdateActivity extends AppCompatActivity {
         root.addView(sourcesContainer);
 
         // Loading placeholder
-        TextView tvLoading = makeText("正在获取下载源...", 0xFF888888, px(14), false, Gravity.CENTER);
+        TextView tvLoading = makeText("正在获取下载源...", 0xFF888888, px(12), false, Gravity.CENTER);
         tvLoading.setTag("loading");
         sourcesContainer.addView(tvLoading);
 
         root.addView(makeSpacer(px(12)));
 
         // Progress bar (hidden initially)
-        com.google.android.material.progressindicator.LinearProgressIndicator progressBar =
-                new com.google.android.material.progressindicator.LinearProgressIndicator(this);
+        progressBar = new com.google.android.material.progressindicator.LinearProgressIndicator(this);
         progressBar.setTrackThickness(px(8));
         progressBar.setTrackCornerRadius(px(4));
         progressBar.setIndicatorColor(getResources().getColor(R.color.colorPrimary));
@@ -156,15 +155,18 @@ public class UpdateActivity extends AppCompatActivity {
                 new com.google.android.material.button.MaterialButton(this);
         btnCancel.setText("取消");
         btnCancel.setAllCaps(false);
-        btnCancel.setTextColor(0xFFE6E0E9);
-        btnCancel.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(15));
+        btnCancel.setTextColor(getResources().getColor(R.color.colorPrimary));
+        btnCancel.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
         btnCancel.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
-                getResources().getColor(R.color.surface_variant)));
-        btnCancel.setCornerRadius(px(16));
+                android.graphics.Color.TRANSPARENT));
+        btnCancel.setStrokeColor(android.content.res.ColorStateList.valueOf(
+                getResources().getColor(R.color.colorPrimary)));
+        btnCancel.setStrokeWidth(px(1));
+        btnCancel.setCornerRadius(px(20));
         btnCancel.setInsetTop(0);
         btnCancel.setInsetBottom(0);
-        btnCancel.setMinimumHeight(px(44));
-        btnCancel.setPadding(0, px(10), 0, px(10));
+        btnCancel.setMinimumHeight(px(40));
+        btnCancel.setPadding(0, px(8), 0, px(8));
         LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         btnCancel.setLayoutParams(cancelParams);
@@ -263,7 +265,7 @@ public class UpdateActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 sourcesContainer.removeAllViews();
-                TextView tvErr = makeText("获取下载源失败: " + error, 0xFFFF6666, px(13), false, Gravity.CENTER);
+                TextView tvErr = makeText("获取下载源失败: " + error, 0xFFFF6666, px(12), false, Gravity.CENTER);
                 sourcesContainer.addView(tvErr);
             }
         });
@@ -272,7 +274,7 @@ public class UpdateActivity extends AppCompatActivity {
     private void showSources(List<String> urls) {
         sourcesContainer.removeAllViews();
         if (urls == null || urls.isEmpty()) {
-            TextView tvErr = makeText("暂无可用下载源", 0xFF888888, px(14), false, Gravity.CENTER);
+            TextView tvErr = makeText("暂无可用下载源", 0xFF888888, px(12), false, Gravity.CENTER);
             sourcesContainer.addView(tvErr);
             return;
         }
@@ -304,7 +306,7 @@ public class UpdateActivity extends AppCompatActivity {
             TextView tvIndex = new TextView(this);
             tvIndex.setText(String.valueOf(index + 1));
             tvIndex.setTextColor(0xFFD0BCFF);
-            tvIndex.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
+            tvIndex.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
             tvIndex.setTypeface(tvIndex.getTypeface(), Typeface.BOLD);
             tvIndex.setGravity(Gravity.CENTER);
             LinearLayout.LayoutParams idxParams = new LinearLayout.LayoutParams(px(24), LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -313,7 +315,7 @@ public class UpdateActivity extends AppCompatActivity {
             TextView tvDomain = new TextView(this);
             tvDomain.setText(domain);
             tvDomain.setTextColor(0xFFE6E0E9);
-            tvDomain.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
+            tvDomain.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
             tvDomain.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
             LinearLayout.LayoutParams domainParams = new LinearLayout.LayoutParams(0,
                     LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
@@ -323,7 +325,7 @@ public class UpdateActivity extends AppCompatActivity {
             TextView tvDownload = new TextView(this);
             tvDownload.setText("下载");
             tvDownload.setTextColor(0xFFD0BCFF);
-            tvDownload.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
+            tvDownload.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
             tvDownload.setGravity(Gravity.CENTER);
 
             row.addView(tvIndex);
@@ -468,7 +470,6 @@ public class UpdateActivity extends AppCompatActivity {
     }
 
     private int px(int baseValue) {
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        return (int) (baseValue * screenWidth / 320f + 0.5f);
+        return (int) (baseValue * getResources().getDisplayMetrics().density + 0.5f);
     }
 }

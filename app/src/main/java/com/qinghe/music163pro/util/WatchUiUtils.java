@@ -3,9 +3,10 @@ package com.qinghe.music163pro.util;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.util.DisplayMetrics;
 import android.view.WindowManager;
 
+import com.google.android.material.imageview.ShapeableImageView;
+import com.google.android.material.shape.ShapeAppearanceModel;
 import com.qinghe.music163pro.R;
 
 /**
@@ -15,7 +16,6 @@ public final class WatchUiUtils {
 
     public static final String SETTINGS_PREFERENCES = "music163_settings";
     public static final String KEY_KEEP_SCREEN_ON = "keep_screen_on";
-    private static final float DESIGN_WIDTH_PX = 320f;
 
     private WatchUiUtils() {
     }
@@ -38,12 +38,21 @@ public final class WatchUiUtils {
         if (context == null || baseValue == 0) {
             return baseValue;
         }
-        DisplayMetrics metrics = context.getResources().getDisplayMetrics();
-        int screenWidth = metrics.widthPixels;
-        if (screenWidth <= 0) {
-            screenWidth = (int) DESIGN_WIDTH_PX;
-        }
-        return (int) (baseValue * screenWidth / DESIGN_WIDTH_PX + 0.5f);
+        // Density-based so px(15) matches the 15sp text used across the
+        // sp-sized screens; the old screen-width ratio rendered every value
+        // at half size on the 320px watch panel.
+        return (int) (baseValue * context.getResources().getDisplayMetrics().density + 0.5f);
+    }
+
+    /**
+     * Content image (cover art, avatar) with the app-wide 8dp rounded corners.
+     */
+    public static ShapeableImageView createRoundedImage(Context context) {
+        ShapeableImageView view = new ShapeableImageView(context);
+        float radius = 8f * context.getResources().getDisplayMetrics().density;
+        view.setShapeAppearanceModel(
+                ShapeAppearanceModel.builder().setAllCornerSizes(radius).build());
+        return view;
     }
 
     /**

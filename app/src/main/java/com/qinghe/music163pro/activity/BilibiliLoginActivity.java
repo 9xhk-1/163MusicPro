@@ -59,7 +59,7 @@ public class BilibiliLoginActivity extends BaseWatchActivity {
         container.addView(qrCard);
 
         ivQrCode = new ImageView(this);
-        int qrSize = px(140);
+        int qrSize = (int) (getResources().getDisplayMetrics().widthPixels * 140f / 320f);
         LinearLayout.LayoutParams qrParams = new LinearLayout.LayoutParams(qrSize, qrSize);
         qrParams.gravity = Gravity.CENTER_HORIZONTAL;
         ivQrCode.setLayoutParams(qrParams);

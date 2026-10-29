@@ -131,7 +131,7 @@ public class SongRecognitionActivity extends AppCompatActivity {
         btnRecord = new LinearLayout(this);
         btnRecord.setOrientation(LinearLayout.VERTICAL);
         btnRecord.setGravity(Gravity.CENTER);
-        int diameter = Math.max(px(144), (int) (getResources().getDisplayMetrics().widthPixels * 0.5f));
+        int diameter = (int) (getResources().getDisplayMetrics().widthPixels * 0.5f);
         LinearLayout.LayoutParams circleParams = new LinearLayout.LayoutParams(diameter, diameter);
         btnRecord.setLayoutParams(circleParams);
         btnRecord.setClickable(true);
@@ -658,8 +658,7 @@ public class SongRecognitionActivity extends AppCompatActivity {
     }
 
     private int px(int base) {
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        return (int) (base * screenWidth / 320f + 0.5f);
+        return (int) (base * getResources().getDisplayMetrics().density + 0.5f);
     }
 
     private int calculateRecordedSeconds(long totalBytes) {
