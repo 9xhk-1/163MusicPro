@@ -165,7 +165,9 @@ public class SongInfoActivity extends AppCompatActivity {
         if (al != null) {
             String picUrl = al.optString("picUrl", "");
             if (!picUrl.isEmpty()) {
-                int coverSize = (int) (getResources().getDisplayMetrics().widthPixels * 0.9f);
+                // Square cover sized to the card's inner width: screen minus
+                // the content padding (px(10) x2) and the card padding (px(10) x2).
+                int coverSize = getResources().getDisplayMetrics().widthPixels - px(40);
                 ImageView coverView = WatchUiUtils.createRoundedImage(this);
                 coverView.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 GradientDrawable coverBg = new GradientDrawable();
