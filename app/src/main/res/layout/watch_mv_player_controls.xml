@@ -18,6 +18,47 @@
         android:scaleType="centerInside"
         android:tint="@color/on_primary_container" />
 
+    <!-- Top bar lives inside the controller so it hides/shows together
+         with the progress bar. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="6dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="6dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_mv_player_back"
+            style="@style/Widget.App.PlayerIcon"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:backgroundTint="@android:color/transparent"
+            android:contentDescription="@string/back"
+            app:icon="@drawable/ic_arrow_back"
+            app:iconSize="18dp"
+            app:iconTint="@color/text_primary" />
+
+        <TextView
+            android:id="@+id/tv_mv_player_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:layout_weight="1"
+            android:ellipsize="marquee"
+            android:marqueeRepeatLimit="marquee_forever"
+            android:maxLines="1"
+            android:shadowColor="#000000"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="4"
+            android:textColor="@color/text_primary"
+            android:textSize="12sp" />
+    </LinearLayout>
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

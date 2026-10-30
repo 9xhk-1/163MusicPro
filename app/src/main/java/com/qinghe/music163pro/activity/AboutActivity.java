@@ -31,6 +31,7 @@ public class AboutActivity extends AppCompatActivity {
             "加载中...";
 
     private TextView overviewTextView;
+    private LinearLayout content;
     private LinearLayout updateContainer;
 
     @Override
@@ -48,70 +49,62 @@ public class AboutActivity extends AppCompatActivity {
         scrollView.setBackgroundColor(getResources().getColor(R.color.bg_dark));
         scrollView.setFillViewport(true);
 
-        LinearLayout content = new LinearLayout(this);
+        content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(px(12), px(10), px(12), px(16));
 
         // Title
         content.addView(makeText("关于", 0xFFFFFFFF, px(14), true, Gravity.CENTER));
 
-        // App name
-        content.addView(makeSpacer(px(10)));
-        content.addView(makeText("163音乐Pro", 0xFFFFFFFF, px(14), true, Gravity.CENTER));
+        // App info card
+        LinearLayout infoCard = makeCard();
+        content.addView(infoCard);
+        infoCard.addView(makeText("163音乐Pro", 0xFFFFFFFF, px(14), true, Gravity.CENTER));
 
         // Version
-        content.addView(makeSpacer(px(4)));
+        infoCard.addView(makeSpacer(px(4)));
         String versionName = "unknown";
         try {
             versionName = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
         } catch (Exception ignored) {}
-        content.addView(makeText("版本: " + versionName, 0xFFCCCCCC, px(12), false, Gravity.CENTER));
+        infoCard.addView(makeText("版本: " + versionName, 0xFFCCCCCC, px(12), false, Gravity.CENTER));
 
         // Developer
-        content.addView(makeSpacer(px(4)));
-        content.addView(makeText("开发者: Qinghe", 0xFFCCCCCC, px(12), false, Gravity.CENTER));
-        content.addView(makeSpacer(px(4)));
-        content.addView(makeText("官网: ", 0xFFCCCCCC, px(12), false, Gravity.CENTER));
-        TextView linkTv = makeText("https://163.imoow.com", 0xFF5599CC, px(12), false, Gravity.CENTER);
+        infoCard.addView(makeSpacer(px(4)));
+        infoCard.addView(makeText("开发者: Qinghe", 0xFFCCCCCC, px(12), false, Gravity.CENTER));
+        infoCard.addView(makeSpacer(px(4)));
+        infoCard.addView(makeText("官网: ", 0xFFCCCCCC, px(12), false, Gravity.CENTER));
+        TextView linkTv = makeText("https://163.imoow.com",
+                getResources().getColor(R.color.colorPrimary), px(12), false, Gravity.CENTER);
         Linkify.addLinks(linkTv, Linkify.WEB_URLS);
-        content.addView(linkTv);
+        infoCard.addView(linkTv);
 
-        // Divider
-        content.addView(makeSpacer(px(8)));
-        content.addView(makeDivider());
-
-        // Description
-        content.addView(makeSpacer(px(8)));
-        content.addView(makeText("软件概述", 0xFFFFFFFF, px(13), true, Gravity.START));
-        content.addView(makeSpacer(px(4)));
+        // Overview card
+        LinearLayout overviewCard = makeCard();
+        content.addView(overviewCard);
+        overviewCard.addView(makeText("软件概述", 0xFFFFFFFF, px(13), true, Gravity.START));
+        overviewCard.addView(makeSpacer(px(4)));
         overviewTextView = makeText(DEFAULT_OVERVIEW, 0xFFAAAAAA, px(13), false, Gravity.START);
-        content.addView(overviewTextView);
+        overviewCard.addView(overviewTextView);
 
-        // Divider
-        content.addView(makeSpacer(px(8)));
-        content.addView(makeDivider());
-
-        // Feedback section
-        content.addView(makeSpacer(px(8)));
-        content.addView(makeText("问题反馈", 0xFFFFFFFF, px(13), true, Gravity.START));
-        content.addView(makeSpacer(px(4)));
-        content.addView(makeText("遇到问题或有建议，欢迎通过以下方式反馈：",
+        // Feedback card
+        LinearLayout feedbackCard = makeCard();
+        content.addView(feedbackCard);
+        feedbackCard.addView(makeText("问题反馈", 0xFFFFFFFF, px(13), true, Gravity.START));
+        feedbackCard.addView(makeSpacer(px(4)));
+        feedbackCard.addView(makeText("遇到问题或有建议，欢迎通过以下方式反馈：",
                 0xFFAAAAAA, px(13), false, Gravity.START));
-        content.addView(makeSpacer(px(6)));
+        feedbackCard.addView(makeSpacer(px(6)));
         // Email row
-        content.addView(makeIconTextRow(R.drawable.ic_email, "邮箱：mail@9x.hk",
-                0xFF5599CC, px(13), true));
-        content.addView(makeSpacer(px(4)));
+        feedbackCard.addView(makeIconTextRow(R.drawable.ic_email, "邮箱：mail@9x.hk",
+                getResources().getColor(R.color.colorPrimary), px(13), true));
+        feedbackCard.addView(makeSpacer(px(4)));
         // QQ row
-        content.addView(makeIconTextRow(R.drawable.ic_chat_bubble, "QQ：3686072365",
-                0xFF5599CC, px(13), false));
+        feedbackCard.addView(makeIconTextRow(R.drawable.ic_chat_bubble, "QQ：3686072365",
+                getResources().getColor(R.color.colorPrimary), px(13), false));
 
-        // Divider
-        content.addView(makeSpacer(px(8)));
-        content.addView(makeDivider());
-
-        updateContainer = new LinearLayout(this);
-        updateContainer.setOrientation(LinearLayout.VERTICAL);
+        // Update logs card
+        updateContainer = makeCard();
         content.addView(updateContainer);
         renderAboutContent(DEFAULT_OVERVIEW, getDefaultUpdateLogs());
 
@@ -194,6 +187,19 @@ public class AboutActivity extends AppCompatActivity {
         items.add(new ImoowApiHelper.UpdateLogItem("加载中...", Arrays.asList(
                 "加载中...")));
         return items;
+    }
+
+    /** Unified M3 card container added to the page content with spacing. */
+    private LinearLayout makeCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackgroundResource(R.drawable.bg_card_rounded);
+        card.setPadding(px(10), px(8), px(10), px(8));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMargins(0, 0, 0, px(6));
+        content.addView(card, params);
+        return card;
     }
 
     private TextView makeText(String text, int color, int sizePx, boolean bold, int gravity) {
