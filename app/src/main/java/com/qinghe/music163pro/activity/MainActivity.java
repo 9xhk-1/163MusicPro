@@ -1462,6 +1462,18 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
 
 
+
+    /**
+     * Unified compact MD3 card for function overlay panels: rounded surface,
+     * 16/24dp screen margins, wrap-content height centered on the scrim.
+     */
+    private void applyOverlayCard(LinearLayout content, int width, int height, int gravity) {
+        content.setBackgroundResource(R.drawable.bg_panel_rounded);
+        FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(width, height, gravity);
+        p.setMargins(dp(16), dp(24), dp(16), dp(24));
+        content.setLayoutParams(p);
+    }
+
     private void onFuncDownload(Song song) {
         dismissOverlay();
         if (song.isBilibili() && DownloadManager.isDownloaded(song)) {
@@ -1635,7 +1647,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         LinearLayout contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
         contentLayout.setGravity(Gravity.CENTER);
-        contentLayout.setPadding(dp(20), dp(16), dp(20), dp(16));
+        contentLayout.setPadding(dp(12), dp(4), dp(12), dp(12));
+        applyOverlayCard(contentLayout,
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER);
         contentLayout.addView(createOverlayTitleBar("播放器信息"));
 
         LinearLayout lines = new LinearLayout(this);
@@ -2439,11 +2454,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         LinearLayout contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
-        contentLayout.setPadding(dp(8), dp(8), dp(8), dp(8));
-        contentLayout.setBackgroundColor(getResources().getColor(R.color.surface));
-        FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
-        contentLayout.setLayoutParams(contentParams);
+        contentLayout.setPadding(dp(8), dp(2), dp(8), dp(8));
+        applyOverlayCard(contentLayout,
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT,
+                Gravity.CENTER);
         contentLayout.setOnClickListener(v -> { /* consume click */ });
 
         // Title bar
@@ -2508,7 +2522,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         LinearLayout contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
         contentLayout.setGravity(Gravity.CENTER);
-        contentLayout.setPadding(dp(20), dp(20), dp(20), dp(20));
+        contentLayout.setPadding(dp(12), dp(4), dp(12), dp(12));
+        applyOverlayCard(contentLayout,
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER);
 
         // Title bar with close button
         contentLayout.addView(createOverlayTitleBar("倍速播放"));
@@ -2632,7 +2649,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         LinearLayout contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
         contentLayout.setGravity(Gravity.CENTER);
-        contentLayout.setPadding(dp(20), dp(16), dp(20), dp(16));
+        contentLayout.setPadding(dp(12), dp(4), dp(12), dp(12));
+        applyOverlayCard(contentLayout,
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER);
 
         String title = saveAsPreferred ? "播放音质" : "下载音质";
         contentLayout.addView(createOverlayTitleBar(title));
@@ -3062,19 +3082,19 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Wrap content in ScrollView for small watch screens
         ScrollView scrollView = new ScrollView(this);
         FrameLayout.LayoutParams scrollParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        scrollParams.gravity = Gravity.CENTER;
         scrollView.setLayoutParams(scrollParams);
-        scrollView.setFillViewport(true);
+        scrollView.setOnClickListener(v -> { /* consume click */ });
 
         LinearLayout contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
         contentLayout.setGravity(Gravity.CENTER);
-        contentLayout.setPadding(dp(16), dp(12), dp(16), dp(12));
+        contentLayout.setPadding(dp(12), dp(4), dp(12), dp(12));
         contentLayout.setOnClickListener(v -> { /* consume click */ });
-
-        LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        contentLayout.setLayoutParams(contentParams);
+        applyOverlayCard(contentLayout,
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER);
 
         // Title bar with close button
         contentLayout.addView(createOverlayTitleBar("节选铃声"));
@@ -3487,7 +3507,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         LinearLayout contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
         contentLayout.setGravity(Gravity.CENTER);
-        contentLayout.setPadding(dp(20), dp(20), dp(20), dp(20));
+        contentLayout.setPadding(dp(12), dp(4), dp(12), dp(12));
+        applyOverlayCard(contentLayout,
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER);
 
         // Title bar with close button
         contentLayout.addView(createOverlayTitleBar("定时关闭"));
@@ -3572,13 +3595,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         LinearLayout contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
         contentLayout.setGravity(Gravity.CENTER);
-        contentLayout.setPadding(dp(12), dp(8), dp(12), dp(8));
+        contentLayout.setPadding(dp(12), dp(4), dp(12), dp(12));
         contentLayout.setOnClickListener(v -> { /* consume click */ });
-
-        FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        contentParams.gravity = Gravity.CENTER;
-        contentLayout.setLayoutParams(contentParams);
+        applyOverlayCard(contentLayout,
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER);
 
         // Title bar with close button
         contentLayout.addView(createOverlayTitleBar("定时关闭"));
