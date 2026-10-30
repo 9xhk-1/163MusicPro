@@ -373,7 +373,6 @@ public class SongInfoActivity extends AppCompatActivity {
         // Get a user-friendly title for the block
         String blockTitle = getBlockTitle(blockCode);
         sectionAdd(makeSpacer(px(6)));
-        sectionAdd(makeDivider());
         sectionAdd(makeSpacer(px(6)));
         addSectionHeader(getBlockIconRes(blockCode), blockTitle);
 
@@ -965,7 +964,6 @@ public class SongInfoActivity extends AppCompatActivity {
         }
 
         sectionAdd(makeSpacer(px(6)));
-        sectionAdd(makeDivider());
         sectionAdd(makeSpacer(px(6)));
         addSectionHeader(R.drawable.ic_mic, "歌手百科");
 

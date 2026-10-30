@@ -58,7 +58,6 @@ public class AboutActivity extends AppCompatActivity {
 
         // App info card
         LinearLayout infoCard = makeCard();
-        content.addView(infoCard);
         infoCard.addView(makeText("163音乐Pro", 0xFFFFFFFF, px(14), true, Gravity.CENTER));
 
         // Version
@@ -81,7 +80,6 @@ public class AboutActivity extends AppCompatActivity {
 
         // Overview card
         LinearLayout overviewCard = makeCard();
-        content.addView(overviewCard);
         overviewCard.addView(makeText("软件概述", 0xFFFFFFFF, px(13), true, Gravity.START));
         overviewCard.addView(makeSpacer(px(4)));
         overviewTextView = makeText(DEFAULT_OVERVIEW, 0xFFAAAAAA, px(13), false, Gravity.START);
@@ -89,7 +87,6 @@ public class AboutActivity extends AppCompatActivity {
 
         // Feedback card
         LinearLayout feedbackCard = makeCard();
-        content.addView(feedbackCard);
         feedbackCard.addView(makeText("问题反馈", 0xFFFFFFFF, px(13), true, Gravity.START));
         feedbackCard.addView(makeSpacer(px(4)));
         feedbackCard.addView(makeText("遇到问题或有建议，欢迎通过以下方式反馈：",
