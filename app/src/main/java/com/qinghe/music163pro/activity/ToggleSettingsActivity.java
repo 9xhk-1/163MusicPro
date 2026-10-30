@@ -171,19 +171,13 @@ public class ToggleSettingsActivity extends AppCompatActivity {
                     Toast.LENGTH_SHORT).show();
         });
 
-        // Favorites mode: tap to cycle (本地 / 云端)
-        if (rowFavMode != null) rowFavMode.setOnClickListener(v -> cycleFavMode());
-
-        // Sleep timer mode: tap to cycle (总时长 / 播放净时长)
-        if (rowSleepTimerMode != null) rowSleepTimerMode.setOnClickListener(v -> cycleSleepTimerMode());
-
-        // Random-skip mode: tap to cycle (列表顺序 / 随机)
-        if (rowRandomSkipMode != null) rowRandomSkipMode.setOnClickListener(v -> cycleRandomSkipMode());
-
-        // Speed mode: tap row to cycle through 3 values
-        rowSpeedMode.setOnClickListener(v -> cycleSpeedMode());
-        rowRecognitionMode.setOnClickListener(v -> cycleRecognitionMode());
-        rowLyricScrollMode.setOnClickListener(v -> cycleLyricScrollMode());
+        // Selection rows all open a single-choice dialog (same as 图片保存地址)
+        if (rowFavMode != null) rowFavMode.setOnClickListener(v -> editFavMode());
+        if (rowSleepTimerMode != null) rowSleepTimerMode.setOnClickListener(v -> editSleepTimerMode());
+        if (rowRandomSkipMode != null) rowRandomSkipMode.setOnClickListener(v -> editRandomSkipMode());
+        rowSpeedMode.setOnClickListener(v -> editSpeedMode());
+        rowRecognitionMode.setOnClickListener(v -> editRecognitionMode());
+        rowLyricScrollMode.setOnClickListener(v -> editLyricScrollMode());
         rowLyricResumeInterval.setOnClickListener(v -> editLyricResumeInterval());
         if (rowImageSaveDir != null) rowImageSaveDir.setOnClickListener(v -> editImageSaveDir());
     }
@@ -213,14 +207,35 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         updateImageSaveDirValue();
     }
 
-    private void cycleRandomSkipMode() {
-        boolean current = prefs.getBoolean(PREF_RANDOM_SKIP_RANDOM, false);
-        boolean next = !current;
-        prefs.edit().putBoolean(PREF_RANDOM_SKIP_RANDOM, next).apply();
-        updateRandomSkipModeValue();
-        Toast.makeText(this,
-                "随机播放切歌顺序: " + (next ? "随机" : "列表顺序"),
-                Toast.LENGTH_SHORT).show();
+    /** Callback for showChoiceDialog (int consumer; java.util.function needs API 24). */
+    private interface IntPicker {
+        void pick(int which);
+    }
+
+    /**
+     * Single-choice dialog used by every non-switch selection row — same
+     * interaction as 图片保存地址: current value pre-checked, tap to apply.
+     */
+    private void showChoiceDialog(String title, String[] labels, int checked, IntPicker onPick) {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(title)
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    dialog.dismiss();
+                    onPick.pick(which);
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void editRandomSkipMode() {
+        boolean random = prefs.getBoolean(PREF_RANDOM_SKIP_RANDOM, false);
+        showChoiceDialog("随机播放切歌顺序", new String[]{"列表顺序", "随机"}, random ? 1 : 0, which -> {
+            prefs.edit().putBoolean(PREF_RANDOM_SKIP_RANDOM, which == 1).apply();
+            updateRandomSkipModeValue();
+            Toast.makeText(this,
+                    "随机播放切歌顺序: " + (which == 1 ? "随机" : "列表顺序"),
+                    Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void updateRandomSkipModeValue() {
@@ -229,12 +244,14 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         tvRandomSkipModeValue.setText(random ? "随机" : "列表顺序");
     }
 
-    private void cycleFavMode() {
+    private void editFavMode() {
         boolean isCloud = prefs.getBoolean(PREF_FAV_MODE_CLOUD, false);
-        boolean newCloud = !isCloud;
-        prefs.edit().putBoolean(PREF_FAV_MODE_CLOUD, newCloud).apply();
-        updateFavModeValue();
-        Toast.makeText(this, "收藏模式已切换为: " + (newCloud ? "云端" : "本地"), Toast.LENGTH_SHORT).show();
+        showChoiceDialog("收藏模式", new String[]{"本地", "云端"}, isCloud ? 1 : 0, which -> {
+            prefs.edit().putBoolean(PREF_FAV_MODE_CLOUD, which == 1).apply();
+            updateFavModeValue();
+            Toast.makeText(this, "收藏模式已切换为: " + (which == 1 ? "云端" : "本地"),
+                    Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void updateFavModeValue() {
@@ -243,13 +260,14 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         tvFavModeValue.setText(isCloud ? "云端" : "本地");
     }
 
-    private void cycleSleepTimerMode() {
-        int current = prefs.getInt(PREF_SLEEP_TIMER_MODE, SLEEP_TIMER_TOTAL);
-        int next = (current + 1) % 2;
-        prefs.edit().putInt(PREF_SLEEP_TIMER_MODE, next).apply();
-        updateSleepTimerModeValue();
-        String[] labels = {"总时长", "播放净时长"};
-        Toast.makeText(this, "定时关闭模式: " + labels[next], Toast.LENGTH_SHORT).show();
+    private void editSleepTimerMode() {
+        int mode = prefs.getInt(PREF_SLEEP_TIMER_MODE, SLEEP_TIMER_TOTAL);
+        showChoiceDialog("定时关闭模式", new String[]{"总时长", "播放净时长"}, mode, which -> {
+            prefs.edit().putInt(PREF_SLEEP_TIMER_MODE, which).apply();
+            updateSleepTimerModeValue();
+            Toast.makeText(this, "定时关闭模式: " + (which == 1 ? "播放净时长" : "总时长"),
+                    Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void updateSleepTimerModeValue() {
@@ -259,17 +277,21 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         tvSleepTimerModeValue.setText(labels[mode]);
     }
 
-    private void cycleSpeedMode() {
-        int current = prefs.getInt("speed_mode", 0);
-        int next = (current + 1) % 3;
-        prefs.edit().putInt("speed_mode", next).apply();
-        MusicPlayerManager.getInstance().setSpeedMode(next);
-        updateSpeedModeValue();
-        String[] modeNames = {"音调不变", "音调改变且速度改变", "音调改变但速度不变"};
-        Toast.makeText(this, "变速模式: " + modeNames[next], Toast.LENGTH_SHORT).show();
-        if (next == 2) {
-            Toast.makeText(this, "注意：此模式变速幅度不能太大，否则播放可能会出问题（如有杂音等）", Toast.LENGTH_LONG).show();
-        }
+    private void editSpeedMode() {
+        int mode = prefs.getInt("speed_mode", 0);
+        showChoiceDialog("变速模式",
+                new String[]{"音调不变", "音调改变且速度改变", "音调改变但速度不变"}, mode, which -> {
+            prefs.edit().putInt("speed_mode", which).apply();
+            MusicPlayerManager.getInstance().setSpeedMode(which);
+            updateSpeedModeValue();
+            Toast.makeText(this, "变速模式: "
+                    + (which == 0 ? "音调不变" : which == 1 ? "音调改变且速度改变" : "音调改变但速度不变"),
+                    Toast.LENGTH_SHORT).show();
+            if (which == 2) {
+                Toast.makeText(this, "注意：此模式变速幅度不能太大，否则播放可能会出问题（如有杂音等）",
+                        Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     private void updateSpeedModeValue() {
@@ -278,13 +300,14 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         tvSpeedModeValue.setText(labels[mode]);
     }
 
-    private void cycleRecognitionMode() {
-        int current = prefs.getInt(PREF_RECOGNITION_MODE, MODE_AUTO);
-        int next = (current + 1) % 2;
-        prefs.edit().putInt(PREF_RECOGNITION_MODE, next).apply();
-        updateRecognitionModeValue();
-        String[] labels = {"手动暂停", "自动识别"};
-        Toast.makeText(this, "听歌识曲模式: " + labels[next], Toast.LENGTH_SHORT).show();
+    private void editRecognitionMode() {
+        int mode = prefs.getInt(PREF_RECOGNITION_MODE, MODE_AUTO);
+        showChoiceDialog("听歌识曲模式", new String[]{"手动暂停", "自动识别"}, mode, which -> {
+            prefs.edit().putInt(PREF_RECOGNITION_MODE, which).apply();
+            updateRecognitionModeValue();
+            Toast.makeText(this, "听歌识曲模式: " + (which == 1 ? "自动识别" : "手动暂停"),
+                    Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void updateRecognitionModeValue() {
@@ -293,13 +316,14 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         tvRecognitionModeValue.setText(labels[mode]);
     }
 
-    private void cycleLyricScrollMode() {
-        int current = prefs.getInt(PREF_LYRIC_SCROLL_MODE, LYRIC_MODE_BLOCK);
-        int next = (current + 1) % 2;
-        prefs.edit().putInt(PREF_LYRIC_SCROLL_MODE, next).apply();
-        updateLyricScrollModeValue();
-        String[] labels = {"每行", "阻塞"};
-        Toast.makeText(this, "歌词滚动模式: " + labels[next], Toast.LENGTH_SHORT).show();
+    private void editLyricScrollMode() {
+        int mode = prefs.getInt(PREF_LYRIC_SCROLL_MODE, LYRIC_MODE_BLOCK);
+        showChoiceDialog("歌词滚动模式", new String[]{"每行", "阻塞"}, mode, which -> {
+            prefs.edit().putInt(PREF_LYRIC_SCROLL_MODE, which).apply();
+            updateLyricScrollModeValue();
+            Toast.makeText(this, "歌词滚动模式: " + (which == 1 ? "阻塞" : "每行"),
+                    Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void updateLyricScrollModeValue() {
@@ -313,8 +337,33 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         }
     }
 
+    private static final int[] LYRIC_RESUME_PRESETS = {1, 2, 3, 5, 10, 15, 30, 60};
+
     private void editLyricResumeInterval() {
         int current = prefs.getInt(PREF_LYRIC_RESUME_INTERVAL, 3);
+        String[] labels = new String[LYRIC_RESUME_PRESETS.length + 1];
+        int checked = -1;
+        for (int i = 0; i < LYRIC_RESUME_PRESETS.length; i++) {
+            labels[i] = LYRIC_RESUME_PRESETS[i] + "秒";
+            if (LYRIC_RESUME_PRESETS[i] == current) checked = i;
+        }
+        labels[labels.length - 1] = "自定义...";
+        showChoiceDialog("歌词恢复间隔", labels, checked, which -> {
+            if (which < LYRIC_RESUME_PRESETS.length) {
+                applyLyricResumeInterval(LYRIC_RESUME_PRESETS[which]);
+            } else {
+                promptCustomLyricResumeInterval(current);
+            }
+        });
+    }
+
+    private void applyLyricResumeInterval(int seconds) {
+        prefs.edit().putInt(PREF_LYRIC_RESUME_INTERVAL, seconds).apply();
+        updateLyricResumeIntervalValue();
+        Toast.makeText(this, "歌词恢复间隔: " + seconds + "秒", Toast.LENGTH_SHORT).show();
+    }
+
+    private void promptCustomLyricResumeInterval(int current) {
         com.google.android.material.textfield.TextInputLayout inputWrap =
                 com.qinghe.music163pro.util.WatchUiUtils.createWatchTextInput(this, "恢复间隔（秒）");
         EditText input = (com.google.android.material.textfield.TextInputEditText) inputWrap.getEditText();
@@ -340,9 +389,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
                         if (seconds < 1) seconds = 1;
                         if (seconds > 60) seconds = 60;
                     } catch (NumberFormatException ignored) {}
-                    prefs.edit().putInt(PREF_LYRIC_RESUME_INTERVAL, seconds).apply();
-                    updateLyricResumeIntervalValue();
-                    Toast.makeText(this, "歌词恢复间隔: " + seconds + "秒", Toast.LENGTH_SHORT).show();
+                    applyLyricResumeInterval(seconds);
                 })
                 .setNegativeButton("取消", null)
                 .show();
