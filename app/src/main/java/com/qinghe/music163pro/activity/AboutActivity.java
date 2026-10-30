@@ -102,7 +102,6 @@ public class AboutActivity extends AppCompatActivity {
 
         // Update logs card
         updateContainer = makeCard();
-        content.addView(updateContainer);
         renderAboutContent(DEFAULT_OVERVIEW, getDefaultUpdateLogs());
 
         scrollView.addView(content);

@@ -1656,38 +1656,43 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         LinearLayout lines = new LinearLayout(this);
         lines.setOrientation(LinearLayout.VERTICAL);
         for (String line : playerManager.getCurrentPlayerInfoLines()) {
-            // "label: value" pairs render as a small secondary label row
-            // above the value; only values too long for the panel (URLs)
-            // marquee, short values stay static.
+            // One rounded box per entry, like the download dialog's option
+            // rows: label in secondary on the left, value (marquee when too
+            // long) filling the rest.
+            LinearLayout box = new LinearLayout(this);
+            box.setOrientation(LinearLayout.HORIZONTAL);
+            box.setGravity(Gravity.CENTER_VERTICAL);
+            box.setBackgroundResource(R.drawable.bg_field_rounded);
+            box.setPadding(dp(10), dp(8), dp(10), dp(8));
+
             int sep = line.indexOf(": ");
+            TextView value = new TextView(this);
+            value.setTextSize(12);
+            value.setSingleLine(true);
+            value.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
+            value.setMarqueeRepeatLimit(-1);
+            value.setSelected(true);
+            value.setTextColor(0xFFE6E0E9);
             if (sep > 0) {
                 TextView label = new TextView(this);
-                label.setText(line.substring(0, sep));
+                label.setText(line.substring(0, sep) + "：");
                 label.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
                 label.setTextSize(10);
-                label.setPadding(dp(10), dp(6), dp(10), 0);
-                lines.addView(label, new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-                TextView value = new TextView(this);
+                label.setPadding(0, 0, dp(6), 0);
+                box.addView(label, new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
                 value.setText(line.substring(sep + 2));
-                value.setTextColor(0xFFE6E0E9);
-                value.setTextSize(12);
-                value.setPadding(dp(10), 0, dp(10), dp(4));
-                value.setSingleLine(true);
-                value.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
-                value.setMarqueeRepeatLimit(-1);
-                value.setSelected(true);
-                lines.addView(value, new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
             } else {
-                TextView textView = new TextView(this);
-                textView.setText(line);
-                textView.setTextColor(0xFFE6E0E9);
-                textView.setTextSize(12);
-                textView.setPadding(dp(10), dp(6), dp(10), dp(6));
-                lines.addView(textView, new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+                value.setText(line);
             }
+            LinearLayout.LayoutParams valueParams = new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            box.addView(value, valueParams);
+
+            LinearLayout.LayoutParams boxParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            boxParams.setMargins(0, 0, 0, dp(4));
+            lines.addView(box, boxParams);
         }
 
         contentLayout.addView(lines, new LinearLayout.LayoutParams(
