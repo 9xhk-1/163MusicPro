@@ -38,7 +38,7 @@ public final class BackgroundUtil {
     private static final String PREFS_NAME = "music163_settings";
     private static final String KEY_MODE = "background_mode";
     private static final String FILE_NAME = "custom_background.jpg";
-    private static final int DEFAULT_BG_COLOR = 0xFF121212;
+    private static final int DEFAULT_BG_COLOR = 0xFF141218;
     private static final int SCRIM_ALPHA = 150; // 0..255
 
     private static final Handler MAIN = new Handler(Looper.getMainLooper());

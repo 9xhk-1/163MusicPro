@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_dark"
@@ -42,7 +43,7 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_qr_login"
                 android:layout_width="match_parent"
-                android:layout_height="36dp"
+                android:layout_height="48dp"
                 android:text="@string/qr_login"
                 android:textSize="13sp"
                 android:textAllCaps="false"
@@ -51,7 +52,7 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_captcha_login"
                 android:layout_width="match_parent"
-                android:layout_height="36dp"
+                android:layout_height="48dp"
                 android:layout_marginTop="6dp"
                 android:text="@string/captcha_login"
                 android:textSize="13sp"
@@ -61,7 +62,7 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_cookie_login_entry"
                 android:layout_width="match_parent"
-                android:layout_height="36dp"
+                android:layout_height="48dp"
                 android:layout_marginTop="6dp"
                 android:text="@string/cookie_login"
                 android:textSize="13sp"
@@ -98,7 +99,7 @@
                 android:id="@+id/tv_user_id"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@color/surface_elevated"
+                android:background="@drawable/bg_field_rounded"
                 android:padding="8dp"
                 android:singleLine="true"
                 android:ellipsize="marquee"
@@ -120,7 +121,7 @@
                 android:id="@+id/tv_nickname"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@color/surface_elevated"
+                android:background="@drawable/bg_field_rounded"
                 android:padding="8dp"
                 android:singleLine="true"
                 android:ellipsize="marquee"
@@ -138,23 +139,26 @@
                 android:textSize="11sp"
                 android:paddingBottom="2dp" />
 
-            <EditText
-                android:id="@+id/et_cookie"
+            <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
-                android:layout_height="64dp"
-                android:background="@color/surface_elevated"
-                android:gravity="top|start"
-                android:hint="@string/cookie_hint"
-                android:inputType="textMultiLine"
-                android:padding="8dp"
-                android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_disabled"
-                android:textSize="10sp" />
+                android:layout_height="wrap_content"
+                style="@style/Widget.App.TextInputLayout"
+                app:hintEnabled="false">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_cookie"
+                    android:layout_width="match_parent"
+                    android:layout_height="64dp"
+                    android:gravity="top|start"
+                    android:hint="@string/cookie_hint"
+                    android:inputType="textMultiLine"
+                    android:padding="8dp"
+                    android:textSize="12sp" />
+            </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_save_cookie"
                 android:layout_width="match_parent"
-                android:layout_height="36dp"
+                android:layout_height="48dp"
                 android:layout_marginTop="8dp"
                 android:text="@string/save_cookie"
                 android:textSize="13sp"
@@ -164,7 +168,7 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_copy_cookie"
                 android:layout_width="match_parent"
-                android:layout_height="36dp"
+                android:layout_height="48dp"
                 android:layout_marginTop="6dp"
                 android:text="@string/copy_cookie"
                 android:textSize="13sp"
@@ -174,7 +178,7 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_logout"
                 android:layout_width="match_parent"
-                android:layout_height="36dp"
+                android:layout_height="48dp"
                 android:layout_marginTop="6dp"
                 android:text="@string/logout"
                 android:textColor="@color/colorError"

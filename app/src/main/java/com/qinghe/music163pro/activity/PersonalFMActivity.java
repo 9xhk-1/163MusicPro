@@ -11,6 +11,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import com.qinghe.music163pro.R;
 
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.player.MusicPlayerManager;
@@ -35,7 +36,7 @@ public class PersonalFMActivity extends AppCompatActivity {
 
         // Wrap content in a ScrollView so small watch screens can scroll
         ScrollView scrollView = new ScrollView(this);
-        scrollView.setBackgroundColor(0xFF121212);
+        scrollView.setBackgroundColor(getResources().getColor(R.color.bg_dark));
         scrollView.setFillViewport(true);
 
         LinearLayout root = new LinearLayout(this);
@@ -48,8 +49,8 @@ public class PersonalFMActivity extends AppCompatActivity {
         // Title
         TextView tvTitle = new TextView(this);
         tvTitle.setText("私人漫游");
-        tvTitle.setTextColor(0xFFFFFFFF);
-        tvTitle.setTextSize(16);
+        tvTitle.setTextColor(0xFFE6E0E9);
+        tvTitle.setTextSize(15);
         tvTitle.setGravity(Gravity.CENTER);
         tvTitle.setPadding(0, 0, 0, dp(16));
         tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -58,7 +59,7 @@ public class PersonalFMActivity extends AppCompatActivity {
         // Description
         TextView tvDesc = new TextView(this);
         tvDesc.setText("选择漫游模式开始播放");
-        tvDesc.setTextColor(0x80FFFFFF);
+        tvDesc.setTextColor(0xFFCAC4D0);
         tvDesc.setTextSize(12);
         tvDesc.setGravity(Gravity.CENTER);
         tvDesc.setPadding(0, 0, 0, dp(20));
@@ -67,57 +68,35 @@ public class PersonalFMActivity extends AppCompatActivity {
         // Mode: 默认
         addModeButton(root, "默认模式", "个性化推荐", () -> startPersonalFM("DEFAULT", ""));
 
-        addDivider(root);
-
         // Mode: 熟悉
         addModeButton(root, "熟悉模式", "多播放你熟悉的歌曲", () -> startPersonalFM("FAMILIAR", ""));
-
-        addDivider(root);
 
         // Mode: 探索
         addModeButton(root, "探索模式", "发现你不熟悉的新音乐", () -> startPersonalFM("EXPLORE", ""));
 
-        addDivider(root);
-
         // Mode: 运动场景 (SCENE_RCMD / EXERCISE)
         addModeButton(root, "运动场景", "节奏感强的运动陪伴", () -> startPersonalFM("SCENE_RCMD", "EXERCISE"));
-
-        addDivider(root);
 
         // Mode: 专注场景 (SCENE_RCMD / FOCUS)
         addModeButton(root, "专注场景", "适合安静专注的氛围", () -> startPersonalFM("SCENE_RCMD", "FOCUS"));
 
-        addDivider(root);
-
         // Mode: 夜晚情绪 (SCENE_RCMD / NIGHT_EMO)
         addModeButton(root, "夜晚情绪", "夜晚安静放松的心情", () -> startPersonalFM("SCENE_RCMD", "NIGHT_EMO"));
-
-        addDivider(root);
 
         // Mode: AI DJ
         addModeButton(root, "AI DJ", "AI主播智能推荐", () -> startPersonalFM("aidj", ""));
 
-        // Back button
-        TextView btnBack = new TextView(this);
-        btnBack.setText("返回");
-        btnBack.setTextColor(0x80FFFFFF);
-        btnBack.setTextSize(13);
-        btnBack.setGravity(Gravity.CENTER);
-        btnBack.setPadding(0, dp(16), 0, dp(8));
-        btnBack.setClickable(true);
-        btnBack.setFocusable(true);
-        btnBack.setOnClickListener(v -> finish());
-        root.addView(btnBack);
     }
 
     private void addModeButton(LinearLayout root, String title, String subtitle, Runnable action) {
         LinearLayout btn = new LinearLayout(this);
         btn.setOrientation(LinearLayout.VERTICAL);
         btn.setGravity(Gravity.CENTER);
-        btn.setPadding(dp(12), dp(14), dp(12), dp(14));
+        btn.setPadding(dp(12), dp(12), dp(12), dp(12));
         btn.setClickable(true);
         btn.setFocusable(true);
-        btn.setBackground(makeRoundBackground(0xFF2D2D2D));
+        btn.setBackground(makeRoundBackground(
+                getResources().getColor(R.color.surface_elevated), dp(16)));
         LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         btnParams.bottomMargin = dp(8);
@@ -125,16 +104,16 @@ public class PersonalFMActivity extends AppCompatActivity {
 
         TextView tvTitle = new TextView(this);
         tvTitle.setText(title);
-        tvTitle.setTextColor(0xFFFFFFFF);
+        tvTitle.setTextColor(getResources().getColor(R.color.text_primary));
         tvTitle.setTextSize(14);
-        tvTitle.setGravity(Gravity.CENTER);
+        tvTitle.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         btn.addView(tvTitle);
 
         TextView tvSub = new TextView(this);
         tvSub.setText(subtitle);
-        tvSub.setTextColor(0x80FFFFFF);
+        tvSub.setTextColor(getResources().getColor(R.color.text_secondary));
         tvSub.setTextSize(11);
-        tvSub.setGravity(Gravity.CENTER);
+        tvSub.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         tvSub.setPadding(0, dp(3), 0, 0);
         btn.addView(tvSub);
 
@@ -142,20 +121,10 @@ public class PersonalFMActivity extends AppCompatActivity {
         root.addView(btn);
     }
 
-    private void addDivider(LinearLayout root) {
-        android.view.View divider = new android.view.View(this);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 1);
-        params.bottomMargin = dp(8);
-        divider.setLayoutParams(params);
-        divider.setBackgroundColor(0x33FFFFFF);
-        root.addView(divider);
-    }
-
-    private android.graphics.drawable.GradientDrawable makeRoundBackground(int color) {
+    private android.graphics.drawable.GradientDrawable makeRoundBackground(int color, int radiusPx) {
         android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
         bg.setShape(android.graphics.drawable.GradientDrawable.RECTANGLE);
-        bg.setCornerRadius(dp(10));
+        bg.setCornerRadius(radiusPx);
         bg.setColor(color);
         return bg;
     }

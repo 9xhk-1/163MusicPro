@@ -38,8 +38,9 @@
                 android:focusable="true"
                 android:foreground="?attr/selectableItemBackground">
 
-                <ImageView
+                <com.google.android.material.imageview.ShapeableImageView
                     android:id="@+id/iv_mv_cover"
+                    style="@style/Widget.App.ShapeImage"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:contentDescription="@string/mv_cover"

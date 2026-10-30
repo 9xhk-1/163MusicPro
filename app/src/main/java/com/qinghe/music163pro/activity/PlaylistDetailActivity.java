@@ -17,6 +17,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.material.button.MaterialButton;
 import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.manager.PlaylistManager;
@@ -50,8 +51,8 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
     private TextView tvStatus;
     private TextView tvTitle;
     private TextView tvCreatorLabel;
-    private ImageView btnFav;
-    private ImageView btnDelete;
+    private MaterialButton btnFav;
+    private MaterialButton btnDelete;
     private long playlistId;
     private String playlistName;
     private int trackCount;
@@ -81,7 +82,7 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF121212);
+        root.setBackgroundColor(getResources().getColor(R.color.bg_dark));
         root.setPadding(px(6), px(6), px(6), px(6));
 
         // Title row with heart + delete buttons on the right
@@ -92,10 +93,10 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
         // Title
         tvTitle = new TextView(this);
         updateTitleText();
-        tvTitle.setTextColor(0xFFFFFFFF);
+        tvTitle.setTextColor(getResources().getColor(R.color.text_primary));
         tvTitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
         tvTitle.setGravity(Gravity.CENTER);
-        tvTitle.setPadding(px(56), 0, px(56), px(4));
+        tvTitle.setPadding(dpToPx(36), 0, dpToPx(36), px(2));
         tvTitle.setSingleLine(true);
         tvTitle.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
         tvTitle.setMarqueeRepeatLimit(-1);
@@ -108,14 +109,10 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
         titleRow.addView(tvTitle);
 
         // Delete button - top right
-        btnDelete = new ImageView(this);
-        btnDelete.setImageResource(R.drawable.ic_delete);
-        btnDelete.setPadding(px(4), px(4), px(2), px(4));
-        btnDelete.setClickable(true);
-        btnDelete.setFocusable(true);
+        btnDelete = createTitleIconButton(R.drawable.ic_delete, "删除歌单");
         btnDelete.setId(View.generateViewId());
         android.widget.RelativeLayout.LayoutParams delParams = new android.widget.RelativeLayout.LayoutParams(
-                px(26), px(28));
+                dpToPx(32), dpToPx(32));
         delParams.addRule(android.widget.RelativeLayout.ALIGN_PARENT_END);
         delParams.addRule(android.widget.RelativeLayout.CENTER_VERTICAL);
         btnDelete.setLayoutParams(delParams);
@@ -124,12 +121,9 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
         titleRow.addView(btnDelete);
 
         // Heart button - left of delete
-        btnFav = new ImageView(this);
-        btnFav.setPadding(px(2), px(4), px(4), px(4));
-        btnFav.setClickable(true);
-        btnFav.setFocusable(true);
+        btnFav = createTitleIconButton(R.drawable.ic_favorite_border, "收藏歌单");
         android.widget.RelativeLayout.LayoutParams favParams = new android.widget.RelativeLayout.LayoutParams(
-                px(26), px(28));
+                dpToPx(32), dpToPx(32));
         favParams.addRule(android.widget.RelativeLayout.LEFT_OF, btnDelete.getId());
         favParams.addRule(android.widget.RelativeLayout.CENTER_VERTICAL);
         btnFav.setLayoutParams(favParams);
@@ -140,20 +134,20 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
 
         // Creator label (always created, visibility depends on data)
         tvCreatorLabel = new TextView(this);
-        tvCreatorLabel.setTextColor(0xB3FFFFFF);
+        tvCreatorLabel.setTextColor(getResources().getColor(R.color.text_secondary));
         tvCreatorLabel.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(11));
         tvCreatorLabel.setGravity(Gravity.CENTER);
-        tvCreatorLabel.setPadding(0, 0, 0, px(2));
+        tvCreatorLabel.setPadding(0, 0, 0, px(1));
         updateCreatorLabel();
         root.addView(tvCreatorLabel);
 
         // Status text
         tvStatus = new TextView(this);
         tvStatus.setText("正在加载...");
-        tvStatus.setTextColor(0x80FFFFFF);
-        tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
+        tvStatus.setTextColor(getResources().getColor(R.color.text_secondary));
+        tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
         tvStatus.setGravity(Gravity.CENTER);
-        tvStatus.setPadding(0, px(4), 0, px(4));
+        tvStatus.setPadding(0, px(2), 0, px(1));
         root.addView(tvStatus);
 
         lvSongs = new ListView(this);
@@ -369,13 +363,34 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
             return;
         }
         if (isCloudMode) {
-            btnFav.setImageResource(isSubscribed ? R.drawable.ic_favorite : R.drawable.ic_favorite_border);
-            btnFav.setColorFilter(isSubscribed ? 0xFFFF4081 : 0x80FFFFFF);
+            btnFav.setIconResource(isSubscribed ? R.drawable.ic_favorite : R.drawable.ic_favorite_border);
+            btnFav.setIconTint(android.content.res.ColorStateList.valueOf(
+                    getResources().getColor(isSubscribed ? R.color.favorite_red : R.color.text_secondary)));
         } else {
             boolean saved = playlistManager.isPlaylistSaved(playlistId);
-            btnFav.setImageResource(saved ? R.drawable.ic_favorite : R.drawable.ic_favorite_border);
-            btnFav.setColorFilter(saved ? 0xFFFF4081 : 0x80FFFFFF);
+            btnFav.setIconResource(saved ? R.drawable.ic_favorite : R.drawable.ic_favorite_border);
+            btnFav.setIconTint(android.content.res.ColorStateList.valueOf(
+                    getResources().getColor(saved ? R.color.favorite_red : R.color.text_secondary)));
         }
+    }
+
+    private MaterialButton createTitleIconButton(int icon, String description) {
+        MaterialButton button = new MaterialButton(this);
+        button.setIconResource(icon);
+        button.setIconTint(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.text_secondary)));
+        button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT));
+        button.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+        button.setIconSize(dpToPx(20));
+        button.setIconPadding(0);
+        button.setInsetTop(0);
+        button.setInsetBottom(0);
+        button.setMinWidth(0);
+        button.setMinimumWidth(0);
+        button.setMinHeight(0);
+        button.setMinimumHeight(0);
+        button.setPadding(0, 0, 0, 0);
+        button.setContentDescription(description);
+        return button;
     }
 
     private void togglePlaylistFav() {
@@ -485,7 +500,7 @@ public class PlaylistDetailActivity extends BaseWatchActivity {
      */
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
-                new WatchConfirmDialog.Options(0xFF1E1E1E, 0xFFBB86FC, true));
+                new WatchConfirmDialog.Options(0xFF2B2930, 0xFFD0BCFF, true));
     }
 
     @Override

@@ -21,6 +21,7 @@ import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.util.NetworkImageLoader;
+import com.qinghe.music163pro.util.WatchUiUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,7 +57,7 @@ public class AlbumDetailActivity extends AppCompatActivity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF121212);
+        root.setBackgroundColor(getResources().getColor(R.color.bg_dark));
         root.setPadding(px(6), px(6), px(6), px(6));
 
         // Title bar
@@ -66,8 +67,8 @@ public class AlbumDetailActivity extends AppCompatActivity {
 
         TextView tvTitle = new TextView(this);
         tvTitle.setText("专辑");
-        tvTitle.setTextColor(0xFFFFFFFF);
-        tvTitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(15));
+        tvTitle.setTextColor(0xFFE6E0E9);
+        tvTitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
         tvTitle.setGravity(Gravity.CENTER);
         tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
         android.widget.RelativeLayout.LayoutParams titleParams = new android.widget.RelativeLayout.LayoutParams(
@@ -82,23 +83,23 @@ public class AlbumDetailActivity extends AppCompatActivity {
         LinearLayout albumInfoRow = new LinearLayout(this);
         albumInfoRow.setOrientation(LinearLayout.HORIZONTAL);
         albumInfoRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
-        albumInfoRow.setPadding(0, px(8), 0, px(8));
+        albumInfoRow.setPadding(0, px(3), 0, px(3));
         albumInfoRow.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         root.addView(albumInfoRow);
 
-        ivAlbumCover = new ImageView(this);
-        LinearLayout.LayoutParams coverParams = new LinearLayout.LayoutParams(px(52), px(52));
-        coverParams.setMarginEnd(px(8));
+        ivAlbumCover = WatchUiUtils.createRoundedImage(this);
+        LinearLayout.LayoutParams coverParams = new LinearLayout.LayoutParams(px(40), px(40));
+        coverParams.setMarginEnd(px(6));
         ivAlbumCover.setLayoutParams(coverParams);
         ivAlbumCover.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        ivAlbumCover.setBackgroundColor(0xFF252525);
+        ivAlbumCover.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
         albumInfoRow.addView(ivAlbumCover);
 
         tvAlbumName = new TextView(this);
         tvAlbumName.setText(albumName != null ? albumName : "");
-        tvAlbumName.setTextColor(0xFFFFFFFF);
-        tvAlbumName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
+        tvAlbumName.setTextColor(0xFFE6E0E9);
+        tvAlbumName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
         tvAlbumName.setTypeface(null, android.graphics.Typeface.BOLD);
         tvAlbumName.setMaxLines(2);
         tvAlbumName.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -114,10 +115,10 @@ public class AlbumDetailActivity extends AppCompatActivity {
         // Status text
         tvStatus = new TextView(this);
         tvStatus.setText("正在加载...");
-        tvStatus.setTextColor(0x80FFFFFF);
-        tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
+        tvStatus.setTextColor(0xFFCAC4D0);
+        tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
         tvStatus.setGravity(Gravity.CENTER);
-        tvStatus.setPadding(0, px(4), 0, px(4));
+        tvStatus.setPadding(0, px(2), 0, px(1));
         root.addView(tvStatus);
 
         lvSongs = new ListView(this);
@@ -216,9 +217,7 @@ public class AlbumDetailActivity extends AppCompatActivity {
     }
 
     private int px(int baseValue) {
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        float scale = screenWidth / 320f;
-        return Math.round(baseValue * scale);
+        return Math.round(baseValue * getResources().getDisplayMetrics().density);
     }
 
     @Override

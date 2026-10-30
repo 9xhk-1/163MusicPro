@@ -30,7 +30,9 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.material.button.MaterialButton;
 import com.qinghe.music163pro.R;
+import com.qinghe.music163pro.util.WatchUiUtils;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.util.MusicLog;
 import com.qinghe.music163pro.util.NetworkImageLoader;
@@ -54,12 +56,13 @@ public class CommentActivity extends BaseWatchActivity {
     private static final String PREFS_NAME = "music163_settings";
     private static final int PAGE_SIZE = 20;
 
-    private static final int COLOR_BG = 0xFF121212;
-    private static final int COLOR_TEXT_PRIMARY = 0xFFFFFFFF;
-    private static final int COLOR_TEXT_SECONDARY = 0x80FFFFFF;
-    private static final int COLOR_ACCENT = 0xFF03DAC6;
-    private static final int COLOR_DIVIDER = 0xFF1E1E1E;
-    private static final int COLOR_INPUT_BG = 0xFF333333;
+    // Material 3 dark palette (mirrors res/values/colors.xml)
+    private static final int COLOR_BG = 0xFF141218;
+    private static final int COLOR_TEXT_PRIMARY = 0xFFE6E0E9;
+    private static final int COLOR_TEXT_SECONDARY = 0xFFCAC4D0;
+    private static final int COLOR_ACCENT = 0xFFD0BCFF;
+    private static final int COLOR_DIVIDER = 0x1FFFFFFF;
+    private static final int COLOR_INPUT_BG = 0xFF2B2930;
 
     private static final int[] AVATAR_COLORS = {
             0xFFE91E63, 0xFF9C27B0, 0xFF3F51B5, 0xFF2196F3,
@@ -86,7 +89,7 @@ public class CommentActivity extends BaseWatchActivity {
     private LinearLayout commentListLayout;
     private ScrollView commentScrollView;
     private EditText inputField;
-    private TextView sendButton;
+    private MaterialButton sendButton;
     private TextView tabRecommend;
     private TextView tabHot;
     private TextView tabNew;
@@ -132,8 +135,8 @@ public class CommentActivity extends BaseWatchActivity {
     private View buildTopBar() {
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.VERTICAL);
-        topBar.setBackgroundColor(0xFF1A1A1A);
-        topBar.setPadding(px(8), px(6), px(8), px(4));
+        topBar.setBackgroundColor(getResources().getColor(R.color.surface));
+        topBar.setPadding(px(6), px(3), px(6), px(2));
 
         // Song name row
         LinearLayout nameRow = new LinearLayout(this);
@@ -143,7 +146,7 @@ public class CommentActivity extends BaseWatchActivity {
         TextView songTitle = new TextView(this);
         songTitle.setText(songName);
         songTitle.setTextColor(COLOR_TEXT_PRIMARY);
-        songTitle.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(16));
+        songTitle.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
         songTitle.setTypeface(songTitle.getTypeface(), Typeface.BOLD);
         songTitle.setSingleLine(true);
         songTitle.setEllipsize(TextUtils.TruncateAt.MARQUEE);
@@ -157,7 +160,7 @@ public class CommentActivity extends BaseWatchActivity {
 
         totalCountText = new TextView(this);
         totalCountText.setTextColor(COLOR_TEXT_SECONDARY);
-        totalCountText.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
+        totalCountText.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
         totalCountText.setPadding(px(6), 0, 0, 0);
         nameRow.addView(totalCountText);
 
@@ -167,7 +170,7 @@ public class CommentActivity extends BaseWatchActivity {
         LinearLayout tabRow = new LinearLayout(this);
         tabRow.setOrientation(LinearLayout.HORIZONTAL);
         tabRow.setGravity(Gravity.CENTER_VERTICAL);
-        tabRow.setPadding(0, px(4), 0, px(2));
+        tabRow.setPadding(0, px(2), 0, px(1));
 
         tabRecommend = makeSortTab("推荐", 99);
         tabHot = makeSortTab("最热", 2);
@@ -188,13 +191,13 @@ public class CommentActivity extends BaseWatchActivity {
     private TextView makeSortTab(String label, int sortType) {
         TextView tab = new TextView(this);
         tab.setText(label);
-        tab.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
-        tab.setPadding(px(10), px(4), px(10), px(4));
+        tab.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
+        tab.setPadding(px(6), px(3), px(6), px(3));
         tab.setGravity(Gravity.CENTER);
 
-        int minTouchTarget = px(40);
-        tab.setMinHeight(minTouchTarget);
-        tab.setMinWidth(minTouchTarget);
+        tab.setMinHeight(px(30));
+        tab.setMinWidth(0);
+        tab.setMinimumWidth(0);
 
         tab.setOnClickListener(v -> {
             if (currentSortType == sortType || isLoading) return;
@@ -220,11 +223,16 @@ public class CommentActivity extends BaseWatchActivity {
 
     private void styleSortTab(TextView tab, boolean active) {
         if (active) {
-            tab.setTextColor(0xFFBB86FC);
+            tab.setTextColor(0xFFEADDFF); // on_primary_container
             tab.setTypeface(tab.getTypeface(), Typeface.BOLD);
+            GradientDrawable pill = new GradientDrawable();
+            pill.setColor(0xFF4F378B); // primary_container
+            pill.setCornerRadius(px(16));
+            tab.setBackground(pill);
         } else {
             tab.setTextColor(COLOR_TEXT_SECONDARY);
             tab.setTypeface(Typeface.DEFAULT);
+            tab.setBackground(null);
         }
     }
 
@@ -260,38 +268,32 @@ public class CommentActivity extends BaseWatchActivity {
     private View buildBottomBar() {
         LinearLayout bottomBar = new LinearLayout(this);
         bottomBar.setOrientation(LinearLayout.HORIZONTAL);
-        bottomBar.setBackgroundColor(0xFF1A1A1A);
-        bottomBar.setPadding(px(6), px(4), px(6), px(4));
+        bottomBar.setBackgroundColor(getResources().getColor(R.color.surface));
+        bottomBar.setPadding(px(4), px(3), px(4), px(3));
         bottomBar.setGravity(Gravity.CENTER_VERTICAL);
 
-        inputField = new EditText(this);
-        inputField.setHint("写评论...");
-        inputField.setHintTextColor(0xFF666666);
-        inputField.setTextColor(COLOR_TEXT_PRIMARY);
-        inputField.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
-        inputField.setSingleLine(true);
-        inputField.setBackgroundColor(COLOR_INPUT_BG);
-        inputField.setPadding(px(8), px(6), px(8), px(6));
-
-        GradientDrawable inputBg = new GradientDrawable();
-        inputBg.setColor(COLOR_INPUT_BG);
-        inputBg.setCornerRadius(px(12));
-        inputField.setBackground(inputBg);
-
+        com.google.android.material.textfield.TextInputLayout inputWrap =
+                com.qinghe.music163pro.util.WatchUiUtils.createWatchTextInput(this, "写评论...");
+        inputField = (com.google.android.material.textfield.TextInputEditText) inputWrap.getEditText();
         LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        inputField.setLayoutParams(inputParams);
-        bottomBar.addView(inputField);
+        inputWrap.setLayoutParams(inputParams);
+        bottomBar.addView(inputWrap);
 
-        sendButton = new TextView(this);
+        sendButton = new MaterialButton(this);
         sendButton.setText("发送");
-        sendButton.setTextColor(COLOR_ACCENT);
-        sendButton.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(15));
-        sendButton.setTypeface(sendButton.getTypeface(), Typeface.BOLD);
-        sendButton.setPadding(px(10), px(8), px(6), px(8));
-        sendButton.setMinHeight(px(40));
-        sendButton.setMinWidth(px(40));
-        sendButton.setGravity(Gravity.CENTER);
+        sendButton.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
+        sendButton.setAllCaps(false);
+        sendButton.setMinWidth(0);
+        sendButton.setMinimumWidth(0);
+        sendButton.setTextColor(0xFFEADDFF); // on_primary_container
+        sendButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF4F378B)); // primary_container
+        sendButton.setCornerRadius(px(16));
+        sendButton.setInsetTop(0);
+        sendButton.setInsetBottom(0);
+        sendButton.setMinHeight(px(30));
+        sendButton.setMinimumHeight(px(30));
+        sendButton.setPadding(px(8), 0, px(8), 0);
         sendButton.setOnClickListener(v -> submitComment());
         bottomBar.addView(sendButton);
 
@@ -380,11 +382,6 @@ public class CommentActivity extends BaseWatchActivity {
             for (int i = 0; i < comments.length(); i++) {
                 JSONObject comment = comments.getJSONObject(i);
                 commentListLayout.addView(buildCommentItem(comment));
-
-                // Divider between comments
-                if (i < comments.length() - 1) {
-                    commentListLayout.addView(makeDivider());
-                }
             }
 
             pageNo++;
@@ -402,7 +399,16 @@ public class CommentActivity extends BaseWatchActivity {
     private View buildCommentItem(JSONObject comment) {
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.VERTICAL);
-        item.setPadding(px(4), px(6), px(4), px(6));
+        item.setPadding(px(10), px(8), px(10), px(8));
+        // Unified M3 card surface, same as the list rows elsewhere
+        GradientDrawable cardBg = new GradientDrawable();
+        cardBg.setColor(getResources().getColor(R.color.surface_elevated));
+        cardBg.setCornerRadius(px(12));
+        item.setBackground(cardBg);
+        LinearLayout.LayoutParams itemParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        itemParams.setMargins(0, 0, 0, px(6));
+        item.setLayoutParams(itemParams);
 
         long commentId = comment.optLong("commentId", 0);
         String content = comment.optString("content", "");
@@ -444,8 +450,8 @@ public class CommentActivity extends BaseWatchActivity {
 
         TextView nickTv = new TextView(this);
         nickTv.setText(nickname);
-        nickTv.setTextColor(0xFF82B1FF);
-        nickTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
+        nickTv.setTextColor(getResources().getColor(R.color.colorPrimary));
+        nickTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
         nickTv.setSingleLine(true);
         nickTv.setEllipsize(TextUtils.TruncateAt.MARQUEE);
         nickTv.setMarqueeRepeatLimit(-1);
@@ -459,7 +465,7 @@ public class CommentActivity extends BaseWatchActivity {
         TextView timeTv = new TextView(this);
         timeTv.setText(timeAndIp);
         timeTv.setTextColor(COLOR_TEXT_SECONDARY);
-        timeTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
+        timeTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(11));
         timeTv.setSingleLine(true);
         nameTimeCol.addView(timeTv);
 
@@ -470,7 +476,7 @@ public class CommentActivity extends BaseWatchActivity {
         TextView contentTv = new TextView(this);
         contentTv.setText(content);
         contentTv.setTextColor(COLOR_TEXT_PRIMARY);
-        contentTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(15));
+        contentTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
         contentTv.setPadding(px(27), px(4), 0, px(2));
         contentTv.setLineSpacing(px(2), 1f);
         item.addView(contentTv);
@@ -489,13 +495,13 @@ public class CommentActivity extends BaseWatchActivity {
                     TextView repliedTv = new TextView(this);
                     repliedTv.setText("@" + repliedNick + ": " + repliedContent);
                     repliedTv.setTextColor(COLOR_TEXT_SECONDARY);
-                    repliedTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
+                    repliedTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
                     repliedTv.setPadding(px(27), px(2), px(4), px(2));
                     repliedTv.setMaxLines(2);
                     repliedTv.setEllipsize(TextUtils.TruncateAt.END);
 
                     GradientDrawable repliedBg = new GradientDrawable();
-                    repliedBg.setColor(0xFF2A2A2A);
+                    repliedBg.setColor(0xFF2B2930);
                     repliedBg.setCornerRadius(px(4));
                     repliedTv.setBackground(repliedBg);
 
@@ -516,13 +522,18 @@ public class CommentActivity extends BaseWatchActivity {
         footer.setGravity(Gravity.CENTER_VERTICAL);
         footer.setPadding(px(27), px(2), 0, 0);
 
+        // Floor link gets its own row so it never clips off the actions row
+        LinearLayout floorRow = new LinearLayout(this);
+        floorRow.setOrientation(LinearLayout.HORIZONTAL);
+        floorRow.setVisibility(View.GONE);
+
         // Like button
         final boolean[] isLiked = {liked};
         final int[] currentLikeCount = {likedCount};
 
         TextView likeTv = new TextView(this);
         updateLikeText(likeTv, isLiked[0], currentLikeCount[0]);
-        likeTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
+        likeTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
         likeTv.setPadding(0, px(4), px(12), px(4));
         likeTv.setMinHeight(px(30));
         likeTv.setGravity(Gravity.CENTER_VERTICAL);
@@ -559,8 +570,8 @@ public class CommentActivity extends BaseWatchActivity {
         TextView replyTv = new TextView(this);
         replyTv.setText("回复");
         replyTv.setTextColor(COLOR_TEXT_SECONDARY);
-        replyTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
-        replyTv.setPadding(px(12), px(4), px(12), px(4));
+        replyTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
+        replyTv.setPadding(px(6), px(4), px(6), px(4));
         replyTv.setMinHeight(px(30));
         replyTv.setGravity(Gravity.CENTER_VERTICAL);
         replyTv.setOnClickListener(v -> enterReplyMode(commentId, finalNickname));
@@ -573,17 +584,19 @@ public class CommentActivity extends BaseWatchActivity {
             if (replyCount > 0) {
                 TextView floorTv = new TextView(this);
                 floorTv.setText("查看" + replyCount + "条回复 >");
-                floorTv.setTextColor(0xFF82B1FF);
-                floorTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
-                floorTv.setPadding(px(12), px(4), 0, px(4));
+                floorTv.setTextColor(getResources().getColor(R.color.colorPrimary));
+                floorTv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
+                floorTv.setPadding(px(6), px(4), 0, px(4));
                 floorTv.setMinHeight(px(30));
                 floorTv.setGravity(Gravity.CENTER_VERTICAL);
                 floorTv.setOnClickListener(v -> openFloorComments(commentId));
-                footer.addView(floorTv);
+                floorRow.addView(floorTv);
+                floorRow.setVisibility(View.VISIBLE);
             }
         }
 
         item.addView(footer);
+        item.addView(floorRow);
 
         // Long-press: copy (always) + delete (own comments only)
         final long finalCommentId = commentId;
@@ -633,63 +646,19 @@ public class CommentActivity extends BaseWatchActivity {
     }
 
     private void showCommentActions(long commentId, String content, boolean isOwn) {
-        FrameLayout overlay = buildActionSheet(isOwn, commentId, content);
-        if (overlay != null) {
-            ((FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content)).addView(overlay);
-        }
-    }
-
-    private FrameLayout buildActionSheet(boolean isOwn, long commentId, String content) {
-        FrameLayout overlay = new FrameLayout(this);
-        overlay.setLayoutParams(new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        overlay.setBackgroundColor(0x99000000);
-        overlay.setClickable(true);
-        overlay.setFocusable(true);
-
-        LinearLayout sheet = new LinearLayout(this);
-        sheet.setOrientation(LinearLayout.VERTICAL);
-        sheet.setBackgroundColor(0xFF1E1E1E);
-        sheet.setPadding(0, px(6), 0, px(6));
-        FrameLayout.LayoutParams sheetParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        sheetParams.gravity = Gravity.BOTTOM;
-        sheet.setLayoutParams(sheetParams);
-        sheet.addView(makeActionRow("复制", 0xFFFFFFFF, v -> {
-            copyToClipboard(content);
-            ((ViewGroup) overlay.getParent()).removeView(overlay);
-        }));
-        if (isOwn) {
-            sheet.addView(makeActionRow("删除", 0xFFCF6679, v -> {
-                ((ViewGroup) overlay.getParent()).removeView(overlay);
+        String[] items = isOwn ? new String[]{"复制", "删除"} : new String[]{"复制"};
+        int[] colors = isOwn
+                ? new int[]{0, getResources().getColor(R.color.colorError)}
+                : null;
+        WatchUiUtils.showActionDialog(this, "评论操作", items, colors, (dialog, which) -> {
+            if (which == 0) {
+                copyToClipboard(content);
+            } else {
                 showConfirmDialog("删除评论", "确定删除这条评论吗？\n\n"
                         + (content.length() > 40 ? content.substring(0, 40) + "..." : content),
                         () -> deleteOwnComment(commentId));
-            }));
-        }
-        sheet.addView(makeActionRow("取消", 0xFF999999, v ->
-                ((ViewGroup) overlay.getParent()).removeView(overlay)));
-        overlay.addView(sheet);
-        overlay.setOnClickListener(v -> {
-            // consume
+            }
         });
-        sheet.setOnClickListener(v -> {
-            // consume so taps don't dismiss
-        });
-        return overlay;
-    }
-
-    private View makeActionRow(String label, int color, View.OnClickListener listener) {
-        TextView tv = new TextView(this);
-        tv.setText(label);
-        tv.setTextColor(color);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(15));
-        tv.setGravity(Gravity.CENTER);
-        tv.setPadding(px(12), px(14), px(12), px(14));
-        tv.setClickable(true);
-        tv.setFocusable(true);
-        tv.setOnClickListener(listener);
-        return tv;
     }
 
     private void copyToClipboard(String text) {
@@ -774,7 +743,7 @@ public class CommentActivity extends BaseWatchActivity {
         TextView avatar = new TextView(this);
         avatar.setText(initial);
         avatar.setTextColor(Color.WHITE);
-        avatar.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
+        avatar.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
         avatar.setTypeface(avatar.getTypeface(), Typeface.BOLD);
         avatar.setGravity(Gravity.CENTER);
         avatar.setContentDescription(nickname + "的头像");
@@ -932,7 +901,7 @@ public class CommentActivity extends BaseWatchActivity {
         TextView loading = new TextView(this);
         loading.setText("加载中...");
         loading.setTextColor(COLOR_TEXT_SECONDARY);
-        loading.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
+        loading.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
         loading.setGravity(Gravity.CENTER);
         loading.setPadding(0, px(40), 0, px(40));
         loading.setTag("loading_indicator");
@@ -952,7 +921,7 @@ public class CommentActivity extends BaseWatchActivity {
         TextView empty = new TextView(this);
         empty.setText(hint);
         empty.setTextColor(COLOR_TEXT_SECONDARY);
-        empty.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
+        empty.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
         empty.setGravity(Gravity.CENTER);
         empty.setPadding(0, px(40), 0, px(40));
         empty.setTag("empty_hint");
@@ -978,7 +947,7 @@ public class CommentActivity extends BaseWatchActivity {
      */
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
-                new WatchConfirmDialog.Options(0xFF1E1E1E, 0xFFBB86FC, true));
+                new WatchConfirmDialog.Options(0xFF2B2930, 0xFFD0BCFF, true));
     }
 
     @Override

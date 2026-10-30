@@ -1,6 +1,5 @@
 package com.qinghe.music163pro.activity;
 
-import android.app.AlertDialog;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.InputType;
@@ -12,17 +11,19 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.material.switchmaterial.SwitchMaterial;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.materialswitch.MaterialSwitch;
 import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 
 /**
- * Toggle settings activity - contains boolean/toggle options:
- * - Keep screen on (SwitchMaterial)
- * - Favorites mode local/cloud (cyclic selection)
- * - Sleep timer mode total/net playback (cyclic selection)
- * - Speed mode 3-value cyclic row (tap to cycle)
+ * Toggle settings activity:
+ * - Boolean options render as SwitchMaterial rows
+ * - Selection options (favorites mode, sleep timer mode, speed mode,
+ *   recognition mode, lyric scroll mode, random-skip order, lyric resume
+ *   interval, image save dir) open a single-choice dialog with the current
+ *   value pre-checked
  */
 public class ToggleSettingsActivity extends AppCompatActivity {
 
@@ -38,6 +39,10 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private static final String PREF_DISPLAY_SONG_ALIAS = "display_song_alias";
     private static final String PREF_SLEEP_TIMER_MODE = "sleep_timer_mode";
     private static final String PREF_FAV_MODE_CLOUD = "fav_mode_cloud";
+    /** Sheet/image save directory; default = first preset, /sdcard/Pictures. */
+    private static final String PREF_IMAGE_SAVE_DIR = "image_save_dir";
+    private static final String[] IMAGE_SAVE_PRESETS = {
+            "/sdcard/Pictures", "/sdcard/DCIM/Camera"};
     private static final int MODE_MANUAL = 0;
     private static final int MODE_AUTO = 1;
     // Lyric scroll modes: 0=每行 (follow current line), 1=阻塞 (blocked by user scroll)
@@ -50,12 +55,12 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private static final int FAV_MODE_LOCAL = 0;
     private static final int FAV_MODE_CLOUD = 1;
 
-    private SwitchMaterial switchKeepScreenOn;
-    private SwitchMaterial switchSleepTimerExitApp;
-    private SwitchMaterial switchSkipTrialSongs;
-    private SwitchMaterial switchUseWatchApi;
-    private SwitchMaterial switchDisplaySongAlias;
-    private SwitchMaterial switchBackGesture;
+    private MaterialSwitch switchKeepScreenOn;
+    private MaterialSwitch switchSleepTimerExitApp;
+    private MaterialSwitch switchSkipTrialSongs;
+    private MaterialSwitch switchUseWatchApi;
+    private MaterialSwitch switchDisplaySongAlias;
+    private MaterialSwitch switchBackGesture;
     private TextView tvFavModeValue;
     private TextView tvSleepTimerModeValue;
     private TextView tvSpeedModeValue;
@@ -64,6 +69,8 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private TextView tvLyricResumeIntervalValue;
     private TextView tvRandomSkipModeValue;
     private LinearLayout rowLyricResumeInterval;
+    private LinearLayout rowImageSaveDir;
+    private TextView tvImageSaveDirValue;
     private SharedPreferences prefs;
 
     /** Suppress listener callbacks while programmatically setting switch state. */
@@ -87,6 +94,12 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         switchUseWatchApi = findViewById(R.id.switch_use_watch_api);
         switchDisplaySongAlias = findViewById(R.id.switch_display_song_alias);
         switchBackGesture = findViewById(R.id.switch_back_gesture);
+        // Make the entire row a target; tapping the switch itself still toggles once.
+        for (MaterialSwitch control : new MaterialSwitch[]{switchKeepScreenOn,
+                switchSleepTimerExitApp, switchSkipTrialSongs, switchUseWatchApi,
+                switchDisplaySongAlias, switchBackGesture}) {
+            ((android.view.View) control.getParent()).setOnClickListener(v -> control.toggle());
+        }
         tvFavModeValue = findViewById(R.id.tv_fav_mode_value);
         tvSleepTimerModeValue = findViewById(R.id.tv_sleep_timer_mode_value);
         tvSpeedModeValue = findViewById(R.id.tv_speed_mode_value);
@@ -101,6 +114,8 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         LinearLayout rowRandomSkipMode = findViewById(R.id.row_random_skip_mode);
         tvRandomSkipModeValue = findViewById(R.id.tv_random_skip_mode_value);
         rowLyricResumeInterval = findViewById(R.id.row_lyric_resume_interval);
+        rowImageSaveDir = findViewById(R.id.row_image_save_dir);
+        tvImageSaveDirValue = findViewById(R.id.tv_image_save_dir_value);
 
         // Initialise switch states from prefs
         syncSwitchStates();
@@ -157,20 +172,15 @@ public class ToggleSettingsActivity extends AppCompatActivity {
                     Toast.LENGTH_SHORT).show();
         });
 
-        // Favorites mode: tap to cycle (本地 / 云端)
-        if (rowFavMode != null) rowFavMode.setOnClickListener(v -> cycleFavMode());
-
-        // Sleep timer mode: tap to cycle (总时长 / 播放净时长)
-        if (rowSleepTimerMode != null) rowSleepTimerMode.setOnClickListener(v -> cycleSleepTimerMode());
-
-        // Random-skip mode: tap to cycle (列表顺序 / 随机)
-        if (rowRandomSkipMode != null) rowRandomSkipMode.setOnClickListener(v -> cycleRandomSkipMode());
-
-        // Speed mode: tap row to cycle through 3 values
-        rowSpeedMode.setOnClickListener(v -> cycleSpeedMode());
-        rowRecognitionMode.setOnClickListener(v -> cycleRecognitionMode());
-        rowLyricScrollMode.setOnClickListener(v -> cycleLyricScrollMode());
+        // Selection rows all open a single-choice dialog (same as 图片保存地址)
+        if (rowFavMode != null) rowFavMode.setOnClickListener(v -> editFavMode());
+        if (rowSleepTimerMode != null) rowSleepTimerMode.setOnClickListener(v -> editSleepTimerMode());
+        if (rowRandomSkipMode != null) rowRandomSkipMode.setOnClickListener(v -> editRandomSkipMode());
+        rowSpeedMode.setOnClickListener(v -> editSpeedMode());
+        rowRecognitionMode.setOnClickListener(v -> editRecognitionMode());
+        rowLyricScrollMode.setOnClickListener(v -> editLyricScrollMode());
         rowLyricResumeInterval.setOnClickListener(v -> editLyricResumeInterval());
+        if (rowImageSaveDir != null) rowImageSaveDir.setOnClickListener(v -> editImageSaveDir());
     }
 
     @Override
@@ -195,16 +205,38 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         updateLyricScrollModeValue();
         updateLyricResumeIntervalValue();
         updateRandomSkipModeValue();
+        updateImageSaveDirValue();
     }
 
-    private void cycleRandomSkipMode() {
-        boolean current = prefs.getBoolean(PREF_RANDOM_SKIP_RANDOM, false);
-        boolean next = !current;
-        prefs.edit().putBoolean(PREF_RANDOM_SKIP_RANDOM, next).apply();
-        updateRandomSkipModeValue();
-        Toast.makeText(this,
-                "随机播放切歌顺序: " + (next ? "随机" : "列表顺序"),
-                Toast.LENGTH_SHORT).show();
+    /** Callback for showChoiceDialog (int consumer; java.util.function needs API 24). */
+    private interface IntPicker {
+        void pick(int which);
+    }
+
+    /**
+     * Single-choice dialog used by every non-switch selection row — same
+     * interaction as 图片保存地址: current value pre-checked, tap to apply.
+     */
+    private void showChoiceDialog(String title, String[] labels, int checked, IntPicker onPick) {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(title)
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    dialog.dismiss();
+                    onPick.pick(which);
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void editRandomSkipMode() {
+        boolean random = prefs.getBoolean(PREF_RANDOM_SKIP_RANDOM, false);
+        showChoiceDialog("随机播放切歌顺序", new String[]{"列表顺序", "随机"}, random ? 1 : 0, which -> {
+            prefs.edit().putBoolean(PREF_RANDOM_SKIP_RANDOM, which == 1).apply();
+            updateRandomSkipModeValue();
+            Toast.makeText(this,
+                    "随机播放切歌顺序: " + (which == 1 ? "随机" : "列表顺序"),
+                    Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void updateRandomSkipModeValue() {
@@ -213,12 +245,14 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         tvRandomSkipModeValue.setText(random ? "随机" : "列表顺序");
     }
 
-    private void cycleFavMode() {
+    private void editFavMode() {
         boolean isCloud = prefs.getBoolean(PREF_FAV_MODE_CLOUD, false);
-        boolean newCloud = !isCloud;
-        prefs.edit().putBoolean(PREF_FAV_MODE_CLOUD, newCloud).apply();
-        updateFavModeValue();
-        Toast.makeText(this, "收藏模式已切换为: " + (newCloud ? "云端" : "本地"), Toast.LENGTH_SHORT).show();
+        showChoiceDialog("收藏模式", new String[]{"本地", "云端"}, isCloud ? 1 : 0, which -> {
+            prefs.edit().putBoolean(PREF_FAV_MODE_CLOUD, which == 1).apply();
+            updateFavModeValue();
+            Toast.makeText(this, "收藏模式已切换为: " + (which == 1 ? "云端" : "本地"),
+                    Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void updateFavModeValue() {
@@ -227,13 +261,14 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         tvFavModeValue.setText(isCloud ? "云端" : "本地");
     }
 
-    private void cycleSleepTimerMode() {
-        int current = prefs.getInt(PREF_SLEEP_TIMER_MODE, SLEEP_TIMER_TOTAL);
-        int next = (current + 1) % 2;
-        prefs.edit().putInt(PREF_SLEEP_TIMER_MODE, next).apply();
-        updateSleepTimerModeValue();
-        String[] labels = {"总时长", "播放净时长"};
-        Toast.makeText(this, "定时关闭模式: " + labels[next], Toast.LENGTH_SHORT).show();
+    private void editSleepTimerMode() {
+        int mode = prefs.getInt(PREF_SLEEP_TIMER_MODE, SLEEP_TIMER_TOTAL);
+        showChoiceDialog("定时关闭模式", new String[]{"总时长", "播放净时长"}, mode, which -> {
+            prefs.edit().putInt(PREF_SLEEP_TIMER_MODE, which).apply();
+            updateSleepTimerModeValue();
+            Toast.makeText(this, "定时关闭模式: " + (which == 1 ? "播放净时长" : "总时长"),
+                    Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void updateSleepTimerModeValue() {
@@ -243,17 +278,21 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         tvSleepTimerModeValue.setText(labels[mode]);
     }
 
-    private void cycleSpeedMode() {
-        int current = prefs.getInt("speed_mode", 0);
-        int next = (current + 1) % 3;
-        prefs.edit().putInt("speed_mode", next).apply();
-        MusicPlayerManager.getInstance().setSpeedMode(next);
-        updateSpeedModeValue();
-        String[] modeNames = {"音调不变", "音调改变且速度改变", "音调改变但速度不变"};
-        Toast.makeText(this, "变速模式: " + modeNames[next], Toast.LENGTH_SHORT).show();
-        if (next == 2) {
-            Toast.makeText(this, "注意：此模式变速幅度不能太大，否则播放可能会出问题（如有杂音等）", Toast.LENGTH_LONG).show();
-        }
+    private void editSpeedMode() {
+        int mode = prefs.getInt("speed_mode", 0);
+        showChoiceDialog("变速模式",
+                new String[]{"音调不变", "音调改变且速度改变", "音调改变但速度不变"}, mode, which -> {
+            prefs.edit().putInt("speed_mode", which).apply();
+            MusicPlayerManager.getInstance().setSpeedMode(which);
+            updateSpeedModeValue();
+            Toast.makeText(this, "变速模式: "
+                    + (which == 0 ? "音调不变" : which == 1 ? "音调改变且速度改变" : "音调改变但速度不变"),
+                    Toast.LENGTH_SHORT).show();
+            if (which == 2) {
+                Toast.makeText(this, "注意：此模式变速幅度不能太大，否则播放可能会出问题（如有杂音等）",
+                        Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     private void updateSpeedModeValue() {
@@ -262,13 +301,14 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         tvSpeedModeValue.setText(labels[mode]);
     }
 
-    private void cycleRecognitionMode() {
-        int current = prefs.getInt(PREF_RECOGNITION_MODE, MODE_AUTO);
-        int next = (current + 1) % 2;
-        prefs.edit().putInt(PREF_RECOGNITION_MODE, next).apply();
-        updateRecognitionModeValue();
-        String[] labels = {"手动暂停", "自动识别"};
-        Toast.makeText(this, "听歌识曲模式: " + labels[next], Toast.LENGTH_SHORT).show();
+    private void editRecognitionMode() {
+        int mode = prefs.getInt(PREF_RECOGNITION_MODE, MODE_AUTO);
+        showChoiceDialog("听歌识曲模式", new String[]{"手动暂停", "自动识别"}, mode, which -> {
+            prefs.edit().putInt(PREF_RECOGNITION_MODE, which).apply();
+            updateRecognitionModeValue();
+            Toast.makeText(this, "听歌识曲模式: " + (which == 1 ? "自动识别" : "手动暂停"),
+                    Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void updateRecognitionModeValue() {
@@ -277,13 +317,14 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         tvRecognitionModeValue.setText(labels[mode]);
     }
 
-    private void cycleLyricScrollMode() {
-        int current = prefs.getInt(PREF_LYRIC_SCROLL_MODE, LYRIC_MODE_BLOCK);
-        int next = (current + 1) % 2;
-        prefs.edit().putInt(PREF_LYRIC_SCROLL_MODE, next).apply();
-        updateLyricScrollModeValue();
-        String[] labels = {"每行", "阻塞"};
-        Toast.makeText(this, "歌词滚动模式: " + labels[next], Toast.LENGTH_SHORT).show();
+    private void editLyricScrollMode() {
+        int mode = prefs.getInt(PREF_LYRIC_SCROLL_MODE, LYRIC_MODE_BLOCK);
+        showChoiceDialog("歌词滚动模式", new String[]{"每行", "阻塞"}, mode, which -> {
+            prefs.edit().putInt(PREF_LYRIC_SCROLL_MODE, which).apply();
+            updateLyricScrollModeValue();
+            Toast.makeText(this, "歌词滚动模式: " + (which == 1 ? "阻塞" : "每行"),
+                    Toast.LENGTH_SHORT).show();
+        });
     }
 
     private void updateLyricScrollModeValue() {
@@ -297,18 +338,50 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         }
     }
 
+    private static final int[] LYRIC_RESUME_PRESETS = {1, 2, 3, 5, 10, 15, 30, 60};
+
     private void editLyricResumeInterval() {
         int current = prefs.getInt(PREF_LYRIC_RESUME_INTERVAL, 3);
-        EditText input = new EditText(this);
+        String[] labels = new String[LYRIC_RESUME_PRESETS.length + 1];
+        int checked = -1;
+        for (int i = 0; i < LYRIC_RESUME_PRESETS.length; i++) {
+            labels[i] = LYRIC_RESUME_PRESETS[i] + "秒";
+            if (LYRIC_RESUME_PRESETS[i] == current) checked = i;
+        }
+        labels[labels.length - 1] = "自定义...";
+        showChoiceDialog("歌词恢复间隔", labels, checked, which -> {
+            if (which < LYRIC_RESUME_PRESETS.length) {
+                applyLyricResumeInterval(LYRIC_RESUME_PRESETS[which]);
+            } else {
+                promptCustomLyricResumeInterval(current);
+            }
+        });
+    }
+
+    private void applyLyricResumeInterval(int seconds) {
+        prefs.edit().putInt(PREF_LYRIC_RESUME_INTERVAL, seconds).apply();
+        updateLyricResumeIntervalValue();
+        Toast.makeText(this, "歌词恢复间隔: " + seconds + "秒", Toast.LENGTH_SHORT).show();
+    }
+
+    private void promptCustomLyricResumeInterval(int current) {
+        com.google.android.material.textfield.TextInputLayout inputWrap =
+                com.qinghe.music163pro.util.WatchUiUtils.createWatchTextInput(this, "恢复间隔（秒）");
+        EditText input = (com.google.android.material.textfield.TextInputEditText) inputWrap.getEditText();
         input.setInputType(InputType.TYPE_CLASS_NUMBER);
         input.setText(String.valueOf(current));
         input.setSelectAllOnFocus(true);
-        int pad = (int) (8 * getResources().getDisplayMetrics().density);
-        input.setPadding(pad * 3, pad * 2, pad * 3, pad * 2);
 
-        new AlertDialog.Builder(this)
+        android.widget.LinearLayout dialogWrap = new android.widget.LinearLayout(this);
+        int pad = (int) (8 * getResources().getDisplayMetrics().density);
+        dialogWrap.setPadding(pad * 2, pad, pad * 2, 0);
+        dialogWrap.addView(inputWrap, new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("歌词恢复间隔（秒）")
-                .setView(input)
+                .setView(dialogWrap)
                 .setPositiveButton("确定", (dialog, which) -> {
                     String val = input.getText().toString().trim();
                     int seconds = 3;
@@ -317,9 +390,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
                         if (seconds < 1) seconds = 1;
                         if (seconds > 60) seconds = 60;
                     } catch (NumberFormatException ignored) {}
-                    prefs.edit().putInt(PREF_LYRIC_RESUME_INTERVAL, seconds).apply();
-                    updateLyricResumeIntervalValue();
-                    Toast.makeText(this, "歌词恢复间隔: " + seconds + "秒", Toast.LENGTH_SHORT).show();
+                    applyLyricResumeInterval(seconds);
                 })
                 .setNegativeButton("取消", null)
                 .show();
@@ -328,5 +399,68 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private void updateLyricResumeIntervalValue() {
         int seconds = prefs.getInt(PREF_LYRIC_RESUME_INTERVAL, 3);
         tvLyricResumeIntervalValue.setText(seconds + "秒无操作后恢复跟随");
+    }
+
+    // ─── 图片保存地址 ────────────────────────────────────────────────
+
+    private void editImageSaveDir() {
+        final String current = prefs.getString(PREF_IMAGE_SAVE_DIR, IMAGE_SAVE_PRESETS[0]);
+        String[] labels = {IMAGE_SAVE_PRESETS[0], IMAGE_SAVE_PRESETS[1], "自定义..."};
+        int checked = -1;
+        for (int i = 0; i < IMAGE_SAVE_PRESETS.length; i++) {
+            if (IMAGE_SAVE_PRESETS[i].equals(current)) checked = i;
+        }
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("图片保存地址")
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    if (which < IMAGE_SAVE_PRESETS.length) {
+                        prefs.edit().putString(PREF_IMAGE_SAVE_DIR, IMAGE_SAVE_PRESETS[which]).apply();
+                        updateImageSaveDirValue();
+                        Toast.makeText(this,
+                                "图片保存地址: " + IMAGE_SAVE_PRESETS[which],
+                                Toast.LENGTH_SHORT).show();
+                        dialog.dismiss();
+                    } else {
+                        dialog.dismiss();
+                        promptCustomImageSaveDir(current);
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void promptCustomImageSaveDir(String current) {
+        com.google.android.material.textfield.TextInputLayout inputWrap =
+                com.qinghe.music163pro.util.WatchUiUtils.createWatchTextInput(this, "/sdcard/...");
+        EditText input = (com.google.android.material.textfield.TextInputEditText) inputWrap.getEditText();
+        input.setText(current);
+        input.setSelectAllOnFocus(true);
+        input.setSingleLine(true);
+
+        android.widget.LinearLayout dialogWrap = new android.widget.LinearLayout(this);
+        int pad = (int) (8 * getResources().getDisplayMetrics().density);
+        dialogWrap.setPadding(pad * 2, pad, pad * 2, 0);
+        dialogWrap.addView(inputWrap, new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle("自定义保存地址")
+                .setView(dialogWrap)
+                .setPositiveButton("确定", (dialog, which) -> {
+                    String path = input.getText().toString().trim();
+                    if (!path.isEmpty()) {
+                        prefs.edit().putString(PREF_IMAGE_SAVE_DIR, path).apply();
+                        updateImageSaveDirValue();
+                        Toast.makeText(this, "图片保存地址: " + path, Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void updateImageSaveDirValue() {
+        if (tvImageSaveDirValue == null) return;
+        tvImageSaveDirValue.setText(prefs.getString(PREF_IMAGE_SAVE_DIR, IMAGE_SAVE_PRESETS[0]));
     }
 }

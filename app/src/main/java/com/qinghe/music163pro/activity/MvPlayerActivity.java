@@ -2,7 +2,6 @@ package com.qinghe.music163pro.activity;
 
 import android.os.Bundle;
 import android.view.View;
-import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -27,7 +26,7 @@ public class MvPlayerActivity extends BaseWatchActivity {
     private String cookie;
 
     private PlayerView playerView;
-    private ImageButton btnBack;
+    private com.google.android.material.button.MaterialButton btnBack;
     private TextView tvTitle;
     private TextView tvLoading;
     private ExoPlayer player;
@@ -35,6 +34,8 @@ public class MvPlayerActivity extends BaseWatchActivity {
     private long playbackPosition;
     private boolean playWhenReady = true;
     private boolean activityStarted;
+    // Whether music was playing when the MV opened; used to resume on exit.
+    private boolean wasMusicPlaying;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,6 +47,14 @@ public class MvPlayerActivity extends BaseWatchActivity {
         cookie = getIntent().getStringExtra("cookie");
         if (cookie == null || cookie.isEmpty()) {
             cookie = MusicPlayerManager.getInstance().getCookie();
+        }
+
+        // Music and MV would play over each other: pause music for the whole
+        // MV session and resume it when this activity is destroyed.
+        MusicPlayerManager musicPlayerManager = MusicPlayerManager.getInstance();
+        wasMusicPlaying = musicPlayerManager.isPlaying();
+        if (wasMusicPlaying) {
+            musicPlayerManager.pause();
         }
 
         playerView = findViewById(R.id.player_view_mv);
@@ -137,5 +146,14 @@ public class MvPlayerActivity extends BaseWatchActivity {
             player.release();
             player = null;
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (wasMusicPlaying) {
+            MusicPlayerManager.getInstance().resume();
+            wasMusicPlaying = false;
+        }
+        super.onDestroy();
     }
 }

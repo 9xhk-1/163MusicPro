@@ -52,14 +52,14 @@ public class TopListDetailActivity extends AppCompatActivity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF121212);
+        root.setBackgroundColor(getResources().getColor(R.color.bg_dark));
         root.setPadding(px(6), px(6), px(6), px(6));
 
         // Title
         TextView title = new TextView(this);
         title.setText(playlistName != null ? playlistName : "排行榜");
-        title.setTextColor(0xFFFFFFFF);
-        title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
+        title.setTextColor(0xFFE6E0E9);
+        title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
         title.setGravity(Gravity.CENTER);
         title.setPadding(0, 0, 0, px(6));
         title.setSingleLine(true);
@@ -151,8 +151,7 @@ public class TopListDetailActivity extends AppCompatActivity {
     }
 
     private int px(int baseValue) {
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        return (int) (baseValue * screenWidth / 320f + 0.5f);
+        return (int) (baseValue * getResources().getDisplayMetrics().density + 0.5f);
     }
 
     @Override

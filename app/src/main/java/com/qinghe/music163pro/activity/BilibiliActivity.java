@@ -11,6 +11,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import com.google.android.material.button.MaterialButton;
 import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.util.WatchUiUtils;
 
@@ -21,7 +22,7 @@ import com.qinghe.music163pro.util.WatchUiUtils;
  */
 public class BilibiliActivity extends BaseWatchActivity {
 
-    private LinearLayout cloudFavoritesItem;
+    private MaterialButton cloudFavoritesItem;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,13 +115,21 @@ public class BilibiliActivity extends BaseWatchActivity {
     private LinearLayout createTitleBar() {
         LinearLayout bar = new LinearLayout(this);
         bar.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, px(38)));
+                ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(48)));
         bar.setGravity(Gravity.CENTER_VERTICAL);
 
-        ImageView back = new ImageView(this);
-        back.setLayoutParams(new LinearLayout.LayoutParams(px(22), px(22)));
-        back.setImageResource(R.drawable.ic_arrow_back);
-        back.setColorFilter(getResources().getColor(R.color.text_primary));
+        MaterialButton back = new MaterialButton(this);
+        back.setLayoutParams(new LinearLayout.LayoutParams(dpToPx(48), dpToPx(48)));
+        back.setIconResource(R.drawable.ic_arrow_back);
+        back.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+        back.setIconSize(dpToPx(20));
+        back.setIconPadding(0);
+        back.setInsetTop(0);
+        back.setInsetBottom(0);
+        back.setMinWidth(0);
+        back.setMinimumWidth(0);
+        back.setPadding(0, 0, 0, 0);
+        back.setContentDescription("返回");
         back.setOnClickListener(v -> finish());
         bar.addView(back);
 
@@ -135,44 +144,10 @@ public class BilibiliActivity extends BaseWatchActivity {
         title.setTypeface(null, android.graphics.Typeface.BOLD);
         bar.addView(title);
 
-        ImageView placeholder = new ImageView(this);
-        placeholder.setLayoutParams(new LinearLayout.LayoutParams(px(22), px(22)));
-        bar.addView(placeholder);
         return bar;
     }
 
-    private LinearLayout createMenuItem(int iconRes, String label, Runnable onClick) {
-        LinearLayout row = new LinearLayout(this);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, px(52));
-        params.topMargin = px(6);
-        row.setLayoutParams(params);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(px(14), 0, px(14), 0);
-        row.setClickable(true);
-        row.setFocusable(true);
-        row.setBackgroundColor(getResources().getColor(R.color.surface_elevated));
-        row.setOnClickListener(v -> onClick.run());
-
-        ImageView icon = new ImageView(this);
-        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(
-                px(22), px(22));
-        icon.setLayoutParams(iconParams);
-        icon.setImageResource(iconRes);
-        icon.setAlpha(0.7f);
-        row.addView(icon);
-
-        TextView tv = new TextView(this);
-        LinearLayout.LayoutParams tvParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        tvParams.setMarginStart(px(10));
-        tv.setLayoutParams(tvParams);
-        tv.setText(label);
-        tv.setTextColor(getResources().getColor(R.color.text_primary));
-        tv.setTextSize(14);
-        row.addView(tv);
-
-        return row;
+    private MaterialButton createMenuItem(int iconRes, String label, Runnable onClick) {
+        return createWatchMenuButton(iconRes, label, v -> onClick.run());
     }
 }

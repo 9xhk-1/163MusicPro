@@ -2,9 +2,12 @@ package com.qinghe.music163pro.activity;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.BitmapFactory;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.media.MediaScannerConnection;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -18,6 +21,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.qinghe.music163pro.R;
+import com.qinghe.music163pro.util.WatchUiUtils;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
@@ -27,6 +31,12 @@ import com.qinghe.music163pro.util.NetworkImageLoader;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -47,13 +57,16 @@ public class SongInfoActivity extends AppCompatActivity {
     private static final String TAG = "SongInfoActivity";
     private static final String PREFS_NAME = "music163_settings";
 
-    private static final int COLOR_BG = 0xFF121212;
-    private static final int COLOR_TEXT_PRIMARY = 0xFFFFFFFF;
-    private static final int COLOR_TEXT_SECONDARY = 0x80FFFFFF;
-    private static final int COLOR_TEXT_DESC = 0xB3FFFFFF;
-    private static final int COLOR_ACCENT = 0xFF03DAC6;
-    private static final int COLOR_DIVIDER = 0xFF1E1E1E;
-    private static final int COLOR_CARD_BG = 0xFF252525;
+    private static final int COLOR_BG = 0xFF141218;
+    private static final int COLOR_TEXT_PRIMARY = 0xFFE6E0E9;
+    private static final int COLOR_TEXT_SECONDARY = 0xFFCAC4D0;
+    private static final int COLOR_TEXT_DESC = 0xFFCAC4D0;
+    private static final int COLOR_ACCENT = 0xFFD0BCFF;
+    private static final int COLOR_DIVIDER = 0x1FFFFFFF;
+    private static final int COLOR_CARD_BG = 0xFF2B2930;
+
+    /** Card container for the section currently being filled. */
+    private LinearLayout currentSectionCard;
 
     private long songId;
     private String songName;
@@ -102,12 +115,12 @@ public class SongInfoActivity extends AppCompatActivity {
         scrollView.addView(contentLayout);
 
         // Title
-        contentLayout.addView(makeText("音乐信息", COLOR_TEXT_PRIMARY, px(18), true, Gravity.CENTER));
-        contentLayout.addView(makeSpacer(px(8)));
+        sectionAdd(makeText("音乐信息", COLOR_TEXT_PRIMARY, px(13), true, Gravity.CENTER));
+        sectionAdd(makeSpacer(px(8)));
 
         // Loading indicator
-        tvLoading = makeText("加载中...", COLOR_TEXT_SECONDARY, px(14), false, Gravity.CENTER);
-        contentLayout.addView(tvLoading);
+        tvLoading = makeText("加载中...", COLOR_TEXT_SECONDARY, px(13), false, Gravity.CENTER);
+        sectionAdd(tvLoading);
 
         setContentView(scrollView);
     }
@@ -150,19 +163,21 @@ public class SongInfoActivity extends AppCompatActivity {
         addSectionHeader(R.drawable.ic_music_note, "歌曲详情");
 
         // Song name
-        String name = song.optString("name", "");
+        String name = text(song, "name");
         if (!name.isEmpty()) {
-            contentLayout.addView(makeText(name, COLOR_TEXT_PRIMARY, px(17), true, Gravity.START));
-            contentLayout.addView(makeSpacer(px(4)));
+            sectionAdd(makeText(name, COLOR_TEXT_PRIMARY, px(13), true, Gravity.START));
+            sectionAdd(makeSpacer(px(4)));
         }
 
         // Album cover (al.picUrl) - shown below title, 300x300
         JSONObject al = song.optJSONObject("al");
         if (al != null) {
-            String picUrl = al.optString("picUrl", "");
+            String picUrl = text(al, "picUrl");
             if (!picUrl.isEmpty()) {
-                int coverSize = px(300);
-                ImageView coverView = new ImageView(this);
+                // Square cover sized to the card's inner width: screen minus
+                // the content padding (px(10) x2) and the card padding (px(10) x2).
+                int coverSize = getResources().getDisplayMetrics().widthPixels - px(40);
+                ImageView coverView = WatchUiUtils.createRoundedImage(this);
                 coverView.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 GradientDrawable coverBg = new GradientDrawable();
                 coverBg.setColor(COLOR_CARD_BG);
@@ -173,7 +188,7 @@ public class SongInfoActivity extends AppCompatActivity {
                 coverParams.setMargins(0, px(4), 0, px(8));
                 coverView.setLayoutParams(coverParams);
                 NetworkImageLoader.load(coverView, picUrl);
-                contentLayout.addView(coverView);
+                sectionAdd(coverView);
             }
         }
 
@@ -183,10 +198,25 @@ public class SongInfoActivity extends AppCompatActivity {
             StringBuilder aliases = new StringBuilder();
             for (int i = 0; i < alia.length(); i++) {
                 if (aliases.length() > 0) aliases.append(" / ");
-                aliases.append(alia.optString(i, ""));
+                aliases.append(text(alia, i));
             }
             if (aliases.length() > 0) {
                 addInfoRow("别名", aliases.toString());
+            }
+        }
+
+        // Song translations (译名, e.g. "Normal No More" → "不再平庸")
+        JSONArray tns = song.optJSONArray("tns");
+        if (tns != null && tns.length() > 0) {
+            StringBuilder translations = new StringBuilder();
+            for (int i = 0; i < tns.length(); i++) {
+                String t = text(tns, i);
+                if (t.isEmpty()) continue;
+                if (translations.length() > 0) translations.append(" / ");
+                translations.append(t);
+            }
+            if (translations.length() > 0) {
+                addInfoRow("译名", translations.toString());
             }
         }
 
@@ -201,7 +231,7 @@ public class SongInfoActivity extends AppCompatActivity {
                 JSONObject a = ar.optJSONObject(i);
                 if (a == null) continue;
                 if (artistStr.length() > 0) artistStr.append(" / ");
-                artistStr.append(a.optString("name", ""));
+                artistStr.append(text(a, "name"));
                 // Extract first artist ID
                 if (i == 0 && artistId <= 0) {
                     artistId = a.optLong("id", 0);
@@ -212,13 +242,26 @@ public class SongInfoActivity extends AppCompatActivity {
 
         // Album info
         if (al != null) {
-            String albumName = al.optString("name", "");
+            String albumName = text(al, "name");
             if (!albumName.isEmpty()) {
                 addInfoRow("专辑", albumName);
             }
             long albumId = al.optLong("id", 0);
             if (albumId > 0) {
                 addInfoRow("专辑ID", String.valueOf(albumId));
+            }
+            JSONArray alTns = al.optJSONArray("tns");
+            if (alTns != null && alTns.length() > 0) {
+                StringBuilder albumT = new StringBuilder();
+                for (int i = 0; i < alTns.length(); i++) {
+                    String t = text(alTns, i);
+                    if (t.isEmpty()) continue;
+                    if (albumT.length() > 0) albumT.append(" / ");
+                    albumT.append(t);
+                }
+                if (albumT.length() > 0) {
+                    addInfoRow("专辑译名", albumT.toString());
+                }
             }
         }
 
@@ -300,8 +343,18 @@ public class SongInfoActivity extends AppCompatActivity {
     private String formatBitrate(JSONObject quality) {
         long br = quality.optLong("br", 0);
         long size = quality.optLong("size", 0);
+        int sr = quality.optInt("sr", 0);
         StringBuilder sb = new StringBuilder();
         if (br > 0) sb.append(br / 1000).append("kbps");
+        // 采样率: sr 单位 Hz (44100 → 44.1kHz, 48000 → 48kHz)
+        if (sr >= 1000) {
+            if (sb.length() > 0) sb.append(" / ");
+            if (sr % 1000 == 0) {
+                sb.append(sr / 1000).append("kHz");
+            } else {
+                sb.append(String.format(Locale.getDefault(), "%.1fkHz", sr / 1000f));
+            }
+        }
         if (size > 0) {
             if (sb.length() > 0) sb.append(" / ");
             double mb = size / (1024.0 * 1024.0);
@@ -313,9 +366,9 @@ public class SongInfoActivity extends AppCompatActivity {
     // ─── Step 2: Fetch song wiki ──────────────────────────────────────
 
     private void fetchSongWiki() {
-        final TextView tvWikiLoading = makeText("加载歌曲百科...", COLOR_TEXT_SECONDARY, px(13), false, Gravity.CENTER);
-        contentLayout.addView(makeSpacer(px(4)));
-        contentLayout.addView(tvWikiLoading);
+        final TextView tvWikiLoading = makeText("加载歌曲百科...", COLOR_TEXT_SECONDARY, px(12), false, Gravity.CENTER);
+        sectionAdd(makeSpacer(px(4)));
+        sectionAdd(tvWikiLoading);
 
         MusicApiHelper.getSongWikiSummary(songId, cookie, new MusicApiHelper.SongWikiCallback() {
             @Override
@@ -368,15 +421,15 @@ public class SongInfoActivity extends AppCompatActivity {
 
         // Get a user-friendly title for the block
         String blockTitle = getBlockTitle(blockCode);
-        contentLayout.addView(makeSpacer(px(6)));
-        contentLayout.addView(makeDivider());
-        contentLayout.addView(makeSpacer(px(6)));
+        sectionAdd(makeSpacer(px(6)));
+        sectionAdd(makeSpacer(px(6)));
         addSectionHeader(getBlockIconRes(blockCode), blockTitle);
 
-        // Show block-level UI element if present
+        // Show block-level UI element if present (skip mainTitle that just
+        // repeats the section header, e.g. 相似歌曲/相关歌单/回忆坐标)
         JSONObject blockUiElement = block.optJSONObject("uiElement");
         if (blockUiElement != null) {
-            displayUiElement(blockUiElement);
+            displayUiElement(blockUiElement, blockTitle);
         }
 
         // Parse creatives
@@ -445,16 +498,16 @@ public class SongInfoActivity extends AppCompatActivity {
     }
 
     private void displayCreative(JSONObject creative) {
-        String headline = creative.optString("headline", "");
-        String desc = creative.optString("desc", "");
+        String headline = text(creative, "headline");
+        String desc = text(creative, "desc");
 
         if (!headline.isEmpty()) {
-            contentLayout.addView(makeText(headline, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
-            contentLayout.addView(makeSpacer(px(2)));
+            sectionAdd(makeText(headline, COLOR_TEXT_PRIMARY, px(13), true, Gravity.START));
+            sectionAdd(makeSpacer(px(2)));
         }
         if (!desc.isEmpty()) {
-            contentLayout.addView(makeText(desc, COLOR_TEXT_DESC, px(14), false, Gravity.START));
-            contentLayout.addView(makeSpacer(px(3)));
+            sectionAdd(makeText(desc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+            sectionAdd(makeSpacer(px(3)));
         }
 
         // Creative-level UI element
@@ -463,15 +516,65 @@ public class SongInfoActivity extends AppCompatActivity {
             displayUiElement(uiElement);
         }
 
-        // Parse resources
+        // Parse resources. Text-only tag resources (曲风/推荐标签 — one tiny
+        // title per resource) are joined into ONE flowing line: rendering each
+        // on its own row made 2-char titles waste a line each and duplicated
+        // the white bold title style onto what is really content.
         JSONArray resources = creative.optJSONArray("resources");
-        if (resources != null) {
+        if (resources != null && resources.length() > 0 && allInlineTags(resources)) {
+            StringBuilder tags = new StringBuilder();
+            for (int r = 0; r < resources.length(); r++) {
+                JSONObject res = resources.optJSONObject(r);
+                if (res == null) continue;
+                JSONObject rUe = res.optJSONObject("uiElement");
+                JSONObject rMt = rUe != null ? rUe.optJSONObject("mainTitle") : null;
+                String t = rMt != null ? text(rMt, "title") : "";
+                if (t.isEmpty()) continue;
+                if (tags.length() > 0) tags.append(" · ");
+                tags.append(t);
+            }
+            if (tags.length() > 0) {
+                sectionAdd(makeText(tags.toString(), COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                sectionAdd(makeSpacer(px(3)));
+            }
+        } else if (resources != null) {
             for (int r = 0; r < resources.length(); r++) {
                 JSONObject resource = resources.optJSONObject(r);
                 if (resource == null) continue;
                 displayResource(resource);
             }
         }
+    }
+
+    /**
+     * True when every resource is a text-only tag (no id/cover/info): its
+     * mainTitle IS the whole content — e.g. 曲风 → "流行-欧美流行",
+     * 推荐标签 → 甜蜜 / 活力 / 放松 …
+     */
+    private static boolean allInlineTags(JSONArray resources) {
+        for (int i = 0; i < resources.length(); i++) {
+            JSONObject res = resources.optJSONObject(i);
+            if (res == null) return false;
+            if (res.optLong("id", 0) > 0 || !text(res, "resourceId").isEmpty()) return false;
+            if (res.optJSONObject("resourceInfo") != null) return false;
+            if (res.optJSONObject("resourceExt") != null) return false;
+            if (res.optJSONObject("resourceExtInfo") != null) return false;
+            if ("sheet_music".equals(text(res, "resourceType"))) return false;
+            if (res.optJSONArray("images") != null) return false;
+            JSONObject ue = res.optJSONObject("uiElement");
+            if (ue == null) return false;
+            JSONObject mt = ue.optJSONObject("mainTitle");
+            if (mt == null || text(mt, "title").isEmpty()) return false;
+            JSONArray sub = ue.optJSONArray("subTitles");
+            if (sub != null && sub.length() > 0) return false;
+            JSONArray tl = ue.optJSONArray("textLinks");
+            if (tl != null && tl.length() > 0) return false;
+            JSONArray im = ue.optJSONArray("images");
+            if (im != null && im.length() > 0) return false;
+            JSONArray ds = ue.optJSONArray("descriptions");
+            if (ds != null && ds.length() > 0) return false;
+        }
+        return true;
     }
 
     /**
@@ -491,13 +594,14 @@ public class SongInfoActivity extends AppCompatActivity {
                 for (int i = 0; i < songs.length(); i++) {
                     JSONObject song = songs.optJSONObject(i);
                     if (song == null) continue;
-                    String sName = song.optString("name", "");
+                    String sName = text(song, "name");
                     // Try "ar" first (v3 format), then "artists" (v1 format)
                     JSONArray ar = song.optJSONArray("ar");
                     if (ar == null) ar = song.optJSONArray("artists");
                     String sArtist = "";
                     if (ar != null && ar.length() > 0) {
-                        sArtist = ar.optJSONObject(0).optString("name", "");
+                        JSONObject a0 = ar.optJSONObject(0);
+                        if (a0 != null) sArtist = text(a0, "name");
                     }
                     long sId = song.optLong("id", 0);
                     if (!sName.isEmpty() && sId > 0) {
@@ -518,7 +622,7 @@ public class SongInfoActivity extends AppCompatActivity {
                         final int idx = currentBlockSongs.size() - blockSongList.size() + i;
                         LinearLayout row = new LinearLayout(this);
                         row.setOrientation(LinearLayout.HORIZONTAL);
-                        TextView tv = makeText("▶ " + display, COLOR_ACCENT, px(14), false, Gravity.START);
+                        TextView tv = makeText("▶ " + display, COLOR_ACCENT, px(13), false, Gravity.START);
                         tv.setPadding(0, px(2), 0, px(2));
                         tv.setLayoutParams(new LinearLayout.LayoutParams(0,
                                 LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -532,11 +636,11 @@ public class SongInfoActivity extends AppCompatActivity {
                         row.addView(tv);
                         feeBadges.put(s, badge);
                         row.setOnClickListener(v -> playSimilarSongs(currentBlockSongs, idx));
-                        contentLayout.addView(row);
+                        sectionAdd(row);
                     } else {
-                        contentLayout.addView(makeText("• " + display, COLOR_TEXT_DESC, px(14), false, Gravity.START));
+                        sectionAdd(makeText("• " + display, COLOR_TEXT_DESC, px(13), false, Gravity.START));
                     }
-                    contentLayout.addView(makeSpacer(px(2)));
+                    sectionAdd(makeSpacer(px(2)));
                 }
                 if (isSongBlock) {
                     requestFeeEnrichment();
@@ -550,7 +654,7 @@ public class SongInfoActivity extends AppCompatActivity {
                 for (int i = 0; i < playlists.length(); i++) {
                     JSONObject pl = playlists.optJSONObject(i);
                     if (pl == null) continue;
-                    String plName = pl.optString("name", "");
+                    String plName = text(pl, "name");
                     int playCount = pl.optInt("playCount", 0);
                     if (!plName.isEmpty()) {
                         String display = plName;
@@ -561,25 +665,25 @@ public class SongInfoActivity extends AppCompatActivity {
                             final long plId = pl.optLong("id", 0);
                             final String fPlName = plName;
                             final int fTrackCount = pl.optInt("trackCount", 0);
-                            TextView tv = makeText("" + display, COLOR_ACCENT, px(14), false, Gravity.START);
+                            TextView tv = makeText("" + display, COLOR_ACCENT, px(13), false, Gravity.START);
                             tv.setPadding(0, px(2), 0, px(2));
                             if (plId > 0) {
                                 tv.setOnClickListener(v -> openPlaylistDetail(plId, fPlName, fTrackCount, ""));
                             }
-                            contentLayout.addView(tv);
+                            sectionAdd(tv);
                         } else {
-                            contentLayout.addView(makeText("• " + display, COLOR_TEXT_DESC, px(14), false, Gravity.START));
+                            sectionAdd(makeText("• " + display, COLOR_TEXT_DESC, px(13), false, Gravity.START));
                         }
-                        contentLayout.addView(makeSpacer(px(2)));
+                        sectionAdd(makeSpacer(px(2)));
                     }
                 }
                 return;
             }
 
             // Some extInfo has direct text content (回忆坐标 etc.)
-            String text = extInfo.optString("text", "");
-            if (!text.isEmpty()) {
-                contentLayout.addView(makeText(text, COLOR_TEXT_DESC, px(14), false, Gravity.START));
+            String content = text(extInfo, "text");
+            if (!content.isEmpty()) {
+                sectionAdd(makeText(content, COLOR_TEXT_DESC, px(13), false, Gravity.START));
                 return;
             }
 
@@ -593,8 +697,8 @@ public class SongInfoActivity extends AppCompatActivity {
                 if (valStr.isEmpty() || "null".equals(valStr)) continue;
                 if (valStr.startsWith("{") || valStr.startsWith("[")) continue;
                 if (valStr.length() > 300) continue;
-                contentLayout.addView(makeText(valStr, COLOR_TEXT_DESC, px(13), false, Gravity.START));
-                contentLayout.addView(makeSpacer(px(2)));
+                sectionAdd(makeText(valStr, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                sectionAdd(makeSpacer(px(2)));
             }
         } catch (Exception e) {
             MusicLog.e(TAG, "解析extInfo失败", e);
@@ -613,30 +717,37 @@ public class SongInfoActivity extends AppCompatActivity {
 
         // Extract cover URL for card thumbnail
         String coverUrlRes = "";
+        String sheetImgTitle = "";
         if (resUiElement != null) {
             // images is an array in the API response
             JSONArray imgs = resUiElement.optJSONArray("images");
             if (imgs != null && imgs.length() > 0) {
                 JSONObject img0 = imgs.optJSONObject(0);
                 if (img0 != null) {
-                    coverUrlRes = img0.optString("imageUrl", img0.optString("url", ""));
+                    coverUrlRes = text(img0, "imageUrl");
+                    if (coverUrlRes.isEmpty()) coverUrlRes = text(img0, "url");
+                    sheetImgTitle = text(img0, "title");
                 }
             }
             // Fallback: legacy single-object form
             if (coverUrlRes.isEmpty()) {
                 JSONObject img = resUiElement.optJSONObject("image");
                 if (img != null) {
-                    coverUrlRes = img.optString("imageUrl", img.optString("url", ""));
+                    coverUrlRes = text(img, "imageUrl");
+                    if (coverUrlRes.isEmpty()) coverUrlRes = text(img, "url");
                 }
             }
         }
         if (coverUrlRes.isEmpty() && resInfo != null) {
             JSONObject al = resInfo.optJSONObject("al");
             if (al != null) {
-                coverUrlRes = al.optString("picUrl", "");
+                coverUrlRes = text(al, "picUrl");
             }
             if (coverUrlRes.isEmpty()) {
-                coverUrlRes = resInfo.optString("picUrl", resInfo.optString("coverImgUrl", ""));
+                coverUrlRes = text(resInfo, "picUrl");
+            }
+            if (coverUrlRes.isEmpty()) {
+                coverUrlRes = text(resInfo, "coverImgUrl");
             }
         }
 
@@ -648,41 +759,54 @@ public class SongInfoActivity extends AppCompatActivity {
             return;
         }
 
-        // Create a horizontal card: [cover thumbnail] + [content column]
+        // 乐谱 (sheet_music) cards download the image directly on tap.
+        boolean sheetCard = "sheet_music".equals(resource.optString("resourceType", ""));
+
+        // Create a horizontal card: [cover thumbnail] + [content column].
+        // Pure-text resources (comments/awards/memory text...) render FLAT on
+        // the page — no card background and no empty thumbnail placeholder.
+        boolean flatText = coverUrlRes.isEmpty() && !sheetCard;
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.HORIZONTAL);
-        card.setPadding(px(8), px(6), px(8), px(6));
-        GradientDrawable cardBg = new GradientDrawable();
-        cardBg.setColor(COLOR_CARD_BG);
-        cardBg.setCornerRadius(px(6));
-        card.setBackground(cardBg);
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        cardParams.setMargins(0, px(3), 0, px(3));
-        card.setLayoutParams(cardParams);
+        if (flatText) {
+            LinearLayout.LayoutParams flatLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            flatLp.setMargins(0, px(2), 0, px(2));
+            card.setLayoutParams(flatLp);
+        } else {
+            card.setPadding(px(8), px(6), px(8), px(6));
+            GradientDrawable cardBg = new GradientDrawable();
+            cardBg.setColor(COLOR_CARD_BG);
+            cardBg.setCornerRadius(px(6));
+            card.setBackground(cardBg);
+            LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            cardParams.setMargins(0, px(3), 0, px(3));
+            card.setLayoutParams(cardParams);
 
-        // Cover thumbnail (40x40dp)
-        ImageView ivCover = new ImageView(this);
-        int coverSize = px(40);
-        LinearLayout.LayoutParams coverLp = new LinearLayout.LayoutParams(coverSize, coverSize);
-        coverLp.gravity = android.view.Gravity.CENTER_VERTICAL;
-        ivCover.setLayoutParams(coverLp);
-        ivCover.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        GradientDrawable coverBg = new GradientDrawable();
-        coverBg.setColor(0xFF333333);
-        coverBg.setCornerRadius(px(3));
-        ivCover.setBackground(coverBg);
-        if (!coverUrlRes.isEmpty()) {
-            NetworkImageLoader.load(ivCover, coverUrlRes);
+            // Cover thumbnail (40x40dp)
+            ImageView ivCover = WatchUiUtils.createRoundedImage(this);
+            int coverSize = px(40);
+            LinearLayout.LayoutParams coverLp = new LinearLayout.LayoutParams(coverSize, coverSize);
+            coverLp.gravity = android.view.Gravity.CENTER_VERTICAL;
+            ivCover.setLayoutParams(coverLp);
+            ivCover.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            GradientDrawable coverBg = new GradientDrawable();
+            coverBg.setColor(0xFF2B2930);
+            coverBg.setCornerRadius(px(3));
+            ivCover.setBackground(coverBg);
+            if (!coverUrlRes.isEmpty()) {
+                NetworkImageLoader.load(ivCover, coverUrlRes);
+            }
+            card.addView(ivCover);
         }
-        card.addView(ivCover);
 
         // Content column (right side)
         LinearLayout rightLayout = new LinearLayout(this);
         rightLayout.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams rightLp = new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-        rightLp.setMarginStart(px(8));
+        rightLp.setMarginStart(flatText ? 0 : px(8));
         rightLayout.setLayoutParams(rightLp);
         card.addView(rightLayout);
 
@@ -690,41 +814,77 @@ public class SongInfoActivity extends AppCompatActivity {
         if (resUiElement != null) {
             JSONObject mainTitle = resUiElement.optJSONObject("mainTitle");
             if (mainTitle != null) {
-                String title = mainTitle.optString("title", "");
+                String title = text(mainTitle, "title");
                 if (!title.isEmpty()) {
-                    rightLayout.addView(makeText(title, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
+                    rightLayout.addView(makeText(title, COLOR_TEXT_PRIMARY, px(13), true, Gravity.START));
                 }
             }
-            // subTitles is an array in the API response
+            // subTitles is an array in the API response — join ALL entries
+            // (e.g. songAward: "获" + "华语榜年度十大单曲"; first-only lost the award)
             JSONArray subTitles = resUiElement.optJSONArray("subTitles");
             if (subTitles != null && subTitles.length() > 0) {
-                JSONObject st0 = subTitles.optJSONObject(0);
-                if (st0 != null) {
-                    String title = st0.optString("title", "");
-                    if (!title.isEmpty()) {
-                        rightLayout.addView(makeSmallLabel(title));
-                    }
+                StringBuilder stJoined = new StringBuilder();
+                for (int i = 0; i < subTitles.length(); i++) {
+                    JSONObject st = subTitles.optJSONObject(i);
+                    if (st == null) continue;
+                    String title = text(st, "title");
+                    if (title.isEmpty()) continue;
+                    if (stJoined.length() > 0) stJoined.append(" ");
+                    stJoined.append(title);
+                }
+                if (stJoined.length() > 0) {
+                    rightLayout.addView(makeSmallLabel(stJoined.toString()));
                 }
             } else {
                 // Fallback: legacy single-object form
                 JSONObject subTitle = resUiElement.optJSONObject("subTitle");
                 if (subTitle != null) {
-                    String title = subTitle.optString("title", "");
+                    String title = text(subTitle, "title");
                     if (!title.isEmpty()) {
                         rightLayout.addView(makeSmallLabel(title));
                     }
                 }
             }
-            String ueDesc = resUiElement.optString("description", "");
+            String ueDesc = text(resUiElement, "description");
             if (!ueDesc.isEmpty()) {
                 rightLayout.addView(makeText(ueDesc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+            }
+            // descriptions array carries the actual text for 乐评 etc.
+            // (singular "description" is always absent in real responses)
+            JSONArray descs = resUiElement.optJSONArray("descriptions");
+            if (descs != null && descs.length() > 0) {
+                for (int i = 0; i < descs.length(); i++) {
+                    JSONObject d = descs.optJSONObject(i);
+                    if (d == null) continue;
+                    String dText = text(d, "description");
+                    if (!dText.isEmpty()) {
+                        rightLayout.addView(makeText(dText, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                        rightLayout.addView(makeSpacer(px(3)));
+                    }
+                }
+            }
+            // Resource-level textLinks (values some cards put here)
+            JSONArray resTextLinks = resUiElement.optJSONArray("textLinks");
+            if (resTextLinks != null && resTextLinks.length() > 0) {
+                StringBuilder rlValues = new StringBuilder();
+                for (int i = 0; i < resTextLinks.length(); i++) {
+                    JSONObject link = resTextLinks.optJSONObject(i);
+                    if (link == null) continue;
+                    String value = text(link, "text");
+                    if (value.isEmpty()) continue;
+                    if (rlValues.length() > 0) rlValues.append(" / ");
+                    rlValues.append(value);
+                }
+                if (rlValues.length() > 0) {
+                    rightLayout.addView(makeSmallLabel(rlValues.toString()));
+                }
             }
             // Image text (used by some blocks)
             JSONArray imgArr = resUiElement.optJSONArray("images");
             if (imgArr != null && imgArr.length() > 0) {
                 JSONObject img0 = imgArr.optJSONObject(0);
                 if (img0 != null) {
-                    String imageText = img0.optString("title", "");
+                    String imageText = text(img0, "title");
                     if (!imageText.isEmpty()) {
                         rightLayout.addView(makeSmallLabel(imageText));
                     }
@@ -732,7 +892,7 @@ public class SongInfoActivity extends AppCompatActivity {
             } else {
                 JSONObject image = resUiElement.optJSONObject("image");
                 if (image != null) {
-                    String imageText = image.optString("title", "");
+                    String imageText = text(image, "title");
                     if (!imageText.isEmpty()) {
                         rightLayout.addView(makeSmallLabel(imageText));
                     }
@@ -743,11 +903,11 @@ public class SongInfoActivity extends AppCompatActivity {
         // Display from resourceInfo if present
         if (resInfo != null) {
             // Name
-            String name = resInfo.optString("name", "");
+            String name = text(resInfo, "name");
             if (!name.isEmpty()) {
                 // Avoid duplicate if uiElement already showed a title
                 if (resUiElement == null || resUiElement.optJSONObject("mainTitle") == null) {
-                    rightLayout.addView(makeText(name, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
+                    rightLayout.addView(makeText(name, COLOR_TEXT_PRIMARY, px(13), true, Gravity.START));
                 }
             }
 
@@ -760,7 +920,7 @@ public class SongInfoActivity extends AppCompatActivity {
                     JSONObject art = artists.optJSONObject(a);
                     if (art == null) continue;
                     if (artistStr.length() > 0) artistStr.append(" / ");
-                    artistStr.append(art.optString("name", ""));
+                    artistStr.append(text(art, "name"));
                     if (a == 0 && artistId <= 0) {
                         artistId = art.optLong("id", 0);
                     }
@@ -772,17 +932,57 @@ public class SongInfoActivity extends AppCompatActivity {
             JSONObject album = resInfo.optJSONObject("album");
             if (album == null) album = resInfo.optJSONObject("al");
             if (album != null) {
-                String albumName = album.optString("name", "");
+                String albumName = text(album, "name");
                 if (!albumName.isEmpty()) {
                     rightLayout.addView(makeSmallLabel("专辑: " + albumName));
                 }
             }
 
             // Description
-            String desc = resInfo.optString("desc", "");
+            String desc = text(resInfo, "desc");
             if (!desc.isEmpty()) {
                 rightLayout.addView(makeSpacer(px(3)));
                 rightLayout.addView(makeText(desc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+            }
+        }
+
+        // 回忆坐标 (memoryGrid) stores its content in resourceExt — not
+        // resourceExtInfo: FIRST_LISTEN → {date, period, season},
+        // TOTAL_PLAY (累计播放) → {playCount, text}
+        JSONObject resourceExt = resource.optJSONObject("resourceExt");
+        if (resourceExt != null) {
+            JSONObject firstListen = resourceExt.optJSONObject("musicFirstListenDto");
+            if (firstListen != null) {
+                String date = text(firstListen, "date");
+                String period = text(firstListen, "period");
+                String season = text(firstListen, "season");
+                StringBuilder memory = new StringBuilder();
+                if (!date.isEmpty()) memory.append(date);
+                if (!period.isEmpty()) {
+                    if (memory.length() > 0) memory.append(" · ");
+                    memory.append(period);
+                }
+                if (!season.isEmpty()) {
+                    if (memory.length() > 0) memory.append(" · ");
+                    memory.append(season);
+                }
+                if (memory.length() > 0) {
+                    rightLayout.addView(makeSmallLabel(memory.toString()));
+                }
+            }
+            JSONObject totalPlay = resourceExt.optJSONObject("musicTotalPlayDto");
+            if (totalPlay != null) {
+                long playCount = totalPlay.optLong("playCount", 0);
+                String memText = text(totalPlay, "text");
+                StringBuilder tp = new StringBuilder();
+                if (playCount > 0) tp.append(playCount).append("次播放");
+                if (!memText.isEmpty()) {
+                    if (tp.length() > 0) tp.append(" · ");
+                    tp.append(memText);
+                }
+                if (tp.length() > 0) {
+                    rightLayout.addView(makeSmallLabel(tp.toString()));
+                }
             }
         }
 
@@ -795,14 +995,14 @@ public class SongInfoActivity extends AppCompatActivity {
                 for (int s = 0; s < songData.length(); s++) {
                     JSONObject song = songData.optJSONObject(s);
                     if (song == null) continue;
-                    String sName = song.optString("name", "");
+                    String sName = text(song, "name");
                     if (!sName.isEmpty()) {
                         rightLayout.addView(makeSmallLabel("• " + sName));
                     }
                 }
             }
             // Playlist info
-            String playlistName = extInfo.optString("name", "");
+            String playlistName = text(extInfo, "name");
             if (!playlistName.isEmpty() && resInfo == null) {
                 rightLayout.addView(makeSmallLabel(playlistName));
             }
@@ -826,10 +1026,10 @@ public class SongInfoActivity extends AppCompatActivity {
                 if (plId <= 0 && extInfo != null) plId = extInfo.optLong("id", 0);
                 if (plId <= 0) plId = parseResourceId(resource);
                 String plName = "";
-                if (resInfo != null) plName = resInfo.optString("name", "");
+                if (resInfo != null) plName = text(resInfo, "name");
                 if (plName.isEmpty() && resUiElement != null) {
                     JSONObject mt = resUiElement.optJSONObject("mainTitle");
-                    if (mt != null) plName = mt.optString("title", "");
+                    if (mt != null) plName = text(mt, "title");
                 }
                 int plTrackCount = 0;
                 if (extInfo != null) plTrackCount = extInfo.optInt("trackCount", 0);
@@ -843,8 +1043,89 @@ public class SongInfoActivity extends AppCompatActivity {
                     card.setOnClickListener(v -> openPlaylistDetail(finalPlId, finalPlName, finalPlTrackCount, ""));
                 }
             }
-            contentLayout.addView(card);
+            if (sheetCard) {
+                rightLayout.addView(makeSmallLabel("点击下载乐谱"));
+            }
+            sectionAdd(card);
+            if (sheetCard && !coverUrlRes.isEmpty()) {
+                final String sheetUrl = coverUrlRes;
+                final String sheetTitle = !sheetImgTitle.isEmpty() ? sheetImgTitle : "乐谱";
+                card.setClickable(true);
+                card.setOnClickListener(v -> downloadSheetImage(sheetUrl, sheetTitle));
+            }
         }
+    }
+
+    /** Download the sheet music image to the configured save directory. */
+    private void downloadSheetImage(final String imageUrl, final String title) {
+        Toast.makeText(this, "开始下载乐谱...", Toast.LENGTH_SHORT).show();
+        final String dirPath = getSharedPreferences("music163_settings", MODE_PRIVATE)
+                .getString("image_save_dir",
+                        new File(Environment.getExternalStorageDirectory(), "Pictures").getAbsolutePath());
+        final String name = sanitizeFileName(title) + "_" + System.currentTimeMillis()
+                + fileExtFromUrl(imageUrl);
+        new Thread(() -> {
+            try {
+                byte[] data = httpGetBytes(imageUrl);
+                BitmapFactory.Options bounds = new BitmapFactory.Options();
+                bounds.inJustDecodeBounds = true;
+                BitmapFactory.decodeByteArray(data, 0, data.length, bounds);
+                if (bounds.outWidth <= 0) throw new IllegalStateException("not an image");
+                File dir = new File(dirPath);
+                if (!dir.exists() && !dir.mkdirs()) {
+                    runOnUiThread(() ->
+                            Toast.makeText(this, "无法创建目录", Toast.LENGTH_SHORT).show());
+                    return;
+                }
+                File out = new File(dir, name);
+                FileOutputStream fos = new FileOutputStream(out);
+                fos.write(data);
+                fos.close();
+                MediaScannerConnection.scanFile(this,
+                        new String[]{out.getAbsolutePath()}, null, null);
+                final String path = out.getAbsolutePath();
+                runOnUiThread(() ->
+                        Toast.makeText(this, "已保存: " + path, Toast.LENGTH_LONG).show());
+            } catch (Exception e) {
+                MusicLog.w(TAG, "下载乐谱失败: " + imageUrl, e);
+                runOnUiThread(() ->
+                        Toast.makeText(this, "下载失败", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+
+    private static byte[] httpGetBytes(String urlStr) throws Exception {
+        HttpURLConnection conn = null;
+        try {
+            URL url = new URL(urlStr);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(20000);
+            InputStream is = conn.getInputStream();
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = is.read(buf)) != -1) bos.write(buf, 0, n);
+            is.close();
+            return bos.toByteArray();
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
+
+    private static String sanitizeFileName(String s) {
+        if (s == null || s.trim().isEmpty()) return "sheet";
+        String clean = s.trim().replaceAll("[\\/:*?\"<>|\\s]+", "_");
+        return clean.length() > 40 ? clean.substring(0, 40) : clean;
+    }
+
+    private static String fileExtFromUrl(String url) {
+        if (url == null) return ".jpg";
+        String lower = url.toLowerCase(Locale.getDefault());
+        if (lower.contains(".png")) return ".png";
+        if (lower.contains(".webp")) return ".webp";
+        if (lower.contains(".gif")) return ".gif";
+        return ".jpg";
     }
 
     /**
@@ -855,10 +1136,10 @@ public class SongInfoActivity extends AppCompatActivity {
                                   JSONObject resUiElement, String coverUrlRes) {
         long resId = resInfo != null ? resInfo.optLong("id", 0) : 0;
         if (resId <= 0) resId = parseResourceId(resource);
-        String resName = resInfo != null ? resInfo.optString("name", "") : "";
+        String resName = resInfo != null ? text(resInfo, "name") : "";
         if (resName.isEmpty() && resUiElement != null) {
             JSONObject mt = resUiElement.optJSONObject("mainTitle");
-            if (mt != null) resName = mt.optString("title", "");
+            if (mt != null) resName = text(mt, "title");
         }
         String resArtist = "";
         if (resInfo != null) {
@@ -867,21 +1148,21 @@ public class SongInfoActivity extends AppCompatActivity {
             if (ars == null) ars = resInfo.optJSONArray("artists");
             if (ars != null && ars.length() > 0) {
                 JSONObject a0 = ars.optJSONObject(0);
-                if (a0 != null) resArtist = a0.optString("name", "");
+                if (a0 != null) resArtist = text(a0, "name");
             }
             if (resArtist.isEmpty()) {
-                resArtist = resInfo.optString("artistName", "");
+                resArtist = text(resInfo, "artistName");
             }
         }
         if (resArtist.isEmpty() && resUiElement != null) {
             JSONArray sts = resUiElement.optJSONArray("subTitles");
             if (sts != null && sts.length() > 0) {
                 JSONObject st0 = sts.optJSONObject(0);
-                if (st0 != null) resArtist = st0.optString("title", "");
+                if (st0 != null) resArtist = text(st0, "title");
             }
             if (resArtist.isEmpty()) {
                 JSONObject st = resUiElement.optJSONObject("subTitle");
-                if (st != null) resArtist = st.optString("title", "");
+                if (st != null) resArtist = text(st, "title");
             }
         }
 
@@ -904,7 +1185,7 @@ public class SongInfoActivity extends AppCompatActivity {
             feeBadges.put(cardSong, row.findViewById(R.id.tv_vip_badge));
             row.setOnClickListener(v -> playSimilarSongs(currentBlockSongs, songIdx));
         }
-        contentLayout.addView(row);
+        sectionAdd(row);
         requestFeeEnrichment();
     }
 
@@ -915,6 +1196,22 @@ public class SongInfoActivity extends AppCompatActivity {
             return String.format(Locale.getDefault(), "%.1f万", count / 10000.0);
         }
         return String.valueOf(count);
+    }
+
+    /**
+     * optString that treats an explicit JSON null as empty. Android's
+     * org.json optString returns the literal "null" for JSONObject.NULL
+     * sentinel values — the wiki API returns many explicit nulls
+     * (headline/desc/text...) which would otherwise render "null" on screen.
+     */
+    private static String text(JSONObject o, String key) {
+        if (o == null || o.isNull(key)) return "";
+        return o.optString(key, "");
+    }
+
+    private static String text(JSONArray a, int i) {
+        if (a == null || a.isNull(i)) return "";
+        return a.optString(i, "");
     }
 
     /** Parse resource ID trying numeric 'id' field first, then 'resourceId' string. */
@@ -931,23 +1228,49 @@ public class SongInfoActivity extends AppCompatActivity {
     }
 
     private void displayUiElement(JSONObject uiElement) {
+        displayUiElement(uiElement, null);
+    }
+
+    /**
+     * @param skipTitle when non-null, a mainTitle identical to this string is
+     *                  not re-rendered (block-level uiElement duplicates the
+     *                  section header already added by displayBlock).
+     */
+    private void displayUiElement(JSONObject uiElement, String skipTitle) {
         JSONObject mainTitle = uiElement.optJSONObject("mainTitle");
         if (mainTitle != null) {
-            String title = mainTitle.optString("title", "");
-            if (!title.isEmpty()) {
-                contentLayout.addView(makeText(title, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
+            String title = text(mainTitle, "title");
+            if (!title.isEmpty() && !title.equals(skipTitle)) {
+                sectionAdd(makeText(title, COLOR_TEXT_PRIMARY, px(13), true, Gravity.START));
             }
         }
         JSONObject subTitle = uiElement.optJSONObject("subTitle");
         if (subTitle != null) {
-            String title = subTitle.optString("title", "");
+            String title = text(subTitle, "title");
             if (!title.isEmpty()) {
-                contentLayout.addView(makeText(title, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+                sectionAdd(makeText(title, COLOR_TEXT_DESC, px(13), false, Gravity.START));
             }
         }
-        String description = uiElement.optString("description", "");
+        // textLinks carries the actual values for creatives like 语种/BPM —
+        // the API puts them here, NOT in headline/desc (which are always null).
+        JSONArray textLinks = uiElement.optJSONArray("textLinks");
+        if (textLinks != null && textLinks.length() > 0) {
+            StringBuilder values = new StringBuilder();
+            for (int i = 0; i < textLinks.length(); i++) {
+                JSONObject link = textLinks.optJSONObject(i);
+                if (link == null) continue;
+                String value = text(link, "text");
+                if (value.isEmpty()) continue;
+                if (values.length() > 0) values.append(" / ");
+                values.append(value);
+            }
+            if (values.length() > 0) {
+                sectionAdd(makeText(values.toString(), COLOR_TEXT_DESC, px(13), false, Gravity.START));
+            }
+        }
+        String description = text(uiElement, "description");
         if (!description.isEmpty()) {
-            contentLayout.addView(makeText(description, COLOR_TEXT_DESC, px(13), false, Gravity.START));
+            sectionAdd(makeText(description, COLOR_TEXT_DESC, px(13), false, Gravity.START));
         }
     }
 
@@ -960,13 +1283,12 @@ public class SongInfoActivity extends AppCompatActivity {
             return;
         }
 
-        contentLayout.addView(makeSpacer(px(6)));
-        contentLayout.addView(makeDivider());
-        contentLayout.addView(makeSpacer(px(6)));
+        sectionAdd(makeSpacer(px(6)));
+        sectionAdd(makeSpacer(px(6)));
         addSectionHeader(R.drawable.ic_mic, "歌手百科");
 
-        final TextView tvArtistLoading = makeText("加载歌手详情...", COLOR_TEXT_SECONDARY, px(13), false, Gravity.START);
-        contentLayout.addView(tvArtistLoading);
+        final TextView tvArtistLoading = makeText("加载歌手详情...", COLOR_TEXT_SECONDARY, px(12), false, Gravity.START);
+        sectionAdd(tvArtistLoading);
 
         MusicLog.op(TAG, "请求歌手百科", "artistId=" + artistId);
 
@@ -992,15 +1314,15 @@ public class SongInfoActivity extends AppCompatActivity {
     private void displayArtistDesc(String briefDesc, JSONArray introduction) {
         if ((briefDesc == null || briefDesc.isEmpty())
                 && (introduction == null || introduction.length() == 0)) {
-            contentLayout.addView(makeText("暂无歌手百科信息", COLOR_TEXT_SECONDARY, px(13), false, Gravity.START));
-            contentLayout.addView(makeSpacer(px(16)));
+            sectionAdd(makeText("暂无歌手百科信息", COLOR_TEXT_SECONDARY, px(12), false, Gravity.START));
+            sectionAdd(makeSpacer(px(16)));
             return;
         }
 
         if (briefDesc != null && !briefDesc.isEmpty()) {
-            contentLayout.addView(makeText("简介", COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
-            contentLayout.addView(makeSpacer(px(3)));
-            contentLayout.addView(makeText(briefDesc, COLOR_TEXT_DESC, px(14), false, Gravity.START));
+            sectionAdd(makeText("简介", COLOR_TEXT_PRIMARY, px(13), true, Gravity.START));
+            sectionAdd(makeSpacer(px(3)));
+            sectionAdd(makeText(briefDesc, COLOR_TEXT_DESC, px(13), false, Gravity.START));
         }
 
         if (introduction != null && introduction.length() > 0) {
@@ -1008,21 +1330,21 @@ public class SongInfoActivity extends AppCompatActivity {
                 JSONObject section = introduction.optJSONObject(i);
                 if (section == null) continue;
 
-                String ti = section.optString("ti", "");
-                String txt = section.optString("txt", "");
+                String ti = text(section, "ti");
+                String txt = text(section, "txt");
 
                 if (!ti.isEmpty()) {
-                    contentLayout.addView(makeSpacer(px(8)));
-                    contentLayout.addView(makeText(ti, COLOR_TEXT_PRIMARY, px(15), true, Gravity.START));
+                    sectionAdd(makeSpacer(px(8)));
+                    sectionAdd(makeText(ti, COLOR_TEXT_PRIMARY, px(13), true, Gravity.START));
                 }
                 if (!txt.isEmpty()) {
-                    contentLayout.addView(makeSpacer(px(3)));
-                    contentLayout.addView(makeText(txt, COLOR_TEXT_DESC, px(14), false, Gravity.START));
+                    sectionAdd(makeSpacer(px(3)));
+                    sectionAdd(makeText(txt, COLOR_TEXT_DESC, px(13), false, Gravity.START));
                 }
             }
         }
 
-        contentLayout.addView(makeSpacer(px(16)));
+        sectionAdd(makeSpacer(px(16)));
     }
 
     // ── Playback helpers ────────────────────────────────────────────────
@@ -1030,7 +1352,7 @@ public class SongInfoActivity extends AppCompatActivity {
     private TextView createVipBadge() {
         TextView badge = new TextView(this);
         badge.setText(R.string.vip_badge);
-        badge.setTextColor(0xFFF44336);
+        badge.setTextColor(getResources().getColor(R.color.colorError));
         badge.setTextSize(9);
         badge.setTypeface(badge.getTypeface(), Typeface.BOLD);
         badge.setBackgroundResource(R.drawable.bg_vip_badge);
@@ -1109,6 +1431,18 @@ public class SongInfoActivity extends AppCompatActivity {
     }
 
     private void addSectionHeader(int iconRes, String title) {
+        // Close the previous section implicitly: start a fresh M3 card and
+        // route subsequent content into it via sectionAdd().
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackgroundResource(R.drawable.bg_card_rounded);
+        card.setPadding(px(10), px(8), px(10), px(8));
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        cardParams.setMargins(0, 0, 0, px(6));
+        contentLayout.addView(card, cardParams);
+        currentSectionCard = card;
+
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -1128,12 +1462,21 @@ public class SongInfoActivity extends AppCompatActivity {
         TextView tv = new TextView(this);
         tv.setText(title);
         tv.setTextColor(COLOR_ACCENT);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(16));
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
         tv.setTypeface(null, Typeface.BOLD);
         row.addView(tv);
 
-        contentLayout.addView(row);
-        contentLayout.addView(makeSpacer(px(4)));
+        sectionAdd(row);
+        sectionAdd(makeSpacer(px(4)));
+    }
+
+    /** Add a view to the open section card, or the page root before any section. */
+    private void sectionAdd(android.view.View v) {
+        (currentSectionCard != null ? currentSectionCard : contentLayout).addView(v);
+    }
+
+    private void sectionAdd(android.view.View v, android.view.ViewGroup.LayoutParams params) {
+        (currentSectionCard != null ? currentSectionCard : contentLayout).addView(v, params);
     }
 
     private void addInfoRow(String label, String value) {
@@ -1147,25 +1490,27 @@ public class SongInfoActivity extends AppCompatActivity {
         TextView tvLabel = new TextView(this);
         tvLabel.setText(label + "：");
         tvLabel.setTextColor(COLOR_TEXT_SECONDARY);
-        tvLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
+        tvLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
 
         TextView tvValue = new TextView(this);
         tvValue.setText(value);
         tvValue.setTextColor(COLOR_TEXT_PRIMARY);
-        tvValue.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(14));
+        tvValue.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
         tvValue.setLayoutParams(new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         row.addView(tvLabel);
         row.addView(tvValue);
-        contentLayout.addView(row);
+        sectionAdd(row);
     }
 
     private TextView makeSmallLabel(String text) {
         TextView tv = new TextView(this);
         tv.setText(text);
-        tv.setTextColor(COLOR_TEXT_SECONDARY);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
+        // Content style — same gray + size as every other body text so the
+        // page has exactly two levels: white bold title / gray body.
+        tv.setTextColor(COLOR_TEXT_DESC);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
         tv.setPadding(0, px(1), 0, 0);
         return tv;
     }
@@ -1199,7 +1544,6 @@ public class SongInfoActivity extends AppCompatActivity {
     }
 
     private int px(int baseValue) {
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        return (int) (baseValue * screenWidth / 320f + 0.5f);
+        return (int) (baseValue * getResources().getDisplayMetrics().density + 0.5f);
     }
 }

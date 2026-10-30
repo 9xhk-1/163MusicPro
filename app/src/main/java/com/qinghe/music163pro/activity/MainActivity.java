@@ -28,9 +28,7 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.ScrollView;
-import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -39,6 +37,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.qinghe.music163pro.R;
+import com.qinghe.music163pro.util.WatchUiUtils;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.manager.DownloadManager;
 import com.qinghe.music163pro.manager.FavoritesManager;
@@ -53,6 +52,10 @@ import com.qinghe.music163pro.util.UpdateChecker;
 import com.qinghe.music163pro.util.WatchConfirmDialog;
 import com.qinghe.music163pro.util.BackgroundUtil;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.progressindicator.CircularProgressIndicator;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
+import com.google.android.material.slider.LabelFormatter;
+import com.google.android.material.slider.Slider;
 
 import org.json.JSONObject;
 
@@ -80,9 +83,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private TextView tvSongName;
     private TextView tvArtist;
     private TextView tvPlayerVipBadge;
-    private ImageView btnPlay;
-    private ImageView btnFuncMore;
-    private SeekBar seekBar;
+    private MaterialButton btnPlay;
+    private MaterialButton btnFuncMore;
+    private Slider seekBar;
     private View chorusMarkerDot;
     private TextView tvCurrentTime;
     private TextView tvTotalTime;
@@ -94,7 +97,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private boolean serviceStarted = false;
 
     // Playlist indicator (top-left)
-    private ImageView btnPlaylistIndicator;
+    private MaterialButton btnPlaylistIndicator;
 
     // Song ids whose fee detail lookup was already requested this session
     private final java.util.Set<Long> feeEnrichRequested = new java.util.HashSet<>();
@@ -106,7 +109,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
     // Volume indicator
     private View volumeIndicator;
-    private ProgressBar volumeProgressBar;
+    private com.google.android.material.progressindicator.LinearProgressIndicator volumeProgressBar;
     private TextView volumePercentView;
     private final Handler volumeHandler = new Handler();
 
@@ -155,7 +158,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private String currentTlyricText; // Raw translated LRC text for current song
     private String currentRomalrcText; // Raw romanization LRC text for current song
     private int translateMode; // 0=off, 1=translation (意), 2=romanization (音)
-    private TextView btnTranslationToggle; // Toggle button in lyrics overlay
+    private MaterialButton btnTranslationToggle; // Toggle button in lyrics overlay
     private final java.util.Map<Long, String> translationMap = new java.util.HashMap<>(); // timeMs -> translated text
     private final java.util.Map<Long, String> romanizationMap = new java.util.HashMap<>(); // timeMs -> romanization text
     private long currentChorusSongId = -1L;
@@ -194,11 +197,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         seekBar = findViewById(R.id.seek_bar);
         tvCurrentTime = findViewById(R.id.tv_current_time);
         tvTotalTime = findViewById(R.id.tv_total_time);
-        ImageView btnPrev = findViewById(R.id.btn_prev);
-        ImageView btnNext = findViewById(R.id.btn_next);
-        ImageView btnVolDown = findViewById(R.id.btn_vol_down);
-        ImageView btnVolUp = findViewById(R.id.btn_vol_up);
-        ImageView btnMore = findViewById(R.id.btn_more);
+        MaterialButton btnPrev = findViewById(R.id.btn_prev);
+        MaterialButton btnNext = findViewById(R.id.btn_next);
+        MaterialButton btnVolDown = findViewById(R.id.btn_vol_down);
+        MaterialButton btnVolUp = findViewById(R.id.btn_vol_up);
+        MaterialButton btnMore = findViewById(R.id.btn_more);
         btnPlaylistIndicator = findViewById(R.id.btn_playlist_indicator);
         ensureChorusMarkerDot();
 
@@ -285,7 +288,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                                 volumeSafeConfirmed = true;
                                 adjustVolumeUp();
                             },
-                            new WatchConfirmDialog.Options(0xFF1E1E1E, 0xFFBB86FC, true));
+                            new WatchConfirmDialog.Options(0xFF2B2930, 0xFFD0BCFF, true));
                 } else {
                     adjustVolumeUp();
                 }
@@ -294,27 +297,25 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Changed: "more functions" overlay instead of toggle favorite
         btnFuncMore.setOnClickListener(v -> showFunctionsOverlay());
 
-        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
-                if (fromUser) {
-                    int duration = playerManager.getDuration();
-                    if (duration > 0) {
-                        tvCurrentTime.setText(formatTime((int) ((long) progress * duration / 1000)));
-                    }
+        seekBar.addOnChangeListener((slider, value, fromUser) -> {
+            if (fromUser) {
+                int duration = playerManager.getDuration();
+                if (duration > 0) {
+                    tvCurrentTime.setText(formatTime((int) ((long) value * duration / 1000)));
                 }
             }
-
+        });
+        seekBar.addOnSliderTouchListener(new Slider.OnSliderTouchListener() {
             @Override
-            public void onStartTrackingTouch(SeekBar bar) {
+            public void onStartTrackingTouch(Slider slider) {
                 isUserSeeking = true;
             }
 
             @Override
-            public void onStopTrackingTouch(SeekBar bar) {
+            public void onStopTrackingTouch(Slider slider) {
                 int duration = playerManager.getDuration();
                 if (duration > 0) {
-                    int seekPos = (int) ((long) bar.getProgress() * duration / 1000);
+                    int seekPos = (int) ((long) slider.getValue() * duration / 1000);
                     playerManager.seekTo(seekPos);
                 }
                 isUserSeeking = false;
@@ -508,7 +509,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private void clearCurrentLyricHighlight() {
         if (currentHighlightIndex >= 0 && currentHighlightIndex < lyricViews.size()) {
             TextView currentView = lyricViews.get(currentHighlightIndex);
-            currentView.setTextColor(0xB3FFFFFF);
+            currentView.setTextColor(getResources().getColor(R.color.text_secondary));
             currentView.setTextSize(13);
         }
         currentHighlightIndex = -1;
@@ -672,13 +673,12 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 v -> onFuncSetRingtone(song)));
 
         // Sleep timer - show remaining time if active, with live updates
-        LinearLayout timerItem = createFuncItem(R.drawable.ic_timer,
+        MaterialButton timerItem = createFuncItem(R.drawable.ic_timer,
                 playerManager.isSleepTimerActive() ? "定时..." : "定时关闭",
                 v -> onFuncSleepTimer());
         row2.addView(timerItem);
 
-        // Find the label view in timerItem (second child) for live updates
-        final TextView timerLabelView = (TextView) timerItem.getChildAt(1);
+        final TextView timerLabelView = timerItem;
         if (playerManager.isSleepTimerActive()) {
             overlayTimerHandler = new Handler();
             overlayTimerRunnable = new Runnable() {
@@ -837,12 +837,12 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         row2.setPadding(0, dp(4), 0, 0);
         row2.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        LinearLayout timerItem = createFuncItem(R.drawable.ic_timer,
+        MaterialButton timerItem = createFuncItem(R.drawable.ic_timer,
                 playerManager.isSleepTimerActive() ? "定时..." : "定时关闭",
                 v -> onFuncSleepTimer());
         row2.addView(timerItem);
 
-        final TextView timerLabelView = (TextView) timerItem.getChildAt(1);
+        final TextView timerLabelView = timerItem;
         if (playerManager.isSleepTimerActive()) {
             overlayTimerHandler = new Handler();
             overlayTimerRunnable = new Runnable() {
@@ -910,30 +910,45 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private FrameLayout createOverlayTitleBar(String titleText) {
         FrameLayout titleBar = new FrameLayout(this);
         LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        barParams.bottomMargin = dp(8);
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(36));
+        barParams.bottomMargin = dp(4);
         titleBar.setLayoutParams(barParams);
 
         // Centered title
         TextView title = new TextView(this);
         title.setText(titleText);
-        title.setTextColor(0xFFFFFFFF);
-        title.setTextSize(15);
-        title.setGravity(Gravity.CENTER);
+        title.setTextColor(0xFFE6E0E9);
+        title.setTextSize(11);
+        title.setMaxLines(1);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        title.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         FrameLayout.LayoutParams titleParams = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        titleParams.gravity = Gravity.CENTER;
+        titleParams.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
+        titleParams.setMarginEnd(dp(36));
         title.setLayoutParams(titleParams);
         titleBar.addView(title);
 
         // Close button on the right
-        ImageView btnClose = new ImageView(this);
-        btnClose.setImageResource(R.drawable.ic_close);
-        btnClose.setColorFilter(0xFFFFFFFF);
-        int closeSize = dp(18);
+        MaterialButton btnClose = new MaterialButton(this);
+        btnClose.setIconResource(R.drawable.ic_close);
+        btnClose.setIconTint(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.text_primary)));
+        btnClose.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT));
+        btnClose.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+        btnClose.setIconSize(dp(18));
+        btnClose.setIconPadding(0);
+        btnClose.setInsetTop(0);
+        btnClose.setInsetBottom(0);
+        btnClose.setMinWidth(0);
+        btnClose.setMinimumWidth(0);
+        btnClose.setMinHeight(0);
+        btnClose.setMinimumHeight(0);
+        btnClose.setPadding(0, 0, 0, 0);
+        btnClose.setCornerRadius(dp(24));
+        btnClose.setContentDescription("关闭");
+        int closeSize = dp(36);
         FrameLayout.LayoutParams closeParams = new FrameLayout.LayoutParams(closeSize, closeSize);
         closeParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
-        closeParams.setMarginEnd(dp(4));
         btnClose.setLayoutParams(closeParams);
         btnClose.setClickable(true);
         btnClose.setFocusable(true);
@@ -978,32 +993,31 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         });
     }
 
-    private LinearLayout createFuncItem(int iconRes, String label, View.OnClickListener listener) {
-        LinearLayout item = new LinearLayout(this);
-        item.setOrientation(LinearLayout.VERTICAL);
-        item.setGravity(Gravity.CENTER);
-        item.setPadding(dp(8), dp(8), dp(8), dp(8));
-        LinearLayout.LayoutParams itemParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+    private MaterialButton createFuncItem(int iconRes, String label, View.OnClickListener listener) {
+        MaterialButton item = new MaterialButton(this);
+        item.setText(label);
+        item.setTextColor(getResources().getColor(R.color.on_primary_container));
+        item.setTextSize(11);
+        item.setAllCaps(false);
+        item.setSingleLine(true);
+        item.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        item.setIconResource(iconRes);
+        item.setIconTint(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.on_primary_container)));
+        item.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_TOP);
+        item.setIconSize(dp(22));
+        item.setIconPadding(dp(3));
+        item.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.primary_container)));
+        item.setCornerRadius(dp(16));
+        item.setInsetTop(0);
+        item.setInsetBottom(0);
+        item.setMinWidth(0);
+        item.setMinimumWidth(0);
+        item.setMinHeight(0);
+        item.setMinimumHeight(0);
+        item.setPadding(dp(2), dp(4), dp(2), dp(4));
+        LinearLayout.LayoutParams itemParams = new LinearLayout.LayoutParams(0, dp(64), 1);
+        itemParams.setMargins(dp(2), 0, dp(2), 0);
         item.setLayoutParams(itemParams);
-        item.setClickable(true);
-        item.setFocusable(true);
-
-        ImageView iconView = new ImageView(this);
-        iconView.setImageResource(iconRes);
-        int iconSize = dp(24);
-        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(iconSize, iconSize);
-        iconParams.gravity = Gravity.CENTER_HORIZONTAL;
-        iconView.setLayoutParams(iconParams);
-        item.addView(iconView);
-
-        TextView labelView = new TextView(this);
-        labelView.setText(label);
-        labelView.setTextColor(0xFFFFFFFF);
-        labelView.setTextSize(12);
-        labelView.setGravity(Gravity.CENTER);
-        labelView.setPadding(0, dp(4), 0, 0);
-        item.addView(labelView);
-
         item.setOnClickListener(listener);
         return item;
     }
@@ -1097,11 +1111,14 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         card.setClickable(false);
         card.setFocusable(false);
 
-        ProgressBar progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        LinearProgressIndicator progressBar = new LinearProgressIndicator(this);
+        progressBar.setTrackThickness(dp(8));
+        progressBar.setTrackCornerRadius(dp(4));
+        progressBar.setIndicatorColor(ContextCompat.getColor(this, R.color.colorPrimary));
+        progressBar.setTrackColor(ContextCompat.getColor(this, R.color.surface_variant));
         LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(
-                0, dp(8), 1f);
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         progressBar.setLayoutParams(progressParams);
-        progressBar.setProgressDrawable(ContextCompat.getDrawable(this, R.drawable.progress_volume_indicator));
         progressBar.setMax(hasVolumeInfo ? max : 1);
         progressBar.setProgress(hasVolumeInfo ? current : 0);
 
@@ -1234,7 +1251,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         dot.setLayoutParams(params);
         GradientDrawable background = new GradientDrawable();
         background.setShape(GradientDrawable.OVAL);
-        background.setColor(ContextCompat.getColor(this, R.color.colorAccent));
+        background.setColor(ContextCompat.getColor(this, R.color.colorTertiary));
         dot.setBackground(background);
         dot.setVisibility(View.GONE);
         dot.setClickable(false);
@@ -1271,8 +1288,14 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         seekBar.getLocationInWindow(seekLocation);
 
         float fraction = Math.min(1f, Math.max(0f, (float) currentChorusStartMs / (float) durationMs));
-        float trackLeft = seekLocation[0] - rootLocation[0] + seekBar.getPaddingLeft();
-        float trackRight = seekLocation[0] - rootLocation[0] + seekWidth - seekBar.getPaddingRight();
+        // The Slider draws its track inset from the view edges by the thumb
+        // clearance (thumb radius plus an 8dp gap, ~14dp total) — unlike the
+        // old SeekBar whose track spanned the full padded width. Using the
+        // raw view bounds put the chorus marker dot visibly off the track.
+        int thumbRadiusPx = seekBar.getThumbRadius();
+        int trackInset = thumbRadiusPx + dp(8);
+        float trackLeft = seekLocation[0] - rootLocation[0] + trackInset;
+        float trackRight = seekLocation[0] - rootLocation[0] + seekWidth - trackInset;
         float markerCenterX = trackLeft + (trackRight - trackLeft) * fraction;
         float markerCenterY = seekLocation[1] - rootLocation[1] + seekHeight / 2f;
         chorusMarkerDot.setX(markerCenterX - chorusMarkerDot.getWidth() / 2f);
@@ -1308,8 +1331,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private boolean applySmartClipRange(int totalSec,
                                         int[] startSec,
                                         int[] endSec,
-                                        SeekBar sbStart,
-                                        SeekBar sbEnd,
+                                        Slider sbStart,
+                                        Slider sbEnd,
                                         TextView tvStart,
                                         TextView tvEnd,
                                         Runnable updateDuration,
@@ -1329,8 +1352,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         }
         startSec[0] = smartStart;
         endSec[0] = smartEnd;
-        sbStart.setProgress(smartStart);
-        sbEnd.setProgress(smartEnd);
+        sbStart.setValue((float) smartStart);
+        sbEnd.setValue((float) smartEnd);
         tvStart.setText("起始: " + smartStart + "s");
         tvEnd.setText("结束: " + smartEnd + "s");
         if (tvChorusRange != null) {
@@ -1345,17 +1368,42 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         button.setText(text);
         button.setAllCaps(false);
         button.setTextSize(12f);
-        button.setTextColor(ContextCompat.getColor(this, R.color.white));
-        button.setCornerRadius(dp(8));
+        button.setTextColor(androidx.core.graphics.ColorUtils.calculateLuminance(backgroundColor) > 0.4
+                ? 0xFF1D1B20 : ContextCompat.getColor(this, R.color.text_primary));
+        button.setCornerRadius(dp(24));
         button.setInsetTop(0);
         button.setInsetBottom(0);
-        button.setMinimumHeight(dp(36));
+        button.setMinWidth(0);
+        button.setMinimumWidth(0);
+        button.setMinHeight(dp(48));
+        button.setMinimumHeight(dp(48));
         button.setPadding(dp(8), dp(10), dp(8), dp(10));
         button.setBackgroundTintList(ColorStateList.valueOf(backgroundColor));
         if (!primary) {
             button.setStrokeWidth(0);
         }
         return button;
+    }
+
+    private EditText addOverlayNumberField(LinearLayout row, String hint, int inputType) {
+        com.google.android.material.textfield.TextInputLayout field =
+                new com.google.android.material.textfield.TextInputLayout(this);
+        field.setHintEnabled(false);
+        field.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        LinearLayout.LayoutParams fieldParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
+        fieldParams.setMarginEnd(dp(4));
+        row.addView(field, fieldParams);
+
+        com.google.android.material.textfield.TextInputEditText input =
+                new com.google.android.material.textfield.TextInputEditText(this);
+        input.setHint(hint);
+        input.setInputType(inputType);
+        input.setSingleLine(true);
+        input.setTextSize(13);
+        input.setPadding(dp(8), 0, dp(8), 0);
+        field.addView(input, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(48)));
+        return input;
     }
 
     private void onFuncFavorite(Song song) {
@@ -1411,6 +1459,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         }
         dismissOverlay();
     }
+
+
+
+
 
     private void onFuncDownload(Song song) {
         dismissOverlay();
@@ -1573,34 +1625,74 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         overlayContainer.setBackgroundColor(0xCC000000);
         addSwipeToDismiss(overlayContainer);
 
-        ScrollView scrollView = new ScrollView(this);
+        // Same structure as the download/quality dialog: compact centered
+        // content on the dim scrim, outer scroll when lines overflow.
+        ScrollView outerScroll = new ScrollView(this);
         FrameLayout.LayoutParams scrollParams = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
         scrollParams.gravity = Gravity.CENTER;
-        scrollView.setLayoutParams(scrollParams);
+        outerScroll.setLayoutParams(scrollParams);
+        outerScroll.setOnClickListener(v -> { /* consume click */ });
 
         LinearLayout contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
         contentLayout.setGravity(Gravity.CENTER);
-        contentLayout.setPadding(dp(16), dp(12), dp(16), dp(12));
+        contentLayout.setPadding(dp(20), dp(16), dp(20), dp(16));
         contentLayout.addView(createOverlayTitleBar("播放器信息"));
 
+        LinearLayout lines = new LinearLayout(this);
+        lines.setOrientation(LinearLayout.VERTICAL);
         for (String line : playerManager.getCurrentPlayerInfoLines()) {
-            TextView textView = new TextView(this);
-            textView.setText(line);
-            textView.setTextColor(0xFFFFFFFF);
-            textView.setTextSize(12);
-            textView.setPadding(dp(10), dp(8), dp(10), dp(8));
-            textView.setBackgroundColor(0xFF2D2D2D);
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            params.bottomMargin = dp(4);
-            textView.setLayoutParams(params);
-            contentLayout.addView(textView);
+            // Identical row structure to the download-quality options:
+            // MaterialCardView (14dp radius, elevated surface, 4dp gap) with
+            // a big value line and a small secondary label line.
+            com.google.android.material.card.MaterialCardView card =
+                    createQualityCard(false, false);
+
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(dp(10), dp(9), dp(10), dp(9));
+            row.setMinimumHeight(dp(48));
+            card.addView(row);
+
+            LinearLayout leftCol = new LinearLayout(this);
+            leftCol.setOrientation(LinearLayout.VERTICAL);
+            leftCol.setLayoutParams(new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+
+            int sep = line.indexOf(": ");
+            TextView tvValue = new TextView(this);
+            tvValue.setTextSize(14);
+            tvValue.setTextColor(getResources().getColor(R.color.text_primary));
+            TextView tvLabel = null;
+            if (sep > 0) {
+                tvValue.setText(line.substring(sep + 2));
+                tvValue.setSingleLine(true);
+                tvValue.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
+                tvValue.setMarqueeRepeatLimit(-1);
+                tvValue.setSelected(true);
+                tvLabel = new TextView(this);
+                tvLabel.setText(line.substring(0, sep));
+                tvLabel.setTextColor(0xFFCAC4D0);
+                tvLabel.setTextSize(11);
+            } else {
+                tvValue.setText(line);
+            }
+            leftCol.addView(tvValue);
+            if (tvLabel != null) {
+                leftCol.addView(tvLabel);
+            }
+            row.addView(leftCol);
+
+            lines.addView(card);
         }
 
-        scrollView.addView(contentLayout);
-        overlayContainer.addView(scrollView);
+        contentLayout.addView(lines, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        outerScroll.addView(contentLayout);
+        overlayContainer.addView(outerScroll);
         rootView.addView(overlayContainer);
     }
 
@@ -1653,14 +1745,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         for (int i = 0; i < playlists.size(); i++) {
             names[i] = playlists.get(i).getName() + " (" + playlists.get(i).getTrackCount() + "首)";
         }
-        new android.app.AlertDialog.Builder(this)
-                .setTitle("添加到歌单")
-                .setItems(names, (dialog, which) -> {
-                    com.qinghe.music163pro.model.PlaylistInfo selected = playlists.get(which);
-                    addSongToPlaylist(song, selected);
-                })
-                .setNegativeButton("取消", null)
-                .show();
+        WatchUiUtils.showActionDialog(this, "添加到歌单", names, null, (dialog, which) -> {
+            com.qinghe.music163pro.model.PlaylistInfo selected = playlists.get(which);
+            addSongToPlaylist(song, selected);
+        });
     }
 
     private void addSongToPlaylist(Song song, com.qinghe.music163pro.model.PlaylistInfo playlist) {
@@ -1758,7 +1846,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Song name at top (leave right padding for the toggle button)
         tvLyricsSongLabel = new TextView(this);
         tvLyricsSongLabel.setText(song.getDisplayName() + " - " + song.getArtist());
-        tvLyricsSongLabel.setTextColor(0xFFFFFFFF);
+        tvLyricsSongLabel.setTextColor(0xFFE6E0E9);
         tvLyricsSongLabel.setTextSize(13);
         tvLyricsSongLabel.setGravity(Gravity.CENTER);
         tvLyricsSongLabel.setPadding(dp(30), dp(6), dp(30), dp(4));
@@ -1777,16 +1865,21 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         } else {
             translateMode = transPrefs.getBoolean("lyrics_translation", false) ? 1 : 0;
         }
-        btnTranslationToggle = new TextView(this);
+        btnTranslationToggle = new MaterialButton(this);
         btnTranslationToggle.setTextSize(12);
-        btnTranslationToggle.setGravity(Gravity.CENTER);
-        btnTranslationToggle.setPadding(dp(6), dp(4), dp(6), dp(4));
-        btnTranslationToggle.setClickable(true);
-        btnTranslationToggle.setFocusable(true);
+        btnTranslationToggle.setAllCaps(false);
+        btnTranslationToggle.setMinWidth(0);
+        btnTranslationToggle.setMinimumWidth(0);
+        btnTranslationToggle.setMinHeight(0);
+        btnTranslationToggle.setMinimumHeight(0);
+        btnTranslationToggle.setInsetTop(0);
+        btnTranslationToggle.setInsetBottom(0);
+        btnTranslationToggle.setPadding(dp(10), 0, dp(10), 0);
+        btnTranslationToggle.setCornerRadius(dp(16));
         btnTranslationToggle.setVisibility(View.GONE); // Hidden until translation is available
         updateTranslationButton();
         FrameLayout.LayoutParams toggleParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+                FrameLayout.LayoutParams.WRAP_CONTENT, dp(32));
         toggleParams.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
         toggleParams.setMarginEnd(dp(2));
         btnTranslationToggle.setLayoutParams(toggleParams);
@@ -1797,7 +1890,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         // Time display - shown below title
         tvLyricsTimeRef = new TextView(this);
-        tvLyricsTimeRef.setTextColor(0x80FFFFFF);
+        tvLyricsTimeRef.setTextColor(0xFFCAC4D0);
         tvLyricsTimeRef.setTextSize(10);
         tvLyricsTimeRef.setGravity(Gravity.CENTER);
         tvLyricsTimeRef.setPadding(0, dp(2), 0, dp(4));
@@ -1898,7 +1991,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         lyricsContainer.removeAllViews();
         TextView tvLoading = new TextView(this);
         tvLoading.setText("加载歌词中...");
-        tvLoading.setTextColor(0xB3FFFFFF);
+        tvLoading.setTextColor(0xFFCAC4D0);
         tvLoading.setTextSize(13);
         tvLoading.setGravity(Gravity.CENTER);
         lyricsContainer.addView(tvLoading);
@@ -2159,22 +2252,26 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private void updateTranslationButton() {
         if (btnTranslationToggle == null) return;
         boolean hasRoma = !romanizationMap.isEmpty();
+        boolean active;
         if (hasRoma) {
             if (translateMode == 1) {
-                btnTranslationToggle.setText("意✓");
-                btnTranslationToggle.setTextColor(0xFFBB86FC);
+                btnTranslationToggle.setText("意");
+                active = true;
             } else if (translateMode == 2) {
-                btnTranslationToggle.setText("音✓");
-                btnTranslationToggle.setTextColor(0xFFBB86FC);
+                btnTranslationToggle.setText("音");
+                active = true;
             } else {
                 btnTranslationToggle.setText("译");
-                btnTranslationToggle.setTextColor(0x80FFFFFF);
+                active = false;
             }
         } else {
-            boolean on = translateMode == 1;
-            btnTranslationToggle.setText(on ? "译✓" : "译");
-            btnTranslationToggle.setTextColor(on ? 0xFFBB86FC : 0x80FFFFFF);
+            active = translateMode == 1;
+            btnTranslationToggle.setText("译");
         }
+        btnTranslationToggle.setTextColor(getResources().getColor(active
+                ? R.color.on_primary_container : R.color.text_secondary));
+        btnTranslationToggle.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                getResources().getColor(active ? R.color.primary_container : R.color.surface_elevated)));
     }
 
     private void displayLyricsInOverlay() {
@@ -2198,7 +2295,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             // Original lyrics text
             TextView tv = new TextView(this);
             tv.setText(line.text);
-            tv.setTextColor(0xB3FFFFFF);
+            tv.setTextColor(getResources().getColor(R.color.text_secondary));
             tv.setTextSize(13);
             tv.setGravity(Gravity.CENTER);
             lineLayout.addView(tv);
@@ -2214,7 +2311,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             if (subText != null) {
                 TextView tvTrans = new TextView(this);
                 tvTrans.setText(subText);
-                tvTrans.setTextColor(0x61FFFFFF);
+                tvTrans.setTextColor(getResources().getColor(R.color.text_disabled));
                 tvTrans.setTextSize(11);
                 tvTrans.setGravity(Gravity.CENTER);
                 tvTrans.setPadding(0, dp(1), 0, 0);
@@ -2231,7 +2328,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         lyricViews.clear();
         TextView tv = new TextView(this);
         tv.setText("暂无歌词");
-        tv.setTextColor(0xB3FFFFFF);
+        tv.setTextColor(getResources().getColor(R.color.text_secondary));
         tv.setTextSize(14);
         tv.setGravity(Gravity.CENTER);
         tv.setPadding(0, dp(40), 0, 0);
@@ -2271,7 +2368,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                         currentHighlightIndex = newIndex;
                         if (currentHighlightIndex < lyricViews.size()) {
                             TextView currentView = lyricViews.get(currentHighlightIndex);
-                            currentView.setTextColor(0xFFFFFFFF);
+                            currentView.setTextColor(getResources().getColor(R.color.text_primary));
                             currentView.setTextSize(14);
 
                             if (lyricScrollMode == LYRIC_MODE_FOLLOW || !lyricsUserScrolled) {
@@ -2356,7 +2453,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         LinearLayout contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
         contentLayout.setPadding(dp(8), dp(8), dp(8), dp(8));
-        contentLayout.setBackgroundColor(0xFF1E1E1E);
+        contentLayout.setBackgroundColor(getResources().getColor(R.color.surface));
         FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
         contentLayout.setLayoutParams(contentParams);
@@ -2365,110 +2462,43 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Title bar
         contentLayout.addView(createOverlayTitleBar("播放列表 (" + playlist.size() + "首)"));
 
-        // Song list in a ScrollView
-        ScrollView scrollView = new ScrollView(this);
-        scrollView.setLayoutParams(new LinearLayout.LayoutParams(
+        // Recycle rows instead of eagerly creating a view and image request for
+        // every song in a potentially very large queue.
+        android.widget.ListView listView = new android.widget.ListView(this);
+        listView.setDividerHeight(0);
+        listView.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
-
-        LinearLayout listLayout = new LinearLayout(this);
-        listLayout.setOrientation(LinearLayout.VERTICAL);
-        scrollView.addView(listLayout);
-
         int currentIndex = playerManager.getCurrentIndex();
-        for (int i = 0; i < playlist.size(); i++) {
-            final int index = i;
-            Song song = playlist.get(i);
-
-            LinearLayout itemLayout = new LinearLayout(this);
-            itemLayout.setOrientation(LinearLayout.HORIZONTAL);
-            itemLayout.setPadding(dp(8), dp(6), dp(8), dp(6));
-            itemLayout.setClickable(true);
-            itemLayout.setFocusable(true);
-
-            // Highlight current playing song
-            if (i == currentIndex) {
-                itemLayout.setBackgroundColor(0xFF2D2D2D);
+        android.widget.ArrayAdapter<Song> adapter = new android.widget.ArrayAdapter<Song>(
+                this, R.layout.item_song, R.id.tv_item_name, playlist) {
+            @Override
+            public View getView(int position, View convertView, android.view.ViewGroup parent) {
+                View row = convertView != null ? convertView
+                        : getLayoutInflater().inflate(R.layout.item_song, parent, false);
+                Song song = getItem(position);
+                TextView name = row.findViewById(R.id.tv_item_name);
+                TextView artist = row.findViewById(R.id.tv_item_artist);
+                ImageView cover = row.findViewById(R.id.iv_cover);
+                View vip = row.findViewById(R.id.tv_vip_badge);
+                name.setText((position == currentIndex ? "▶ " : "") + song.getDisplayName());
+                name.setTextColor(getResources().getColor(position == currentIndex
+                        ? R.color.colorPrimary : R.color.text_primary));
+                name.setSelected(true);
+                artist.setText(song.getArtist());
+                artist.setSelected(true);
+                vip.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
+                NetworkImageLoader.load(cover, song.getCoverUrl());
+                return row;
             }
-
-            // Cover thumbnail
-            ImageView ivCover = new ImageView(this);
-            int coverSize = dp(36);
-            LinearLayout.LayoutParams coverLp = new LinearLayout.LayoutParams(coverSize, coverSize);
-            coverLp.gravity = Gravity.CENTER_VERTICAL;
-            ivCover.setLayoutParams(coverLp);
-            ivCover.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            android.graphics.drawable.GradientDrawable coverBg = new android.graphics.drawable.GradientDrawable();
-            coverBg.setColor(0xFF333333);
-            coverBg.setCornerRadius(dp(2));
-            ivCover.setBackground(coverBg);
-            NetworkImageLoader.load(ivCover, song.getCoverUrl());
-            itemLayout.addView(ivCover);
-
-            // Text column
-            LinearLayout textLayout = new LinearLayout(this);
-            textLayout.setOrientation(LinearLayout.VERTICAL);
-            LinearLayout.LayoutParams textLp = new LinearLayout.LayoutParams(0,
-                    LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-            textLp.gravity = Gravity.CENTER_VERTICAL;
-            textLp.setMarginStart(dp(8));
-            textLayout.setLayoutParams(textLp);
-
-            TextView tvName = new TextView(this);
-            String prefix = (i == currentIndex) ? "▶ " : "";
-            tvName.setText(prefix + song.getDisplayName());
-            tvName.setTextColor(i == currentIndex ? 0xFFBB86FC : 0xFFFFFFFF);
-            tvName.setTextSize(13);
-            tvName.setSingleLine(true);
-            tvName.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
-            tvName.setMarqueeRepeatLimit(-1);
-            tvName.setSelected(true);
-
-            LinearLayout nameRow = new LinearLayout(this);
-            nameRow.setOrientation(LinearLayout.HORIZONTAL);
-            nameRow.setGravity(Gravity.CENTER_VERTICAL);
-            TextView tvVip = createVipBadge();
-            tvVip.setVisibility(song.isVip() ? View.VISIBLE : View.GONE);
-            LinearLayout.LayoutParams vipLp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            vipLp.setMarginEnd(dp(4));
-            nameRow.addView(tvVip, vipLp);
-            nameRow.addView(tvName, new LinearLayout.LayoutParams(0,
-                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-            textLayout.addView(nameRow);
-
-            TextView tvArtist = new TextView(this);
-            tvArtist.setText(song.getArtist());
-            tvArtist.setTextColor(0x80FFFFFF);
-            tvArtist.setTextSize(11);
-            tvArtist.setSingleLine(true);
-            tvArtist.setEllipsize(android.text.TextUtils.TruncateAt.MARQUEE);
-            tvArtist.setMarqueeRepeatLimit(-1);
-            tvArtist.setSelected(true);
-            textLayout.addView(tvArtist);
-
-            itemLayout.addView(textLayout);
-
-            itemLayout.setOnClickListener(v -> {
-                playerManager.playFromCurrentPlaylist(index);
-                dismissOverlay();
-            });
-
-            listLayout.addView(itemLayout);
-        }
-
-        contentLayout.addView(scrollView);
+        };
+        listView.setAdapter(adapter);
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            playerManager.playFromCurrentPlaylist(position);
+            dismissOverlay();
+        });
+        if (currentIndex > 0) listView.setSelection(currentIndex);
+        contentLayout.addView(listView);
         overlayContainer.addView(contentLayout);
-
-        // Scroll to current song
-        if (currentIndex > 0) {
-            scrollView.post(() -> {
-                View child = listLayout.getChildAt(currentIndex);
-                if (child != null) {
-                    scrollView.smoothScrollTo(0, child.getTop());
-                }
-            });
-        }
-
         rootView.addView(overlayContainer);
     }
 
@@ -2500,15 +2530,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         float[] speeds = {0.8f, 0.9f, 1.0f, 1.1f, 1.2f};
         float currentSpeed = playerManager.getPlaybackSpeed();
         for (float speed : speeds) {
-            TextView btn = new TextView(this);
             String label = String.format("%.1fx", speed);
             if (speed == 1.0f) label = "1.0x (正常)";
-            btn.setText(label);
-            btn.setTextColor(0xFFFFFFFF);
-            btn.setTextSize(14);
-            btn.setGravity(Gravity.CENTER);
-            btn.setPadding(0, dp(10), 0, dp(10));
-            btn.setBackgroundColor(Math.abs(currentSpeed - speed) < 0.01f ? 0xFFBB86FC : 0xFF2D2D2D);
+            boolean selected = Math.abs(currentSpeed - speed) < 0.01f;
+            MaterialButton btn = createOverlayActionButton(label,
+                    getResources().getColor(selected ? R.color.colorPrimary : R.color.surface_elevated), selected);
             LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             btnParams.bottomMargin = dp(4);
@@ -2527,7 +2553,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Custom speed input
         TextView customLabel = new TextView(this);
         customLabel.setText("自定义（0.1-5.0）");
-        customLabel.setTextColor(0xB3FFFFFF);
+        customLabel.setTextColor(0xFFCAC4D0);
         customLabel.setTextSize(13);
         customLabel.setGravity(Gravity.CENTER);
         customLabel.setPadding(0, dp(12), 0, dp(4));
@@ -2539,29 +2565,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         customRow.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        EditText etSpeed = new EditText(this);
-        etSpeed.setHint("倍速");
-        etSpeed.setTextColor(0xFFFFFFFF);
-        etSpeed.setHintTextColor(0xFF888888);
-        etSpeed.setTextSize(14);
-        etSpeed.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        etSpeed.setBackgroundColor(0xFF2D2D2D);
-        etSpeed.setPadding(dp(8), dp(8), dp(8), dp(8));
-        LinearLayout.LayoutParams etParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-        etParams.rightMargin = dp(4);
-        etSpeed.setLayoutParams(etParams);
-        customRow.addView(etSpeed);
+        EditText etSpeed = addOverlayNumberField(customRow, "倍速",
+                InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
 
-        TextView btnApply = new TextView(this);
-        btnApply.setText("应用");
-        btnApply.setTextColor(0xFFFFFFFF);
-        btnApply.setTextSize(14);
-        btnApply.setGravity(Gravity.CENTER);
-        btnApply.setPadding(dp(12), dp(8), dp(12), dp(8));
-        btnApply.setBackgroundColor(0xFFBB86FC);
-        btnApply.setClickable(true);
-        btnApply.setFocusable(true);
+        MaterialButton btnApply = createOverlayActionButton("应用",
+                getResources().getColor(R.color.colorPrimary), true);
         btnApply.setOnClickListener(v -> {
             String input = etSpeed.getText().toString().trim();
             if (input.isEmpty()) {
@@ -2648,7 +2656,12 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         contentLayout.addView(qualityListLayout);
 
         // Loading indicator
-        android.widget.ProgressBar loading = new android.widget.ProgressBar(this);
+        com.google.android.material.progressindicator.CircularProgressIndicator loading =
+                new com.google.android.material.progressindicator.CircularProgressIndicator(this);
+        loading.setIndicatorSize(dp(32));
+        loading.setIndicatorColor(ContextCompat.getColor(this, R.color.colorPrimary));
+        loading.setTrackColor(ContextCompat.getColor(this, R.color.surface_variant));
+        loading.setIndeterminate(true);
         LinearLayout.LayoutParams loadParams = new LinearLayout.LayoutParams(
                 dp(32), dp(32));
         loadParams.gravity = Gravity.CENTER_HORIZONTAL;
@@ -2709,7 +2722,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         if (localQualities.isEmpty()) {
             TextView empty = new TextView(this);
             empty.setText("暂无本地音质列表");
-            empty.setTextColor(0x80FFFFFF);
+            empty.setTextColor(0xFFCAC4D0);
             empty.setTextSize(13);
             empty.setGravity(Gravity.CENTER);
             empty.setPadding(0, dp(8), 0, dp(8));
@@ -2722,13 +2735,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setPadding(dp(10), dp(9), dp(10), dp(9));
-            row.setBackgroundColor(isSelected ? 0x33BB86FC : 0xFF2D2D2D);
-            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            rowParams.bottomMargin = dp(4);
-            row.setLayoutParams(rowParams);
-            row.setClickable(true);
-            row.setFocusable(true);
+            row.setMinimumHeight(dp(48));
+            com.google.android.material.card.MaterialCardView card = createQualityCard(isSelected, true);
+            card.addView(row);
 
             LinearLayout leftCol = new LinearLayout(this);
             leftCol.setOrientation(LinearLayout.VERTICAL);
@@ -2737,13 +2746,13 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
             TextView tvName = new TextView(this);
             tvName.setText(getQualityShortName(quality));
-            tvName.setTextColor(isSelected ? 0xFFBB86FC : 0xFFFFFFFF);
+            tvName.setTextColor(getResources().getColor(isSelected ? R.color.on_primary_container : R.color.text_primary));
             tvName.setTextSize(14);
             leftCol.addView(tvName);
 
             TextView tvDesc = new TextView(this);
             tvDesc.setText("本地已下载");
-            tvDesc.setTextColor(0x80FFFFFF);
+            tvDesc.setTextColor(0xFFCAC4D0);
             tvDesc.setTextSize(11);
             leftCol.addView(tvDesc);
             row.addView(leftCol);
@@ -2760,11 +2769,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             row.addView(badge);
 
             final String selectedQuality = quality;
-            row.setOnClickListener(v -> {
+            card.setOnClickListener(v -> {
                 callback.onSelected(selectedQuality);
                 dismissOverlay();
             });
-            container.addView(row);
+            container.addView(card);
         }
     }
 
@@ -2830,16 +2839,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(android.view.Gravity.CENTER_VERTICAL);
             row.setPadding(dp(10), dp(9), dp(10), dp(9));
-            int bgColor = disabledForSelection ? 0xFF222222 : (isSelected ? 0x33BB86FC : 0xFF2D2D2D);
-            row.setBackgroundColor(bgColor);
-            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            rowParams.bottomMargin = dp(4);
-            row.setLayoutParams(rowParams);
-            if (!disabledForSelection) {
-                row.setClickable(true);
-                row.setFocusable(true);
-            }
+            row.setMinimumHeight(dp(48));
+            com.google.android.material.card.MaterialCardView card =
+                    createQualityCard(isSelected, !disabledForSelection);
+            card.addView(row);
 
             // Left column: name + bitrate
             LinearLayout leftCol = new LinearLayout(this);
@@ -2849,7 +2852,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
             TextView tvName = new TextView(this);
             tvName.setText(name);
-            int nameColor = disabledForSelection ? 0x60FFFFFF : (isSelected ? 0xFFBB86FC : 0xFFFFFFFF);
+            int nameColor = getResources().getColor(disabledForSelection ? R.color.text_disabled
+                    : isSelected ? R.color.on_primary_container : R.color.text_primary);
             tvName.setTextColor(nameColor);
             tvName.setTextSize(14);
             leftCol.addView(tvName);
@@ -2883,14 +2887,30 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             row.addView(tvTier);
 
             if (!disabledForSelection) {
-                row.setOnClickListener(v -> {
+                card.setOnClickListener(v -> {
                     callback.onSelected(level);
                     dismissOverlay();
                 });
             }
 
-            container.addView(row);
+            container.addView(card);
         }
+    }
+
+    private com.google.android.material.card.MaterialCardView createQualityCard(boolean selected, boolean enabled) {
+        com.google.android.material.card.MaterialCardView card =
+                new com.google.android.material.card.MaterialCardView(this);
+        card.setRadius(dp(14));
+        card.setCardElevation(0);
+        card.setCardBackgroundColor(getResources().getColor(selected ? R.color.primary_container : R.color.surface_elevated));
+        card.setClickable(enabled);
+        card.setFocusable(enabled);
+        card.setEnabled(enabled);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.bottomMargin = dp(4);
+        card.setLayoutParams(params);
+        return card;
     }
 
     /** Short display name for current quality (shown on the button label). */
@@ -3075,7 +3095,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Song name
         TextView tvSong = new TextView(this);
         tvSong.setText(songTitle);
-        tvSong.setTextColor(0xB3FFFFFF);
+        tvSong.setTextColor(0xFFCAC4D0);
         tvSong.setTextSize(12);
         tvSong.setGravity(Gravity.CENTER);
         tvSong.setPadding(0, 0, 0, dp(8));
@@ -3087,14 +3107,18 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         TextView tvStart = new TextView(this);
         tvStart.setText("起始: " + startSec[0] + "s");
-        tvStart.setTextColor(0xFFFFFFFF);
+        tvStart.setTextColor(0xFFE6E0E9);
         tvStart.setTextSize(12);
         tvStart.setPadding(0, dp(4), 0, 0);
         contentLayout.addView(tvStart);
 
-        SeekBar sbStart = new SeekBar(this);
-        sbStart.setMax(totalSec);
-        sbStart.setProgress(startSec[0]);
+        Slider sbStart = new Slider(this);
+        sbStart.setValueFrom(0f);
+        sbStart.setValueTo((float) totalSec);
+        sbStart.setStepSize(1f);
+        sbStart.setValue((float) startSec[0]);
+        sbStart.setLabelBehavior(LabelFormatter.LABEL_GONE);
+        sbStart.setTickVisible(false);
         LinearLayout.LayoutParams seekParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         sbStart.setLayoutParams(seekParams);
@@ -3103,21 +3127,25 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // End seekbar
         TextView tvEnd = new TextView(this);
         tvEnd.setText("结束: " + endSec[0] + "s");
-        tvEnd.setTextColor(0xFFFFFFFF);
+        tvEnd.setTextColor(0xFFE6E0E9);
         tvEnd.setTextSize(12);
         tvEnd.setPadding(0, dp(4), 0, 0);
         contentLayout.addView(tvEnd);
 
-        SeekBar sbEnd = new SeekBar(this);
-        sbEnd.setMax(totalSec);
-        sbEnd.setProgress(endSec[0]);
+        Slider sbEnd = new Slider(this);
+        sbEnd.setValueFrom(0f);
+        sbEnd.setValueTo((float) totalSec);
+        sbEnd.setStepSize(1f);
+        sbEnd.setValue((float) endSec[0]);
+        sbEnd.setLabelBehavior(LabelFormatter.LABEL_GONE);
+        sbEnd.setTickVisible(false);
         sbEnd.setLayoutParams(seekParams);
         contentLayout.addView(sbEnd);
 
         // Duration display
         TextView tvDuration = new TextView(this);
         tvDuration.setText("节选: " + startSec[0] + "s - " + endSec[0] + "s (" + (endSec[0] - startSec[0]) + "秒)");
-        tvDuration.setTextColor(0xB3FFFFFF);
+        tvDuration.setTextColor(0xFFCAC4D0);
         tvDuration.setTextSize(12);
         tvDuration.setGravity(Gravity.CENTER);
         tvDuration.setPadding(0, dp(8), 0, dp(8));
@@ -3139,36 +3167,32 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             tvDuration.setText("节选: " + startSec[0] + "s - " + endSec[0] + "s (" + dur + "秒)");
         };
 
-        sbStart.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser) {
-                    if (progress >= endSec[0]) progress = endSec[0] - 1;
-                    if (progress < 0) progress = 0;
-                    seekBar.setProgress(progress);
-                    startSec[0] = progress;
-                    tvStart.setText("起始: " + progress + "s");
-                    updateDuration.run();
+        sbStart.addOnChangeListener((slider, value, fromUser) -> {
+            if (fromUser) {
+                int progress = Math.round(value);
+                if (progress >= endSec[0]) progress = endSec[0] - 1;
+                if (progress < 0) progress = 0;
+                if (Math.round(slider.getValue()) != progress) {
+                    slider.setValue((float) progress);
                 }
+                startSec[0] = progress;
+                tvStart.setText("起始: " + progress + "s");
+                updateDuration.run();
             }
-            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
-            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        sbEnd.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser) {
-                    if (progress <= startSec[0]) progress = startSec[0] + 1;
-                    if (progress > totalSec) progress = totalSec;
-                    seekBar.setProgress(progress);
-                    endSec[0] = progress;
-                    tvEnd.setText("结束: " + progress + "s");
-                    updateDuration.run();
+        sbEnd.addOnChangeListener((slider, value, fromUser) -> {
+            if (fromUser) {
+                int progress = Math.round(value);
+                if (progress <= startSec[0]) progress = startSec[0] + 1;
+                if (progress > totalSec) progress = totalSec;
+                if (Math.round(slider.getValue()) != progress) {
+                    slider.setValue((float) progress);
                 }
+                endSec[0] = progress;
+                tvEnd.setText("结束: " + progress + "s");
+                updateDuration.run();
             }
-            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
-            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
         int grayButtonColor = ContextCompat.getColor(this, R.color.surface_elevated);
@@ -3484,13 +3508,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Preset timer options
         int[] minutes = {5, 10, 20, 30};
         for (int min : minutes) {
-            TextView btn = new TextView(this);
-            btn.setText(min + " 分钟");
-            btn.setTextColor(0xFFFFFFFF);
-            btn.setTextSize(14);
-            btn.setGravity(Gravity.CENTER);
-            btn.setPadding(0, dp(10), 0, dp(10));
-            btn.setBackgroundColor(0xFF2D2D2D);
+            MaterialButton btn = createOverlayActionButton(min + " 分钟",
+                    getResources().getColor(R.color.surface_elevated), false);
             LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             btnParams.bottomMargin = dp(4);
@@ -3509,7 +3528,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Custom seconds label
         TextView customLabel = new TextView(this);
         customLabel.setText("自定义（秒）");
-        customLabel.setTextColor(0xB3FFFFFF);
+        customLabel.setTextColor(0xFFCAC4D0);
         customLabel.setTextSize(13);
         customLabel.setGravity(Gravity.CENTER);
         customLabel.setPadding(0, dp(12), 0, dp(4));
@@ -3522,29 +3541,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         customRow.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        EditText etSeconds = new EditText(this);
-        etSeconds.setHint("秒数");
-        etSeconds.setTextColor(0xFFFFFFFF);
-        etSeconds.setHintTextColor(0xFF888888);
-        etSeconds.setTextSize(14);
-        etSeconds.setInputType(InputType.TYPE_CLASS_NUMBER);
-        etSeconds.setBackgroundColor(0xFF2D2D2D);
-        etSeconds.setPadding(dp(8), dp(8), dp(8), dp(8));
-        LinearLayout.LayoutParams etParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-        etParams.rightMargin = dp(4);
-        etSeconds.setLayoutParams(etParams);
-        customRow.addView(etSeconds);
+        EditText etSeconds = addOverlayNumberField(customRow, "秒数", InputType.TYPE_CLASS_NUMBER);
 
-        TextView btnCustom = new TextView(this);
-        btnCustom.setText("开始");
-        btnCustom.setTextColor(0xFFFFFFFF);
-        btnCustom.setTextSize(14);
-        btnCustom.setGravity(Gravity.CENTER);
-        btnCustom.setPadding(dp(12), dp(8), dp(12), dp(8));
-        btnCustom.setBackgroundColor(0xFFBB86FC);
-        btnCustom.setClickable(true);
-        btnCustom.setFocusable(true);
+        MaterialButton btnCustom = createOverlayActionButton("开始",
+                getResources().getColor(R.color.colorPrimary), true);
         btnCustom.setOnClickListener(v -> {
             String input = etSeconds.getText().toString().trim();
             if (input.isEmpty()) {
@@ -3585,7 +3585,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         LinearLayout contentLayout = new LinearLayout(this);
         contentLayout.setOrientation(LinearLayout.VERTICAL);
         contentLayout.setGravity(Gravity.CENTER);
-        contentLayout.setPadding(dp(20), dp(20), dp(20), dp(20));
+        contentLayout.setPadding(dp(12), dp(8), dp(12), dp(8));
         contentLayout.setOnClickListener(v -> { /* consume click */ });
 
         FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(
@@ -3598,7 +3598,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         // Remaining time display
         TextView tvRemaining = new TextView(this);
-        tvRemaining.setTextColor(0xFFFFFFFF);
+        tvRemaining.setTextColor(0xFFE6E0E9);
         tvRemaining.setTextSize(20);
         tvRemaining.setGravity(Gravity.CENTER);
         tvRemaining.setPadding(0, dp(8), 0, dp(16));
@@ -3625,13 +3625,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         timerDisplayRunnable.run();
 
         // Cancel button
-        TextView btnCancel = new TextView(this);
-        btnCancel.setText("取消定时");
-        btnCancel.setTextColor(0xFFFFFFFF);
-        btnCancel.setTextSize(14);
-        btnCancel.setGravity(Gravity.CENTER);
-        btnCancel.setPadding(0, dp(10), 0, dp(10));
-        btnCancel.setBackgroundColor(0xFFBB86FC);
+        MaterialButton btnCancel = createOverlayActionButton("取消定时",
+                getResources().getColor(R.color.colorPrimary), true);
         LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         btnCancel.setLayoutParams(cancelParams);
@@ -3668,7 +3663,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             }
             clearChorusInfo();
         }
-        btnPlay.setImageResource(playerManager.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play_arrow);
+        btnPlay.setIconResource(playerManager.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play_arrow);
+        btnPlay.setContentDescription(playerManager.isPlaying() ? "暂停" : "播放");
         // btnFuncMore image is static in layout
         // Update playlist indicator visibility
         updatePlaylistIndicator();
@@ -3684,19 +3680,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             } else {
                 btnPlaylistIndicator.setVisibility(View.GONE);
             }
+            // Title/artist keep symmetric 48dp margins from the layout so they
+            // stay centered and their marquee never slides under the top
+            // playlist/more buttons; only visibility changes here.
         }
-    }
-
-    private TextView createVipBadge() {
-        TextView badge = new TextView(this);
-        badge.setText(R.string.vip_badge);
-        badge.setTextColor(0xFFF44336);
-        badge.setTextSize(9);
-        badge.setTypeface(badge.getTypeface(), android.graphics.Typeface.BOLD);
-        badge.setBackgroundResource(R.drawable.bg_vip_badge);
-        badge.setPadding(dp(3), dp(1), dp(3), dp(1));
-        badge.setVisibility(View.GONE);
-        return badge;
     }
 
     /**
@@ -3854,7 +3841,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
     @Override
     public void onPlayStateChanged(boolean isPlaying) {
-        btnPlay.setImageResource(isPlaying ? R.drawable.ic_pause : R.drawable.ic_play_arrow);
+        btnPlay.setIconResource(isPlaying ? R.drawable.ic_pause : R.drawable.ic_play_arrow);
+        btnPlay.setContentDescription(isPlaying ? "暂停" : "播放");
         if (isPlaying) {
             startSeekBarUpdate();
         } else {
@@ -3893,8 +3881,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 int current = playerManager.getCurrentPosition();
                 int duration = playerManager.getDuration();
                 if (duration > 0) {
-                    seekBar.setMax(1000);
-                    seekBar.setProgress((int) (1000L * current / duration));
+                    seekBar.setValue((float) (1000L * current / duration));
                     tvCurrentTime.setText(formatTime(current));
                     tvTotalTime.setText(formatTime(duration));
                     updateChorusMarker(duration);

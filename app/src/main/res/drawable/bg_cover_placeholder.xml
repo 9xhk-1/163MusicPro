@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Placeholder surface behind cover art while it loads (matches 8dp image corners). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/surface_elevated" />
+    <corners android:radius="8dp" />
+</shape>

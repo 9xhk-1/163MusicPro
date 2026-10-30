@@ -393,7 +393,7 @@ public class LyricsActivity extends AppCompatActivity {
         for (LyricLine line : lyricLines) {
             TextView tv = new TextView(this);
             tv.setText(line.text);
-            tv.setTextColor(0xB3FFFFFF);
+            tv.setTextColor(0xFFCAC4D0);
             tv.setTextSize(13);
             tv.setGravity(android.view.Gravity.CENTER);
             tv.setPadding(0, dp(6), 0, dp(6));
@@ -408,7 +408,7 @@ public class LyricsActivity extends AppCompatActivity {
         llContainer.removeAllViews();
         TextView tv = new TextView(this);
         tv.setText("暂无歌词");
-        tv.setTextColor(0xB3FFFFFF);
+        tv.setTextColor(0xFFCAC4D0);
         tv.setTextSize(14);
         tv.setGravity(android.view.Gravity.CENTER);
         tv.setPadding(0, dp(40), 0, 0);
@@ -442,7 +442,7 @@ public class LyricsActivity extends AppCompatActivity {
                         currentHighlightIndex = newIndex;
                         if (currentHighlightIndex < lyricViews.size()) {
                             TextView currentView = lyricViews.get(currentHighlightIndex);
-                            currentView.setTextColor(0xFFFFFFFF);
+                            currentView.setTextColor(0xFFE6E0E9);
                             currentView.setTextSize(14);
 
                             // Auto-scroll: always in follow mode; only when not blocked in block mode
@@ -485,7 +485,7 @@ public class LyricsActivity extends AppCompatActivity {
     private void clearCurrentLyricHighlight() {
         if (currentHighlightIndex >= 0 && currentHighlightIndex < lyricViews.size()) {
             TextView currentView = lyricViews.get(currentHighlightIndex);
-            currentView.setTextColor(0xB3FFFFFF);
+            currentView.setTextColor(0xFFCAC4D0);
             currentView.setTextSize(13);
         }
         currentHighlightIndex = -1;

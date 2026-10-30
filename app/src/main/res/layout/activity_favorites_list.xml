@@ -15,18 +15,19 @@
         android:textStyle="bold"
         android:letterSpacing="0.05"
         android:gravity="center"
-        android:paddingBottom="6dp" />
+        android:paddingBottom="2dp" />
 
     <!-- Tabs: 单曲 / 歌单 -->
     <LinearLayout
         android:id="@+id/ll_fav_tabs"
         android:layout_width="match_parent"
-        android:layout_height="32dp"
+        android:layout_height="36dp"
         android:orientation="horizontal"
-        android:layout_marginBottom="4dp">
+        android:layout_marginBottom="2dp">
 
-        <TextView
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/tab_fav_songs"
+            style="@style/Widget.App.Button.Text"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
@@ -34,12 +35,16 @@
             android:text="单曲"
             android:textColor="@color/colorPrimary"
             android:textSize="13sp"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true" />
+            android:minWidth="0dp"
+            android:insetLeft="0dp"
+            android:insetRight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="0dp" />
 
-        <TextView
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/tab_fav_playlists"
+            style="@style/Widget.App.Button.Text"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
@@ -47,9 +52,12 @@
             android:text="歌单"
             android:textColor="@color/text_secondary"
             android:textSize="13sp"
-            android:background="?attr/selectableItemBackground"
-            android:clickable="true"
-            android:focusable="true" />
+            android:minWidth="0dp"
+            android:insetLeft="0dp"
+            android:insetRight="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="0dp" />
     </LinearLayout>
 
     <ListView
@@ -57,7 +65,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:divider="@color/divider"
+        android:divider="@null"
         android:dividerHeight="0.5dp" />
 
     <ListView
@@ -65,7 +73,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:divider="@color/divider"
+        android:divider="@null"
         android:dividerHeight="0.5dp"
         android:visibility="gone" />
 

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Card surface with a press ripple masked to the same 16dp rounded shape,
+     so the highlight never shows as a square over rounded list cards. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="?attr/colorControlHighlight">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/surface_elevated" />
+            <corners android:radius="16dp" />
+        </shape>
+    </item>
+</ripple>

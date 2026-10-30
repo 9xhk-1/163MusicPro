@@ -15,6 +15,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import com.qinghe.music163pro.R;
 
 import com.qinghe.music163pro.util.MusicLog;
 
@@ -26,7 +27,7 @@ import com.qinghe.music163pro.util.MusicLog;
  * Extras (input):  EXTRA_URL = the verifyUrl from the -462 response
  * Result (output): EXTRA_COOKIE = cookie string for music.163.com (may be empty)
  */
-public class WebVerifyActivity extends AppCompatActivity {
+public class WebVerifyActivity extends BaseWatchActivity {
 
     public static final String EXTRA_URL    = "verify_url";
     public static final String EXTRA_COOKIE = "verify_cookie";
@@ -52,12 +53,12 @@ public class WebVerifyActivity extends AppCompatActivity {
         // Build layout
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF212121);
+        root.setBackgroundColor(getResources().getColor(R.color.bg_dark));
 
         // Header hint
         TextView hint = new TextView(this);
         hint.setText("请完成安全验证后自动继续登录");
-        hint.setTextColor(0x80FFFFFF);
+        hint.setTextColor(0xFFCAC4D0);
         hint.setTextSize(12);
         hint.setPadding(12, 8, 12, 8);
         hint.setGravity(android.view.Gravity.CENTER);
@@ -103,15 +104,18 @@ public class WebVerifyActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
         // Manual "验证完成" button — in case auto-detect doesn't trigger
-        TextView btnDone = new TextView(this);
+        com.google.android.material.button.MaterialButton btnDone =
+                new com.google.android.material.button.MaterialButton(this);
         btnDone.setText("✅  验证完成，继续登录");
-        btnDone.setTextColor(0xFFFFFFFF);
+        btnDone.setTextColor(getResources().getColor(R.color.on_primary));
         btnDone.setTextSize(13);
-        btnDone.setGravity(android.view.Gravity.CENTER);
-        btnDone.setPadding(12, 14, 12, 14);
-        btnDone.setBackgroundColor(0xFFBB86FC);
-        btnDone.setClickable(true);
-        btnDone.setFocusable(true);
+        btnDone.setAllCaps(false);
+        btnDone.setMinHeight(dpToPx(48));
+        btnDone.setMinimumHeight(dpToPx(48));
+        btnDone.setInsetTop(0);
+        btnDone.setInsetBottom(0);
+        btnDone.setCornerRadius(dpToPx(20));
+        btnDone.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.colorPrimary)));
         btnDone.setOnClickListener(v -> deliverResult());
         root.addView(btnDone, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,

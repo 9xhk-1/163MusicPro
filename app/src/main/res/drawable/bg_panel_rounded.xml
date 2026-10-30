@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rounded panel surface for in-app overlay sheets (player info etc.). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/surface_elevated" />
+    <corners android:radius="16dp" />
+</shape>

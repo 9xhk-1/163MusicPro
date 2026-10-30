@@ -230,6 +230,13 @@ public class SearchActivity extends BaseWatchActivity {
     }
 
     private void initListeners(TextView btnSearch) {
+        etSearch.setOnEditorActionListener((view, actionId, event) -> {
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+                doSearch();
+                return true;
+            }
+            return false;
+        });
         lvHistory.setOnItemClickListener((parent, view, position, id) -> {
             String keyword = historyList.get(position);
             etSearch.setText(keyword);
@@ -345,9 +352,12 @@ public class SearchActivity extends BaseWatchActivity {
     }
 
     private void updateTabAppearance() {
-        tabSongs.setTextColor(currentTab == TAB_SONGS ? 0xFFBB86FC : 0xB3FFFFFF);
-        tabPlaylists.setTextColor(currentTab == TAB_PLAYLISTS ? 0xFFBB86FC : 0xB3FFFFFF);
-        tabMvs.setTextColor(currentTab == TAB_MVS ? 0xFFBB86FC : 0xB3FFFFFF);
+        tabSongs.setTextColor(getResources().getColor(currentTab == TAB_SONGS ? R.color.colorPrimary : R.color.text_secondary));
+        tabPlaylists.setTextColor(getResources().getColor(currentTab == TAB_PLAYLISTS ? R.color.colorPrimary : R.color.text_secondary));
+        tabMvs.setTextColor(getResources().getColor(currentTab == TAB_MVS ? R.color.colorPrimary : R.color.text_secondary));
+        tabSongs.setSelected(currentTab == TAB_SONGS);
+        tabPlaylists.setSelected(currentTab == TAB_PLAYLISTS);
+        tabMvs.setSelected(currentTab == TAB_MVS);
     }
 
     private void showCurrentResultList() {
@@ -361,6 +371,13 @@ public class SearchActivity extends BaseWatchActivity {
         if (keyword.isEmpty()) {
             return;
         }
+
+        android.view.inputmethod.InputMethodManager keyboard =
+                (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (keyboard != null) {
+            keyboard.hideSoftInputFromWindow(etSearch.getWindowToken(), 0);
+        }
+        etSearch.clearFocus();
 
         currentKeyword = keyword;
         addToSearchHistory(keyword);
@@ -597,7 +614,7 @@ public class SearchActivity extends BaseWatchActivity {
 
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
-                new WatchConfirmDialog.Options(0xFF1E1E1E, 0xFFBB86FC, true));
+                new WatchConfirmDialog.Options(0xFF2B2930, 0xFFD0BCFF, true));
     }
 
     @Override

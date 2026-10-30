@@ -59,7 +59,7 @@ public class BilibiliLoginActivity extends BaseWatchActivity {
         container.addView(qrCard);
 
         ivQrCode = new ImageView(this);
-        int qrSize = px(140);
+        int qrSize = (int) (getResources().getDisplayMetrics().widthPixels * 140f / 320f);
         LinearLayout.LayoutParams qrParams = new LinearLayout.LayoutParams(qrSize, qrSize);
         qrParams.gravity = Gravity.CENTER_HORIZONTAL;
         ivQrCode.setLayoutParams(qrParams);
@@ -217,13 +217,21 @@ public class BilibiliLoginActivity extends BaseWatchActivity {
     private LinearLayout createTitleBar() {
         LinearLayout bar = new LinearLayout(this);
         bar.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, px(38)));
+                ViewGroup.LayoutParams.MATCH_PARENT, dpToPx(48)));
         bar.setGravity(Gravity.CENTER_VERTICAL);
 
-        ImageView back = new ImageView(this);
-        back.setLayoutParams(new LinearLayout.LayoutParams(px(22), px(22)));
-        back.setImageResource(R.drawable.ic_arrow_back);
-        back.setColorFilter(getResources().getColor(R.color.text_primary));
+        MaterialButton back = new MaterialButton(this);
+        back.setLayoutParams(new LinearLayout.LayoutParams(dpToPx(48), dpToPx(48)));
+        back.setIconResource(R.drawable.ic_arrow_back);
+        back.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+        back.setIconSize(dpToPx(20));
+        back.setIconPadding(0);
+        back.setInsetTop(0);
+        back.setInsetBottom(0);
+        back.setMinWidth(0);
+        back.setMinimumWidth(0);
+        back.setPadding(0, 0, 0, 0);
+        back.setContentDescription("返回");
         back.setOnClickListener(v -> finish());
         bar.addView(back);
 

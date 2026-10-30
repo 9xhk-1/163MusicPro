@@ -8,7 +8,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.View;
-import android.widget.ProgressBar;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -31,7 +31,7 @@ public class XtcModuleActivity extends BaseWatchActivity {
     private static final int STORAGE_PERMISSION_REQUEST = 301;
 
     private MaterialButton btnDownload;
-    private ProgressBar progressBar;
+    private LinearProgressIndicator progressBar;
     private TextView tvStatus;
     private boolean downloading;
 

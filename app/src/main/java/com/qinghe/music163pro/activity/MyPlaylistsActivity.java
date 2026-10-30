@@ -1,6 +1,6 @@
 package com.qinghe.music163pro.activity;
 
-import android.app.AlertDialog;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -19,6 +19,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.qinghe.music163pro.R;
+import com.qinghe.music163pro.util.WatchUiUtils;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.model.PlaylistInfo;
 import com.qinghe.music163pro.player.MusicPlayerManager;
@@ -52,7 +53,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF121212);
+        root.setBackgroundColor(getResources().getColor(R.color.bg_dark));
         root.setPadding(px(6), px(6), px(6), px(6));
 
         // Title row with "+" button
@@ -62,8 +63,8 @@ public class MyPlaylistsActivity extends AppCompatActivity {
 
         TextView tvTitle = new TextView(this);
         tvTitle.setText("我的歌单");
-        tvTitle.setTextColor(0xFFFFFFFF);
-        tvTitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(15));
+        tvTitle.setTextColor(0xFFE6E0E9);
+        tvTitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
         tvTitle.setGravity(Gravity.CENTER);
         tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
         tvTitle.setPadding(px(28), 0, px(28), px(4));
@@ -77,7 +78,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
         // "+" button (top-right)
         ImageView btnCreate = new ImageView(this);
         btnCreate.setImageResource(R.drawable.ic_add_box);
-        btnCreate.setColorFilter(0xFFBB86FC);
+        btnCreate.setColorFilter(0xFFD0BCFF);
         btnCreate.setClickable(true);
         btnCreate.setFocusable(true);
         android.widget.RelativeLayout.LayoutParams btnParams = new android.widget.RelativeLayout.LayoutParams(
@@ -93,8 +94,8 @@ public class MyPlaylistsActivity extends AppCompatActivity {
         // Status text
         tvStatus = new TextView(this);
         tvStatus.setText("正在加载...");
-        tvStatus.setTextColor(0x80FFFFFF);
-        tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
+        tvStatus.setTextColor(0xFFCAC4D0);
+        tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
         tvStatus.setGravity(Gravity.CENTER);
         tvStatus.setPadding(0, px(4), 0, px(4));
         root.addView(tvStatus);
@@ -133,7 +134,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
                         icon.setColorFilter(0xFFFF4081);
                     } else if (pl.getUserId() == currentUserId) {
                         icon.setImageResource(R.drawable.ic_music_note);
-                        icon.setColorFilter(0xFFBB86FC);
+                        icon.setColorFilter(0xFFD0BCFF);
                     } else {
                         icon.setImageResource(R.drawable.ic_queue_music);
                         icon.setColorFilter(0x80FFFFFF);
@@ -143,8 +144,8 @@ public class MyPlaylistsActivity extends AppCompatActivity {
                         tvName.setText(pl.getName());
                     }
                     tvName.setSelected(true);
-                    tvName.setTextColor(0xFFFFFFFF);
-                    tvName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
+                    tvName.setTextColor(0xFFE6E0E9);
+                    tvName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
 
                     String detail = pl.getTrackCount() + "首";
                     if (pl.getCreator() != null && !pl.getCreator().isEmpty()) {
@@ -154,8 +155,8 @@ public class MyPlaylistsActivity extends AppCompatActivity {
                         tvDetail.setText(detail);
                     }
                     tvDetail.setSelected(true);
-                    tvDetail.setTextColor(0xB3FFFFFF);
-                    tvDetail.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(11));
+                    tvDetail.setTextColor(0xFFCAC4D0);
+                    tvDetail.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(10));
                 }
                 return view;
             }
@@ -241,36 +242,31 @@ public class MyPlaylistsActivity extends AppCompatActivity {
     }
 
     private void showOwnPlaylistOptions(PlaylistInfo pl, String cookie) {
-        new AlertDialog.Builder(this)
-                .setTitle(pl.getName())
-                .setItems(new String[]{"改名", "删除"}, (dialog, which) -> {
+        WatchUiUtils.showActionDialog(this, pl.getName(), new String[]{"改名", "删除"},
+                new int[]{0, getResources().getColor(R.color.colorError)},
+                (dialog, which) -> {
                     if (which == 0) {
                         showRenamePlaylistDialog(pl, cookie);
                     } else {
                         showDeletePlaylistDialog(pl, cookie);
                     }
-                })
-                .setNegativeButton("取消", null)
-                .show();
+                });
     }
 
     private void showRenamePlaylistDialog(PlaylistInfo pl, String cookie) {
-        EditText input = new EditText(this);
+        com.google.android.material.textfield.TextInputLayout inputWrap =
+                com.qinghe.music163pro.util.WatchUiUtils.createWatchTextInput(this, "歌单名称");
+        EditText input = (com.google.android.material.textfield.TextInputEditText) inputWrap.getEditText();
         input.setText(pl.getName());
-        input.setTextColor(0xFFFFFFFF);
-        input.setHintTextColor(0xFF888888);
-        input.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
-        input.setPadding(px(8), px(4), px(8), px(4));
-        input.setBackgroundColor(0xFF333333);
         input.setSelectAllOnFocus(true);
 
         android.widget.LinearLayout container = new android.widget.LinearLayout(this);
         container.setPadding(px(12), px(8), px(12), px(4));
-        container.addView(input, new android.widget.LinearLayout.LayoutParams(
+        container.addView(inputWrap, new android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("改名")
                 .setView(container)
                 .setPositiveButton("确认", (d, w) -> {
@@ -304,7 +300,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
     }
 
     private void showDeletePlaylistDialog(PlaylistInfo pl, String cookie) {
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("删除歌单")
                 .setMessage("确定删除「" + pl.getName() + "」？此操作不可撤销。")
                 .setPositiveButton("删除", (d, w) -> {
@@ -333,7 +329,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
     }
 
     private void showUnsubscribeDialog(PlaylistInfo pl, String cookie) {
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("取消收藏")
                 .setMessage("确定取消收藏歌单「" + pl.getName() + "」？")
                 .setPositiveButton("确认", (d, w) -> {
@@ -368,20 +364,16 @@ public class MyPlaylistsActivity extends AppCompatActivity {
             return;
         }
 
-        EditText input = new EditText(this);
-        input.setHint("输入歌单名称");
-        input.setTextColor(0xFFFFFFFF);
-        input.setHintTextColor(0xFF888888);
-        input.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(14));
-        input.setPadding(px(8), px(4), px(8), px(4));
-        input.setBackgroundColor(0xFF333333);
+        com.google.android.material.textfield.TextInputLayout inputWrap =
+                com.qinghe.music163pro.util.WatchUiUtils.createWatchTextInput(this, "输入歌单名称");
+        EditText input = (com.google.android.material.textfield.TextInputEditText) inputWrap.getEditText();
 
         LinearLayout container = new LinearLayout(this);
         container.setPadding(px(12), px(8), px(12), px(4));
-        container.addView(input, new LinearLayout.LayoutParams(
+        container.addView(inputWrap, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("创建歌单")
                 .setView(container)
                 .setPositiveButton("创建", (d, w) -> {
@@ -415,8 +407,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
     }
 
     private int px(int baseValue) {
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        return (int) (baseValue * screenWidth / 320f + 0.5f);
+        return (int) (baseValue * getResources().getDisplayMetrics().density + 0.5f);
     }
 
     @Override
