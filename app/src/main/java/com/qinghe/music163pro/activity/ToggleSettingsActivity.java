@@ -18,11 +18,12 @@ import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 
 /**
- * Toggle settings activity - contains boolean/toggle options:
- * - Keep screen on (SwitchMaterial)
- * - Favorites mode local/cloud (cyclic selection)
- * - Sleep timer mode total/net playback (cyclic selection)
- * - Speed mode 3-value cyclic row (tap to cycle)
+ * Toggle settings activity:
+ * - Boolean options render as SwitchMaterial rows
+ * - Selection options (favorites mode, sleep timer mode, speed mode,
+ *   recognition mode, lyric scroll mode, random-skip order, lyric resume
+ *   interval, image save dir) open a single-choice dialog with the current
+ *   value pre-checked
  */
 public class ToggleSettingsActivity extends AppCompatActivity {
 
