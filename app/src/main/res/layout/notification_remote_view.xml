@@ -1,77 +1,165 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- XTC watch music card notification layout (320×64dp, dark background) -->
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="64dp"
-    android:background="#CC000000"
-    android:padding="0dp">
+<!--
+  华为儿童手表 4X 播放卡片（RemoteViews），总高 100dp，苹果风格玻璃。
+  v54 起去掉「播放进度轴」：为了让它每 5 秒刷新一次，服务必须常驻一个
+  Handler 定时唤醒并整卡重建 RemoteViews（ProgressBar + 8 个透明点击区 +
+  13 次 PendingIntent 绑定），在 4 核 / 0.78GB 手表上是纯粹的常驻耗电。
+  去掉后通知只在切歌 / 播放状态变化时刷新一次，不再有周期唤醒。
 
-    <!-- Song name + artist name (left section) -->
+  第 1 行：歌曲名（独占整行）
+  第 2 行：歌手名（独占整行）——不与歌名左右并排，长歌名不挤压/重叠
+  第 3 行：播放顺序(小) / 上一首(中) / 播放·暂停(大) / 下一首(中) / 关闭(小)
+
+  高度账（原 123dp 四行 → 去掉 18dp 时间轴 + 1dp 间距，省下的 19dp 里
+  5dp 给文字、2dp 给上下 padding，卡片净减到 100dp）：
+    paddingTop 2 + 文字区 42(歌名 24 + 歌手 18) + 间距 2
+    + 按钮排 52 + paddingBottom 2 = 100dp
+
+  两行文字都用 match_parent 且 maxLines=1 / ellipsize=end / includeFontPadding=false；
+  按钮排仍是 22/28/38dp 三级图标 + weightSum=10 的等宽 FrameLayout 触控区，
+  38dp 主按钮在 52dp 行内上下各留 7dp，触控面积不缩水。
+  setCustomBigContentView 仍用同一套布局，避免 ROM 折叠态把卡片裁掉。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/ll_notification_controls"
+    android:layout_width="match_parent"
+    android:layout_height="100dp"
+    android:background="#99000000"
+    android:orientation="vertical"
+    android:paddingStart="5dp"
+    android:paddingEnd="5dp"
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp">
+
+    <!-- 文字区：歌名 / 歌手 上下两行，各占整行宽度，不再左右并排 -->
     <LinearLayout
-        android:id="@+id/ll_text"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:layout_centerVertical="true"
-        android:layout_toStartOf="@+id/ll_controls"
-        android:layout_marginStart="12dp"
-        android:orientation="vertical">
+        android:id="@+id/ll_notification_meta"
+        android:layout_width="match_parent"
+        android:layout_height="42dp"
+        android:layout_marginBottom="2dp"
+        android:orientation="vertical"
+        android:paddingStart="3dp"
+        android:paddingEnd="3dp">
 
         <TextView
-            android:id="@+id/tv_song_name"
+            android:id="@+id/tv_notification_song"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ellipsize="marquee"
+            android:layout_height="24dp"
+            android:ellipsize="end"
+            android:gravity="center_vertical|start"
+            android:includeFontPadding="false"
             android:maxLines="1"
-            android:text="163音乐"
+            android:text="网易云音乐Pro"
             android:textColor="#FFFFFFFF"
             android:textSize="14sp"
             android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/tv_singer_name"
+            android:id="@+id/tv_notification_artist"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="18dp"
             android:ellipsize="end"
+            android:gravity="center_vertical|start"
+            android:includeFontPadding="false"
             android:maxLines="1"
-            android:text="音乐播放中"
-            android:textColor="#CCFFFFFF"
-            android:textSize="11sp" />
+            android:text=""
+            android:textColor="#FFC7C7CC"
+            android:textSize="10sp" />
     </LinearLayout>
 
-    <!-- Controls: previous / play-pause / next -->
+    <!-- 五个大小分级的玻璃按钮；触控区用等宽 FrameLayout，视觉按钮居中且大小不同 -->
     <LinearLayout
-        android:id="@+id/ll_controls"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
-        android:layout_centerVertical="true"
-        android:layout_marginEnd="8dp"
-        android:orientation="horizontal">
+        android:id="@+id/ll_notification_buttons"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:weightSum="10">
 
-        <ImageView
-            android:id="@+id/iv_previous"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:contentDescription="上一曲"
-            android:padding="6dp"
-            android:src="@drawable/ic_skip_previous" />
+        <FrameLayout
+            android:id="@+id/fl_play_mode"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1.6">
 
-        <ImageView
-            android:id="@+id/iv_play_pause"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:contentDescription="播放/暂停"
-            android:padding="6dp"
-            android:src="@drawable/ic_play_arrow" />
+            <ImageView
+                android:id="@+id/iv_play_mode"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_notification_control"
+                android:contentDescription="播放顺序"
+                android:padding="4dp"
+                android:src="@drawable/ic_repeat" />
+        </FrameLayout>
 
-        <ImageView
-            android:id="@+id/iv_next"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:contentDescription="下一曲"
-            android:padding="6dp"
-            android:src="@drawable/ic_skip_next" />
+        <FrameLayout
+            android:id="@+id/fl_previous"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="2">
+
+            <ImageView
+                android:id="@+id/iv_previous"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_notification_control"
+                android:contentDescription="上一首"
+                android:padding="5dp"
+                android:src="@drawable/ic_skip_previous" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/fl_play_pause"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="2.8">
+
+            <ImageView
+                android:id="@+id/iv_play_pause"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_notification_control_primary"
+                android:contentDescription="暂停/播放"
+                android:padding="9dp"
+                android:src="@drawable/ic_play_arrow" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/fl_next"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="2">
+
+            <ImageView
+                android:id="@+id/iv_next"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_notification_control"
+                android:contentDescription="下一首"
+                android:padding="5dp"
+                android:src="@drawable/ic_skip_next" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/fl_close"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1.6">
+
+            <ImageView
+                android:id="@+id/iv_close"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_notification_control"
+                android:contentDescription="关闭应用"
+                android:padding="4dp"
+                android:src="@drawable/ic_close" />
+        </FrameLayout>
     </LinearLayout>
 
-</RelativeLayout>
+</LinearLayout>

@@ -1,7 +1,6 @@
 package com.qinghe.music163pro.activity;
 
 import android.Manifest;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -9,17 +8,13 @@ import android.content.res.ColorStateList;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.GradientDrawable;
 import android.media.AudioManager;
-import android.media.MediaPlayer;
-import android.media.RingtoneManager;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.provider.MediaStore;
 import android.text.InputType;
-import android.util.Log;
 import android.view.GestureDetector;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
@@ -38,17 +33,17 @@ import androidx.core.content.ContextCompat;
 
 import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.util.WatchUiUtils;
+import com.qinghe.music163pro.util.QualityPicker;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.manager.DownloadManager;
 import com.qinghe.music163pro.manager.FavoritesManager;
 import com.qinghe.music163pro.manager.HistoryManager;
-import com.qinghe.music163pro.manager.RingtoneManagerHelper;
 import com.qinghe.music163pro.model.Song;
+import com.qinghe.music163pro.player.AppVolumeManager;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.service.MusicPlaybackService;
 import com.qinghe.music163pro.util.MusicLog;
 import com.qinghe.music163pro.util.NetworkImageLoader;
-import com.qinghe.music163pro.util.UpdateChecker;
 import com.qinghe.music163pro.util.WatchConfirmDialog;
 import com.qinghe.music163pro.util.BackgroundUtil;
 import com.google.android.material.button.MaterialButton;
@@ -60,6 +55,8 @@ import com.google.android.material.slider.Slider;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements MusicPlayerManager.PlayerCallback {
 
@@ -75,10 +72,19 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private static final int VOLUME_INDICATOR_ANIM_DURATION_MS = 160;
     private static final float VOLUME_INDICATOR_INITIAL_SCALE = 0.96f;
     private static final int SAFE_VOLUME_PERCENT = 60;
+    // 长按音量键连续调节：按住 350ms 后开始连发，每 130ms 走一级
+    private static final int VOLUME_REPEAT_START_DELAY_MS = 350;
+    private static final int VOLUME_REPEAT_INTERVAL_MS = 130;
     private static final int LYRIC_MODE_FOLLOW = 0;
     private static final int LYRIC_MODE_BLOCK = 1;
     private static final String QUALITY_TIER_UNAVAILABLE = "暂无";
     private static final String QUALITY_TIER_DOWNLOADED = "已下载";
+    // 下载场景：当前会员等级（dlLevel）不够，选了也只会被接口降级成低码率
+    private static final String QUALITY_TIER_LOCKED = "需会员";
+    // 官方「当前歌曲音质」面板把档位分成黑胶 VIP 与黑胶 SVIP 两档，
+    // 超出当前账号 plLevel/dlLevel 的档位分别标「需 VIP」「需 SVIP」并置灰
+    private static final String QUALITY_TIER_NEED_VIP = "需 VIP";
+    private static final String QUALITY_TIER_NEED_SVIP = "需 SVIP";
 
     private TextView tvSongName;
     private TextView tvArtist;
@@ -95,9 +101,12 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private final Handler seekHandler = new Handler();
     private boolean isUserSeeking = false;
     private boolean serviceStarted = false;
+    /** 只有主界面在前台时才允许进度条轮询；退到后台/锁屏立刻停，避免常驻唤醒。 */
+    private boolean uiResumed = false;
 
     // Playlist indicator (top-left)
     private MaterialButton btnPlaylistIndicator;
+    private MaterialButton btnPlayMode;
 
     // Song ids whose fee detail lookup was already requested this session
     private final java.util.Set<Long> feeEnrichRequested = new java.util.HashSet<>();
@@ -112,6 +121,12 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     private com.google.android.material.progressindicator.LinearProgressIndicator volumeProgressBar;
     private TextView volumePercentView;
     private final Handler volumeHandler = new Handler();
+    // 长按连续调节音量
+    private final Handler volumeRepeatHandler = new Handler();
+    private Runnable volumeRepeatRunnable;
+    private boolean volumeRepeatUp;
+    // 任何来源（手表按键 / 实体键 / 蓝牙耳机）改了等级都刷新音量浮层
+    private AppVolumeManager.LevelChangeListener appVolumeListener;
 
     // Headphone volume protection: confirmed once above the safe threshold,
     // reset when volume drops back below it.
@@ -203,12 +218,30 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         MaterialButton btnVolUp = findViewById(R.id.btn_vol_up);
         MaterialButton btnMore = findViewById(R.id.btn_more);
         btnPlaylistIndicator = findViewById(R.id.btn_playlist_indicator);
+        btnPlayMode = findViewById(R.id.btn_play_mode);
+        btnPlayMode.setOnClickListener(v -> cyclePlayMode());
         ensureChorusMarkerDot();
 
         playerManager = MusicPlayerManager.getInstance();
         playerManager.setContext(this);
         favoritesManager = new FavoritesManager(this);
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+
+        // 首次进入新版本时提示一次：音量已改为应用内精细分级
+        SharedPreferences volumePrefs = getSharedPreferences("music163_app_volume", MODE_PRIVATE);
+        if (!volumePrefs.getBoolean("volume_mode_hint_shown", false)) {
+            volumePrefs.edit().putBoolean("volume_mode_hint_shown", true).apply();
+            Toast.makeText(this, "音量已改为应用内 " + AppVolumeManager.MAX_LEVEL + " 级精细调节",
+                    Toast.LENGTH_LONG).show();
+        }
+
+        // 音量是全局单一等级：不管从手表按键、实体键还是蓝牙耳机改的，
+        // 这里都同步刷新指示条，保证两边显示的是同一个范围。
+        AppVolumeManager volumeManager = AppVolumeManager.get();
+        if (volumeManager != null) {
+            appVolumeListener = level -> showVolumeIndicator();
+            volumeManager.addLevelChangeListener(appVolumeListener);
+        }
 
         // Load saved cookie
         SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
@@ -263,36 +296,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         btnPrev.setOnClickListener(v -> playerManager.previous());
         btnNext.setOnClickListener(v -> playerManager.next());
 
-        btnVolDown.setOnClickListener(v -> {
-                audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,
-                        AudioManager.ADJUST_LOWER, AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE);
-                showVolumeIndicator();
-        });
-
-        btnVolUp.setOnClickListener(v -> {
-                if (!isHeadphonesConnected()) {
-                    volumeSafeConfirmed = false;
-                    adjustVolumeUp();
-                    return;
-                }
-                int current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-                int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
-                int percent = max > 0 ? Math.round(current * 100f / max) : 0;
-                if (percent < SAFE_VOLUME_PERCENT) {
-                    volumeSafeConfirmed = false;
-                    adjustVolumeUp();
-                } else if (!volumeSafeConfirmed) {
-                    WatchConfirmDialog.show(this, "音量保护",
-                            "当前音量已达 " + percent + "%，继续调大可能损伤听力。确定继续调大吗？",
-                            () -> {
-                                volumeSafeConfirmed = true;
-                                adjustVolumeUp();
-                            },
-                            new WatchConfirmDialog.Options(0xFF2B2930, 0xFFD0BCFF, true));
-                } else {
-                    adjustVolumeUp();
-                }
-        });
+        btnVolDown.setOnClickListener(v -> adjustVolumeDown());
+        btnVolUp.setOnClickListener(v -> requestVolumeUp());
+        attachVolumeRepeat(btnVolUp, true);
+        attachVolumeRepeat(btnVolDown, false);
 
         // Changed: "more functions" overlay instead of toggle favorite
         btnFuncMore.setOnClickListener(v -> showFunctionsOverlay());
@@ -328,9 +335,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Playlist indicator: click to open playlist detail
         btnPlaylistIndicator.setOnClickListener(v -> {
             Song currentSong = playerManager.getCurrentSong();
-            if (currentSong != null && currentSong.isBilibili()) {
-                openBilibiliPlaylist(currentSong);
-            } else if (playerManager.hasSourcePlaylist()) {
+            if (playerManager.hasSourcePlaylist()) {
                 Intent plIntent = new Intent(MainActivity.this, PlaylistDetailActivity.class);
                 plIntent.putExtra("playlist_id", playerManager.getSourcePlaylistId());
                 plIntent.putExtra("playlist_name", playerManager.getSourcePlaylistName());
@@ -356,9 +361,6 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         requestStoragePermission();
 
         lyricsTouchSlop = ViewConfiguration.get(this).getScaledTouchSlop();
-
-        // Check for updates once per day on first launch
-        checkUpdateIfNeeded();
 
         // Activity-level gesture detector:
         // - Right swipe: dismiss overlay if one is open; exit app on main player screen
@@ -527,39 +529,10 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         }
     }
 
-    private void checkUpdateIfNeeded() {
-        SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
-        String today = new java.text.SimpleDateFormat("yyyyMMdd",
-                java.util.Locale.getDefault()).format(new java.util.Date());
-        String lastCheck = prefs.getString("last_update_check_date", "");
-        if (today.equals(lastCheck)) return;
-        prefs.edit().putString("last_update_check_date", today).apply();
-        UpdateChecker.checkVersionInfo(this, new UpdateChecker.VersionCheckCallback() {
-            @Override
-            public void onResult(UpdateChecker.VersionInfo versionInfo) {
-                if (!versionInfo.isLatest()) {
-                    openUpdateActivity(versionInfo.getVersionName());
-                }
-            }
-
-            @Override
-            public void onError(String error) {
-                // Silently ignore auto-check errors
-            }
-        });
-    }
-
-    private void openUpdateActivity(String targetVersionName) {
-        Intent intent = new Intent(this, UpdateActivity.class);
-        if (targetVersionName != null && !targetVersionName.trim().isEmpty()) {
-            intent.putExtra("target_version_name", targetVersionName.trim());
-        }
-        startActivity(intent);
-    }
-
     @Override
     protected void onResume() {
         super.onResume();
+        uiResumed = true;
         playerManager.setCallback(this);
         // Reload settings in case they changed
         SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
@@ -570,6 +543,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         } catch (Exception e) {
             playerManager.setPlayMode(MusicPlayerManager.PlayMode.LIST_LOOP);
         }
+        // 通知栏上的「播放顺序」按键也会改模式，回到界面时同步图标
+        updatePlayModeButton();
         // Reapply keep screen on setting
         if (prefs.getBoolean("keep_screen_on", false)) {
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -603,10 +578,6 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         Song song = playerManager.getCurrentSong();
         if (song == null) {
             Toast.makeText(this, "暂无歌曲", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (song.isBilibili()) {
-            showBilibiliFunctionsOverlay(song);
             return;
         }
 
@@ -661,7 +632,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 v -> onFuncDownload(song)));
         contentLayout.addView(row1);
 
-        // Row 2: 设为铃声 + 定时关闭
+        // Row 2: 定时关闭
         LinearLayout row2 = new LinearLayout(this);
         row2.setOrientation(LinearLayout.HORIZONTAL);
         row2.setGravity(Gravity.CENTER);
@@ -669,14 +640,18 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         row2.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        row2.addView(createFuncItem(R.drawable.ic_notifications, "设为铃声",
-                v -> onFuncSetRingtone(song)));
-
         // Sleep timer - show remaining time if active, with live updates
         MaterialButton timerItem = createFuncItem(R.drawable.ic_timer,
                 playerManager.isSleepTimerActive() ? "定时..." : "定时关闭",
                 v -> onFuncSleepTimer());
         row2.addView(timerItem);
+
+        // 定时关闭与倍速播放必须同一行两个：删掉「设为铃声 / 播放模式」后
+        // 若各占一行，weight=1 会让它们各自撑满一整行，看起来像两列居中单按钮。
+        float currentSpeed = playerManager.getPlaybackSpeed();
+        String speedLabel = currentSpeed == 1.0f ? "倍速播放" : String.format("%.1fx", currentSpeed);
+        row2.addView(createFuncItem(R.drawable.ic_speed, speedLabel,
+                v -> onFuncPlaybackSpeed()));
 
         final TextView timerLabelView = timerItem;
         if (playerManager.isSleepTimerActive()) {
@@ -701,40 +676,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         }
         contentLayout.addView(row2);
 
-        // Row 3: 播放模式 + 倍速播放
-        LinearLayout row3 = new LinearLayout(this);
-        row3.setOrientation(LinearLayout.HORIZONTAL);
-        row3.setGravity(Gravity.CENTER);
-        row3.setPadding(0, dp(4), 0, 0);
-        row3.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        int playModeIconRes;
-        String playModeLabel;
-        switch (playerManager.getPlayMode()) {
-            case SINGLE_REPEAT:
-                playModeIconRes = R.drawable.ic_repeat_one;
-                playModeLabel = "单曲循环";
-                break;
-            case RANDOM:
-                playModeIconRes = R.drawable.ic_shuffle;
-                playModeLabel = "随机播放";
-                break;
-            case LIST_LOOP:
-            default:
-                playModeIconRes = R.drawable.ic_repeat;
-                playModeLabel = "列表循环";
-                break;
-        }
-        row3.addView(createFuncItem(playModeIconRes, playModeLabel,
-                v -> onFuncCyclePlayMode()));
-        float currentSpeed = playerManager.getPlaybackSpeed();
-        String speedLabel = currentSpeed == 1.0f ? "倍速播放" : String.format("%.1fx", currentSpeed);
-        row3.addView(createFuncItem(R.drawable.ic_speed, speedLabel,
-                v -> onFuncPlaybackSpeed()));
-        contentLayout.addView(row3);
-
-        // Row 4: 音乐信息 + 评论
+        // Row 3: 音乐信息 + 评论
         LinearLayout row4 = new LinearLayout(this);
         row4.setOrientation(LinearLayout.HORIZONTAL);
         row4.setGravity(Gravity.CENTER);
@@ -798,111 +740,6 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         rootView.addView(overlayContainer);
     }
 
-    private void showBilibiliFunctionsOverlay(Song song) {
-        FrameLayout rootView = (FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content);
-
-        overlayContainer = new FrameLayout(this);
-        overlayContainer.setLayoutParams(new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        overlayContainer.setBackgroundColor(0xCC000000);
-        addSwipeToDismiss(overlayContainer);
-
-        ScrollView scrollView = new ScrollView(this);
-        FrameLayout.LayoutParams scrollParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        scrollParams.gravity = Gravity.CENTER;
-        scrollView.setLayoutParams(scrollParams);
-        scrollView.setOnClickListener(v -> { });
-
-        LinearLayout contentLayout = new LinearLayout(this);
-        contentLayout.setOrientation(LinearLayout.VERTICAL);
-        contentLayout.setGravity(Gravity.CENTER);
-        contentLayout.setPadding(dp(16), dp(12), dp(16), dp(12));
-        contentLayout.addView(createOverlayTitleBar("B站功能"));
-
-        LinearLayout row1 = new LinearLayout(this);
-        row1.setOrientation(LinearLayout.HORIZONTAL);
-        row1.setGravity(Gravity.CENTER);
-        row1.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        row1.addView(createFuncItem(R.drawable.ic_queue_music, "视频列表",
-                v -> onFuncShowBilibiliPlaylist(song)));
-        row1.addView(createFuncItem(R.drawable.ic_get_app, "下载",
-                v -> onFuncDownload(song)));
-        contentLayout.addView(row1);
-
-        LinearLayout row2 = new LinearLayout(this);
-        row2.setOrientation(LinearLayout.HORIZONTAL);
-        row2.setGravity(Gravity.CENTER);
-        row2.setPadding(0, dp(4), 0, 0);
-        row2.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        MaterialButton timerItem = createFuncItem(R.drawable.ic_timer,
-                playerManager.isSleepTimerActive() ? "定时..." : "定时关闭",
-                v -> onFuncSleepTimer());
-        row2.addView(timerItem);
-
-        final TextView timerLabelView = timerItem;
-        if (playerManager.isSleepTimerActive()) {
-            overlayTimerHandler = new Handler();
-            overlayTimerRunnable = new Runnable() {
-                @Override
-                public void run() {
-                    if (overlayContainer == null) return;
-                    long remainMs = playerManager.getSleepTimerRemainingMs();
-                    if (remainMs > 0) {
-                        int totalSec = (int) (remainMs / 1000);
-                        int min = totalSec / 60;
-                        int sec = totalSec % 60;
-                        timerLabelView.setText(String.format("定时 %d:%02d", min, sec));
-                        overlayTimerHandler.postDelayed(this, 1000);
-                    } else {
-                        timerLabelView.setText("定时关闭");
-                    }
-                }
-            };
-            overlayTimerRunnable.run();
-        }
-        int playModeIconRes;
-        String playModeLabel;
-        switch (playerManager.getPlayMode()) {
-            case SINGLE_REPEAT:
-                playModeIconRes = R.drawable.ic_repeat_one;
-                playModeLabel = "单曲循环";
-                break;
-            case RANDOM:
-                playModeIconRes = R.drawable.ic_shuffle;
-                playModeLabel = "随机播放";
-                break;
-            case LIST_LOOP:
-            default:
-                playModeIconRes = R.drawable.ic_repeat;
-                playModeLabel = "列表循环";
-                break;
-        }
-        row2.addView(createFuncItem(playModeIconRes, playModeLabel,
-                v -> onFuncCyclePlayMode()));
-        contentLayout.addView(row2);
-
-        LinearLayout row3 = new LinearLayout(this);
-        row3.setOrientation(LinearLayout.HORIZONTAL);
-        row3.setGravity(Gravity.CENTER);
-        row3.setPadding(0, dp(4), 0, 0);
-        row3.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        float currentSpeed = playerManager.getPlaybackSpeed();
-        String speedLabel = currentSpeed == 1.0f ? "倍速播放" : String.format("%.1fx", currentSpeed);
-        row3.addView(createFuncItem(R.drawable.ic_speed, speedLabel,
-                v -> onFuncPlaybackSpeed()));
-        row3.addView(createFuncItem(R.drawable.ic_info, "播放器信息",
-                v -> onFuncPlayerInfo()));
-        contentLayout.addView(row3);
-
-        scrollView.addView(contentLayout);
-        overlayContainer.addView(scrollView);
-        rootView.addView(overlayContainer);
-    }
-
     /**
      * Create a title bar with centered title and close button on the right.
      * Used in all overlay panels.
@@ -917,7 +754,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Centered title
         TextView title = new TextView(this);
         title.setText(titleText);
-        title.setTextColor(0xFFE6E0E9);
+        title.setTextColor(0xFFFFFFFF);
         title.setTextSize(11);
         title.setMaxLines(1);
         title.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -1023,7 +860,6 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
     }
 
     private void dismissOverlay() {
-        stopRingtonePreview();
         if (overlayTimerHandler != null) {
             overlayTimerHandler.removeCallbacksAndMessages(null);
             overlayTimerHandler = null;
@@ -1063,6 +899,37 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         }
     }
 
+    /**
+     * 拦截实体音量键：优先走应用内精细音量，不再让系统按 6 级跳变。
+     * 这样无论用手表侧键还是界面上的 +/-，每按一次都只变化 1.2 dB（40 级）。
+     */
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        int keyCode = event.getKeyCode();
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                int repeat = event.getRepeatCount();
+                if (repeat == 0) {
+                    // 第一次按下走完整流程（含耳机听力保护确认）
+                    if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+                        requestVolumeUp();
+                    } else {
+                        adjustVolumeDown();
+                    }
+                } else if (repeat % 2 == 0) {
+                    // 按住不放时连续步进，每两帧走一级（约 100ms 一级）
+                    if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+                        adjustVolumeUp();
+                    } else {
+                        adjustVolumeDown();
+                    }
+                }
+            }
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
     private boolean isHeadphonesConnected() {
         try {
             return audioManager.isWiredHeadsetOn() || audioManager.isBluetoothA2dpOn();
@@ -1071,17 +938,113 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         }
     }
 
+    /**
+     * 音量 + 入口：应用内音量不再跟随系统 6 级粗调，
+     * 但保留耳机场景下的听力保护确认。
+     */
+    private void requestVolumeUp() {
+        AppVolumeManager volumeManager = AppVolumeManager.get();
+        if (volumeManager == null) {
+            return;
+        }
+        if (volumeManager.getLevel() >= AppVolumeManager.MAX_LEVEL) {
+            // 已经最大，仍然显示一次指示器作为反馈
+            showVolumeIndicator();
+            return;
+        }
+        if (!isHeadphonesConnected()) {
+            volumeSafeConfirmed = false;
+            adjustVolumeUp();
+            return;
+        }
+        int percent = volumeManager.getPercent();
+        if (percent < SAFE_VOLUME_PERCENT) {
+            volumeSafeConfirmed = false;
+            adjustVolumeUp();
+        } else if (!volumeSafeConfirmed) {
+            WatchConfirmDialog.show(this, "音量保护",
+                    "当前音量已达 " + percent + "%，继续调大可能损伤听力。确定继续调大吗？",
+                    () -> {
+                        volumeSafeConfirmed = true;
+                        adjustVolumeUp();
+                    },
+                    new WatchConfirmDialog.Options(0xFF1C1C1E, 0xFFF2F2F7, true));
+        } else {
+            adjustVolumeUp();
+        }
+    }
+
+    /**
+     * 给音量按钮挂上长按连发。40 级音量靠一下一下点太累，
+     * 按住不放就连续步进，松手立即停止。
+     */
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    private void attachVolumeRepeat(View button, boolean up) {
+        if (button == null) {
+            return;
+        }
+        button.setOnLongClickListener(v -> {
+            startVolumeRepeat(up);
+            return true;
+        });
+        button.setOnTouchListener((v, event) -> {
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                stopVolumeRepeat();
+            }
+            return false;
+        });
+    }
+
+    private void startVolumeRepeat(boolean up) {
+        stopVolumeRepeat();
+        volumeRepeatUp = up;
+        volumeRepeatRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (volumeRepeatUp) {
+                    adjustVolumeUp();
+                } else {
+                    adjustVolumeDown();
+                }
+                volumeRepeatHandler.postDelayed(this, VOLUME_REPEAT_INTERVAL_MS);
+            }
+        };
+        volumeRepeatHandler.postDelayed(volumeRepeatRunnable, VOLUME_REPEAT_START_DELAY_MS);
+    }
+
+    private void stopVolumeRepeat() {
+        volumeRepeatHandler.removeCallbacksAndMessages(null);
+        volumeRepeatRunnable = null;
+    }
+
     private void adjustVolumeUp() {
-        audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,
-                AudioManager.ADJUST_RAISE, AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE);
+        AppVolumeManager volumeManager = AppVolumeManager.get();
+        if (volumeManager != null) {
+            volumeManager.stepUp();
+            playerManager.applyAppVolume();
+        }
+        showVolumeIndicator();
+    }
+
+    private void adjustVolumeDown() {
+        AppVolumeManager volumeManager = AppVolumeManager.get();
+        if (volumeManager != null) {
+            volumeManager.stepDown();
+            playerManager.applyAppVolume();
+        }
         showVolumeIndicator();
     }
 
     private void showVolumeIndicator() {
-        int current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-        int max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        AppVolumeManager volumeManager = AppVolumeManager.get();
+        if (volumeManager == null) {
+            return;
+        }
+        int current = volumeManager.getLevel();
+        int max = volumeManager.getMaxLevel();
         boolean hasVolumeInfo = max > 0;
-        int percent = hasVolumeInfo ? Math.round(current * 100f / max) : 0;
+        int percent = volumeManager.getPercent();
         ensureVolumeIndicator(hasVolumeInfo, current, max, percent);
         updateVolumeIndicator(hasVolumeInfo, current, max, percent);
 
@@ -1369,7 +1332,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         button.setAllCaps(false);
         button.setTextSize(12f);
         button.setTextColor(androidx.core.graphics.ColorUtils.calculateLuminance(backgroundColor) > 0.4
-                ? 0xFF1D1B20 : ContextCompat.getColor(this, R.color.text_primary));
+                ? 0xFF1C1C1E : ContextCompat.getColor(this, R.color.text_primary));
         button.setCornerRadius(dp(24));
         button.setInsetTop(0);
         button.setInsetBottom(0);
@@ -1460,35 +1423,14 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         dismissOverlay();
     }
 
-
-
-
+    private String getDownloadCookieForSong(Song song) {
+        return playerManager.getCookie();
+    }
 
     private void onFuncDownload(Song song) {
         dismissOverlay();
-        if (song.isBilibili() && DownloadManager.isDownloaded(song)) {
-            Toast.makeText(this, "歌曲已下载", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (song.isBilibili()) {
-            // Bilibili doesn't have quality tiers, download directly
-            String cookie = getDownloadCookieForSong(song);
-            Toast.makeText(this, "开始下载...", Toast.LENGTH_SHORT).show();
-            DownloadManager.downloadSong(song, cookie, new DownloadManager.DownloadCallback() {
-                @Override
-                public void onSuccess(String filePath) {
-                    Toast.makeText(MainActivity.this, "下载完成: " + filePath, Toast.LENGTH_LONG).show();
-                }
-
-                @Override
-                public void onError(String message) {
-                    Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
-                }
-            });
-        } else {
-            // Show quality selector before downloading
-            showDownloadQualityOptions(song);
-        }
+        // NetEase songs: show quality selector before downloading
+        showDownloadQualityOptions(song);
     }
 
     private void showDownloadQualityOptions(Song song) {
@@ -1510,7 +1452,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         });
     }
 
-    private void onFuncCyclePlayMode() {
+    private void cyclePlayMode() {
         MusicPlayerManager.PlayMode current = playerManager.getPlayMode();
         MusicPlayerManager.PlayMode next;
         switch (current) {
@@ -1528,7 +1470,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         playerManager.setPlayMode(next);
         SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
         prefs.edit().putString("play_mode", next.name()).apply();
-        dismissOverlay();
+        updatePlayModeButton();
         String modeName;
         switch (next) {
             case SINGLE_REPEAT:
@@ -1647,7 +1589,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             // MaterialCardView (14dp radius, elevated surface, 4dp gap) with
             // a big value line and a small secondary label line.
             com.google.android.material.card.MaterialCardView card =
-                    createQualityCard(false, false);
+                    QualityPicker.createCard(this, false, false);
 
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
@@ -1674,7 +1616,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 tvValue.setSelected(true);
                 tvLabel = new TextView(this);
                 tvLabel.setText(line.substring(0, sep));
-                tvLabel.setTextColor(0xFFCAC4D0);
+                tvLabel.setTextColor(0xFFAEAEB2);
                 tvLabel.setTextSize(11);
             } else {
                 tvValue.setText(line);
@@ -1846,7 +1788,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Song name at top (leave right padding for the toggle button)
         tvLyricsSongLabel = new TextView(this);
         tvLyricsSongLabel.setText(song.getDisplayName() + " - " + song.getArtist());
-        tvLyricsSongLabel.setTextColor(0xFFE6E0E9);
+        tvLyricsSongLabel.setTextColor(0xFFFFFFFF);
         tvLyricsSongLabel.setTextSize(13);
         tvLyricsSongLabel.setGravity(Gravity.CENTER);
         tvLyricsSongLabel.setPadding(dp(30), dp(6), dp(30), dp(4));
@@ -1890,7 +1832,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         // Time display - shown below title
         tvLyricsTimeRef = new TextView(this);
-        tvLyricsTimeRef.setTextColor(0xFFCAC4D0);
+        tvLyricsTimeRef.setTextColor(0xFFAEAEB2);
         tvLyricsTimeRef.setTextSize(10);
         tvLyricsTimeRef.setGravity(Gravity.CENTER);
         tvLyricsTimeRef.setPadding(0, dp(2), 0, dp(4));
@@ -1991,7 +1933,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         lyricsContainer.removeAllViews();
         TextView tvLoading = new TextView(this);
         tvLoading.setText("加载歌词中...");
-        tvLoading.setTextColor(0xFFCAC4D0);
+        tvLoading.setTextColor(0xFFAEAEB2);
         tvLoading.setTextSize(13);
         tvLoading.setGravity(Gravity.CENTER);
         lyricsContainer.addView(tvLoading);
@@ -2415,22 +2357,6 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         showPlaylistOverlay();
     }
 
-    private void onFuncShowBilibiliPlaylist(Song song) {
-        dismissOverlay();
-        openBilibiliPlaylist(song);
-    }
-
-    private void openBilibiliPlaylist(Song song) {
-        if (song == null || !song.isBilibili()) {
-            return;
-        }
-        Intent intent = new Intent(this, BilibiliPlaylistActivity.class);
-        intent.putExtra("bvid", song.getBvid());
-        intent.putExtra("video_title", song.getAlbum());
-        intent.putExtra("owner_name", song.getArtist());
-        startActivity(intent);
-    }
-
     /**
      * Show the current playlist as an overlay with song list.
      * Tapping a song plays it and dismisses the overlay.
@@ -2553,7 +2479,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Custom speed input
         TextView customLabel = new TextView(this);
         customLabel.setText("自定义（0.1-5.0）");
-        customLabel.setTextColor(0xFFCAC4D0);
+        customLabel.setTextColor(0xFFAEAEB2);
         customLabel.setTextSize(13);
         customLabel.setGravity(Gravity.CENTER);
         customLabel.setPadding(0, dp(12), 0, dp(4));
@@ -2610,7 +2536,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         showQualityOptionsInternal(true, song, quality -> {
             getSharedPreferences("music163_settings", MODE_PRIVATE)
                     .edit().putString("preferred_quality", quality).apply();
-            if (song != null && !song.isBilibili()) {
+            if (song != null) {
                 playerManager.switchCurrentSongQuality(quality);
             }
             Toast.makeText(this, "音质已设置: " + getQualityDisplayName(quality),
@@ -2620,297 +2546,168 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
     /**
      * Show the quality selection overlay, fetching availability from the API.
-     * @param saveAsPreferred  true = save selection to SharedPreferences (playback quality),
-     *                         false = just call callback for one-time use (download quality)
+     *
+     * 三处（播放页三点菜单「播放音质」、单曲「下载音质」、歌单「批量下载音质」）
+     * 统一走 {@link QualityPicker}，也就是原作者做的那套遮罩 + 卡片行浮层，
+     * 档位名、码率描述、会员徽标、选中 / 置灰态完全一致。
+     *
+     * @param saveAsPreferred  true = 保存为播放音质，false = 一次性下载音质
      * @param song             the song to check quality availability for (may be null)
      */
     private void showQualityOptionsInternal(boolean saveAsPreferred, Song song,
                                              QualitySelectCallback callback) {
-        FrameLayout rootView = (FrameLayout) getWindow().getDecorView()
-                .findViewById(android.R.id.content);
+        final String title = saveAsPreferred ? "播放音质" : "下载音质";
+        // 关闭统一交给 dismissOverlay()，这样 overlayContainer 字段能被正确清掉
+        final QualityPicker.OnPickListener pick = row -> {
+            if (callback != null) callback.onSelected(row.level);
+        };
+        List<QualityPicker.Row> loading = new ArrayList<>();
+        loading.add(new QualityPicker.Row("", "正在检测可用音质…", "按当前账号权限",
+                "", 0x60FFFFFF, false, false));
+        overlayContainer = QualityPicker.show(this, title, null, loading, pick,
+                this::dismissOverlay);
 
-        overlayContainer = new FrameLayout(this);
-        overlayContainer.setLayoutParams(new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        overlayContainer.setBackgroundColor(0xCC000000);
-        addSwipeToDismiss(overlayContainer);
-
-        ScrollView scrollView = new ScrollView(this);
-        FrameLayout.LayoutParams scrollParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        scrollParams.gravity = Gravity.CENTER;
-        scrollView.setLayoutParams(scrollParams);
-        scrollView.setOnClickListener(v -> { /* consume click */ });
-
-        LinearLayout contentLayout = new LinearLayout(this);
-        contentLayout.setOrientation(LinearLayout.VERTICAL);
-        contentLayout.setGravity(Gravity.CENTER);
-        contentLayout.setPadding(dp(20), dp(16), dp(20), dp(16));
-
-        String title = saveAsPreferred ? "播放音质" : "下载音质";
-        contentLayout.addView(createOverlayTitleBar(title));
-
-        // Placeholder for quality rows — filled once API returns
-        LinearLayout qualityListLayout = new LinearLayout(this);
-        qualityListLayout.setOrientation(LinearLayout.VERTICAL);
-        contentLayout.addView(qualityListLayout);
-
-        // Loading indicator
-        com.google.android.material.progressindicator.CircularProgressIndicator loading =
-                new com.google.android.material.progressindicator.CircularProgressIndicator(this);
-        loading.setIndicatorSize(dp(32));
-        loading.setIndicatorColor(ContextCompat.getColor(this, R.color.colorPrimary));
-        loading.setTrackColor(ContextCompat.getColor(this, R.color.surface_variant));
-        loading.setIndeterminate(true);
-        LinearLayout.LayoutParams loadParams = new LinearLayout.LayoutParams(
-                dp(32), dp(32));
-        loadParams.gravity = Gravity.CENTER_HORIZONTAL;
-        loadParams.topMargin = dp(8);
-        loadParams.bottomMargin = dp(8);
-        loading.setLayoutParams(loadParams);
-        qualityListLayout.addView(loading);
-
-        scrollView.addView(contentLayout);
-        overlayContainer.addView(scrollView);
-        rootView.addView(overlayContainer);
-
-        String currentQuality = getSharedPreferences("music163_settings", MODE_PRIVATE)
+        final String currentQuality = getSharedPreferences("music163_settings", MODE_PRIVATE)
                 .getString("preferred_quality", "exhigh");
+
         if (saveAsPreferred && song != null && song.isForceLocalPlayback()) {
-            qualityListLayout.removeAllViews();
-            buildLocalQualityRows(qualityListLayout, song, currentQuality, callback);
+            QualityPicker.update(overlayContainer, "本地已下载音质",
+                    buildLocalQualityRows(song, currentQuality), pick);
             return;
         }
 
-        // Fetch quality info from API (only for NetEase songs with a valid ID)
-        long songId = (song != null && !song.isBilibili() && song.getId() > 0) ? song.getId() : 0;
+        long songId = (song != null && song.getId() > 0)
+                ? song.getId() : 0;
         String cookie = playerManager.getCookie();
-
         if (songId > 0) {
-            MusicApiHelper.getSongQualityInfo(songId, cookie, new MusicApiHelper.SongQualityCallback() {
-                @Override
-                public void onResult(MusicApiHelper.SongQualityInfo info) {
-                    runOnUiThread(() -> {
-                        qualityListLayout.removeAllViews();
-                        buildQualityRows(qualityListLayout, song, info, currentQuality,
-                                saveAsPreferred, callback);
+            MusicApiHelper.getSongQualityInfo(songId, cookie,
+                    new MusicApiHelper.SongQualityCallback() {
+                        @Override
+                        public void onResult(MusicApiHelper.SongQualityInfo info) {
+                            runOnUiThread(() -> {
+                                if (overlayContainer == null) return;
+                                QualityPicker.update(overlayContainer,
+                                        accountTierLabel(info),
+                                        buildQualityRows(song, info, currentQuality,
+                                                saveAsPreferred), pick);
+                            });
+                        }
+
+                        @Override
+                        public void onError(String message) {
+                            runOnUiThread(() -> {
+                                if (overlayContainer == null) return;
+                                QualityPicker.update(overlayContainer,
+                                        "检测失败，仅显示通用档位",
+                                        buildQualityRows(song, null, currentQuality,
+                                                saveAsPreferred), pick);
+                            });
+                        }
                     });
-                }
-                @Override
-                public void onError(String message) {
-                    runOnUiThread(() -> {
-                        qualityListLayout.removeAllViews();
-                        // Fallback: show all levels without availability info
-                        buildQualityRows(qualityListLayout, song, null, currentQuality,
-                                saveAsPreferred, callback);
-                    });
-                }
-            });
         } else {
-            qualityListLayout.removeAllViews();
-            buildQualityRows(qualityListLayout, song, null, currentQuality, saveAsPreferred, callback);
+            QualityPicker.update(overlayContainer, "音质权限以当前账号为准",
+                    buildQualityRows(song, null, currentQuality, saveAsPreferred), pick);
         }
     }
 
-    private void buildLocalQualityRows(LinearLayout container, Song song, String currentQuality,
-                                       QualitySelectCallback callback) {
-        java.util.List<String> localQualities = DownloadManager.getAvailableLocalQualities(song);
+    /** 音质浮层副标题：把当前账号是普通 / VIP / SVIP 说明清楚。 */
+    private String accountTierLabel(MusicApiHelper.SongQualityInfo info) {
+        if (info == null || !info.plLevelReliable) {
+            return "音质权限以当前账号为准";
+        }
+        switch (info.accountTier()) {
+            case 2:  return "当前账号：黑胶 SVIP · 臻品档已解锁";
+            case 1:  return "当前账号：黑胶 VIP · 臻品档需 SVIP";
+            default: return "当前账号：未开通会员 · 高音质需 VIP / SVIP";
+        }
+    }
+
+    /** 本地已下载音质列表，同样用作者那套卡片行。 */
+    private List<QualityPicker.Row> buildLocalQualityRows(Song song, String currentQuality) {
+        List<QualityPicker.Row> rows = new ArrayList<>();
+        List<String> localQualities = DownloadManager.getAvailableLocalQualities(song);
         String selectedLocalQuality = DownloadManager.detectLocalQualityFromPath(song.getUrl());
         if (selectedLocalQuality == null) {
             selectedLocalQuality = DownloadManager.getBestDownloadedQuality(song);
         }
         if (localQualities.isEmpty()) {
-            TextView empty = new TextView(this);
-            empty.setText("暂无本地音质列表");
-            empty.setTextColor(0xFFCAC4D0);
-            empty.setTextSize(13);
-            empty.setGravity(Gravity.CENTER);
-            empty.setPadding(0, dp(8), 0, dp(8));
-            container.addView(empty);
-            return;
+            rows.add(new QualityPicker.Row("", "暂无本地音质列表", "请先下载歌曲",
+                    "", 0x60FFFFFF, false, false));
+            return rows;
         }
         for (String quality : localQualities) {
-            boolean isSelected = quality.equals(selectedLocalQuality);
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(dp(10), dp(9), dp(10), dp(9));
-            row.setMinimumHeight(dp(48));
-            com.google.android.material.card.MaterialCardView card = createQualityCard(isSelected, true);
-            card.addView(row);
-
-            LinearLayout leftCol = new LinearLayout(this);
-            leftCol.setOrientation(LinearLayout.VERTICAL);
-            leftCol.setLayoutParams(new LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-
-            TextView tvName = new TextView(this);
-            tvName.setText(getQualityShortName(quality));
-            tvName.setTextColor(getResources().getColor(isSelected ? R.color.on_primary_container : R.color.text_primary));
-            tvName.setTextSize(14);
-            leftCol.addView(tvName);
-
-            TextView tvDesc = new TextView(this);
-            tvDesc.setText("本地已下载");
-            tvDesc.setTextColor(0xFFCAC4D0);
-            tvDesc.setTextSize(11);
-            leftCol.addView(tvDesc);
-            row.addView(leftCol);
-
-            TextView badge = new TextView(this);
-            badge.setText("本地");
-            badge.setTextColor(0xFF4CAF50);
-            badge.setTextSize(11);
-            badge.setPadding(dp(6), dp(2), dp(6), dp(2));
-            GradientDrawable bg = new GradientDrawable();
-            bg.setCornerRadius(dp(4));
-            bg.setColor(0x22FFFFFF);
-            badge.setBackground(bg);
-            row.addView(badge);
-
-            final String selectedQuality = quality;
-            card.setOnClickListener(v -> {
-                callback.onSelected(selectedQuality);
-                dismissOverlay();
-            });
-            container.addView(card);
+            rows.add(new QualityPicker.Row(quality, getQualityShortName(quality),
+                    "本地已下载", "本地", 0xFF4CAF50,
+                    quality.equals(selectedLocalQuality), true));
         }
+        return rows;
     }
 
     /**
-     * Build quality option rows into the given layout.
-     * @param info          song-specific quality info from API; null = show all without availability
+     * 构造音质档位行。
+     * @param info  接口返回的 privileges；null = 无检测结果，只按档位标 VIP / SVIP 不置灰
      */
-    private void buildQualityRows(LinearLayout container,
-                                   Song song,
-                                    MusicApiHelper.SongQualityInfo info,
-                                    String currentQuality,
-                                    boolean saveAsPreferred,
-                                    QualitySelectCallback callback) {
-        java.util.List<String> downloadedQualities = !saveAsPreferred && song != null
+    private List<QualityPicker.Row> buildQualityRows(Song song,
+                                                     MusicApiHelper.SongQualityInfo info,
+                                                     String currentQuality,
+                                                     boolean saveAsPreferred) {
+        List<String> downloadedQualities = !saveAsPreferred && song != null
                 ? DownloadManager.getAvailableLocalQualities(song)
                 : java.util.Collections.emptyList();
-        // level, shortName, bitrate description
-        String[][] qualities = {
-            {"standard", "标准",     "128K MP3"},
-            {"higher",   "较高",     "192K MP3"},
-            {"exhigh",   "极高",     "320K MP3"},
-            {"lossless", "无损",     "FLAC"},
-            {"hires",    "Hi-Res",   "Hi-Res FLAC"},
-            {"jyeffect", "臻品声场", "高清环绕声"},
-            {"sky",      "全景声",   "沉浸环绕声"},
-            {"jymaster", "臻品母带", "超清母带"},
-        };
-
-        for (String[] q : qualities) {
+        // 档位表只有一份：QualityPicker.LEVELS（批量下载页也用它）
+        List<QualityPicker.Row> rows = new ArrayList<>();
+        for (String[] q : QualityPicker.LEVELS) {
             String level   = q[0];
             String name    = q[1];
             String bitrate = q[2];
-
             boolean isSelected = saveAsPreferred && level.equals(currentQuality);
             boolean alreadyDownloaded = !saveAsPreferred
                     && downloadedQualities.contains(level);
 
-            // Determine tier badge from API info
             String tier;
             if (info == null) {
-                // No API data — show static defaults based on commonly free levels
-                int rank = MusicApiHelper.qualityLevelRank(level);
-                if (rank <= 3) tier = "免费";        // standard(1)/higher(2)/exhigh(3)
-                else tier = "VIP";
+                // 无检测结果：只按档位标注所需会员等级，不做禁用，避免误伤
+                int need = MusicApiHelper.requiredMembership(level);
+                tier = need == 2 ? "SVIP" : need == 1 ? "VIP" : "免费";
             } else {
-                String t = info.getTier(level);
+                // 播放看 plLevel、下载看 dlLevel；VIP 与 SVIP 未解锁的档位分别标出
+                String t = saveAsPreferred ? info.getTier(level) : info.getDownloadTier(level);
                 switch (t) {
-                    case "free":        tier = "免费"; break;
-                    case "vip":         tier = "VIP";  break;
-                    case "unavailable": tier = QUALITY_TIER_UNAVAILABLE; break;
-                    default:            tier = "VIP";  break;
+                    case "free":          tier = "免费"; break;
+                    case "vip":           tier = "VIP";  break;
+                    case "svip":          tier = "SVIP"; break;
+                    case "locked":        tier = QUALITY_TIER_NEED_VIP; break;
+                    case "locked_svip":   tier = QUALITY_TIER_NEED_SVIP; break;
+                    case "unavailable":   tier = QUALITY_TIER_UNAVAILABLE; break;
+                    default:              tier = "VIP";  break;
                 }
             }
-
             if (alreadyDownloaded) {
                 tier = QUALITY_TIER_DOWNLOADED;
             }
 
-            boolean disabledForSelection = QUALITY_TIER_UNAVAILABLE.equals(tier)
+            boolean disabled = QUALITY_TIER_UNAVAILABLE.equals(tier)
+                    || QUALITY_TIER_LOCKED.equals(tier)
+                    || QUALITY_TIER_NEED_VIP.equals(tier)
+                    || QUALITY_TIER_NEED_SVIP.equals(tier)
                     || QUALITY_TIER_DOWNLOADED.equals(tier);
 
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-            row.setPadding(dp(10), dp(9), dp(10), dp(9));
-            row.setMinimumHeight(dp(48));
-            com.google.android.material.card.MaterialCardView card =
-                    createQualityCard(isSelected, !disabledForSelection);
-            card.addView(row);
-
-            // Left column: name + bitrate
-            LinearLayout leftCol = new LinearLayout(this);
-            leftCol.setOrientation(LinearLayout.VERTICAL);
-            leftCol.setLayoutParams(new LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-
-            TextView tvName = new TextView(this);
-            tvName.setText(name);
-            int nameColor = getResources().getColor(disabledForSelection ? R.color.text_disabled
-                    : isSelected ? R.color.on_primary_container : R.color.text_primary);
-            tvName.setTextColor(nameColor);
-            tvName.setTextSize(14);
-            leftCol.addView(tvName);
-
-            TextView tvBitrate = new TextView(this);
-            tvBitrate.setText(bitrate);
-            tvBitrate.setTextColor(disabledForSelection ? 0x30FFFFFF : 0x80FFFFFF);
-            tvBitrate.setTextSize(11);
-            leftCol.addView(tvBitrate);
-
-            row.addView(leftCol);
-
-            // Right: tier badge
             int tierColor;
             switch (tier) {
-                case "VIP":  tierColor = 0xFFFFAA00; break;
-                case QUALITY_TIER_UNAVAILABLE: tierColor = 0x60FFFFFF; break;
-                case QUALITY_TIER_DOWNLOADED: tierColor = 0xFF4CAF50; break;
-                default:     tierColor = 0xFF4CAF50; break; // 免费
-            }
-            TextView tvTier = new TextView(this);
-            tvTier.setText(tier);
-            tvTier.setTextColor(tierColor);
-            tvTier.setTextSize(11);
-            tvTier.setPadding(dp(6), dp(2), dp(6), dp(2));
-            GradientDrawable tierBg = new GradientDrawable();
-            tierBg.setShape(GradientDrawable.RECTANGLE);
-            tierBg.setCornerRadius(dp(4));
-            tierBg.setColor(0x22FFFFFF);
-            tvTier.setBackground(tierBg);
-            row.addView(tvTier);
-
-            if (!disabledForSelection) {
-                card.setOnClickListener(v -> {
-                    callback.onSelected(level);
-                    dismissOverlay();
-                });
+                case "VIP":
+                case QUALITY_TIER_NEED_VIP:
+                case QUALITY_TIER_LOCKED:      tierColor = QualityPicker.COLOR_VIP; break;
+                case "SVIP":
+                case QUALITY_TIER_NEED_SVIP:   tierColor = QualityPicker.COLOR_SVIP; break;
+                case QUALITY_TIER_UNAVAILABLE: tierColor = QualityPicker.COLOR_DISABLED; break;
+                case QUALITY_TIER_DOWNLOADED:  tierColor = QualityPicker.COLOR_DOWNLOADED; break;
+                default:                       tierColor = QualityPicker.COLOR_FREE; break;
             }
 
-            container.addView(card);
+            rows.add(new QualityPicker.Row(level, name, bitrate, tier,
+                    tierColor, isSelected, !disabled));
         }
-    }
-
-    private com.google.android.material.card.MaterialCardView createQualityCard(boolean selected, boolean enabled) {
-        com.google.android.material.card.MaterialCardView card =
-                new com.google.android.material.card.MaterialCardView(this);
-        card.setRadius(dp(14));
-        card.setCardElevation(0);
-        card.setCardBackgroundColor(getResources().getColor(selected ? R.color.primary_container : R.color.surface_elevated));
-        card.setClickable(enabled);
-        card.setFocusable(enabled);
-        card.setEnabled(enabled);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        params.bottomMargin = dp(4);
-        card.setLayoutParams(params);
-        return card;
+        return rows;
     }
 
     /** Short display name for current quality (shown on the button label). */
@@ -2930,32 +2727,19 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
     /** Short display name for current quality (shown on the button label). */
     private String getQualityShortName(String level) {
-        switch (level) {
-            case "standard": return "标准";
-            case "higher":   return "较高";
-            case "exhigh":   return "极高";
-            case "lossless": return "无损";
-            case "hires":    return "Hi-Res";
-            case "jyeffect": return "臻品声场";
-            case "sky":      return "全景声";
-            case "jymaster": return "臻品母带";
-            default:         return level;
+        // 档位中文名只有一份：QualityPicker.LEVELS，避免这里和音质浮层各写一套
+        for (String[] q : QualityPicker.LEVELS) {
+            if (q[0].equals(level)) return q[1];
         }
+        return level;
     }
 
     /** Full display name for quality (shown in toasts). */
     private String getQualityDisplayName(String level) {
-        switch (level) {
-            case "standard": return "标准 (128K)";
-            case "higher":   return "较高 (192K)";
-            case "exhigh":   return "极高 (320K)";
-            case "lossless": return "无损 (FLAC)";
-            case "hires":    return "Hi-Res";
-            case "jyeffect": return "臻品声场";
-            case "sky":      return "臻品全景声";
-            case "jymaster": return "臻品母带";
-            default:         return level;
+        for (String[] q : QualityPicker.LEVELS) {
+            if (q[0].equals(level)) return q[1] + " (" + q[2].split(" · ")[0] + ")";
         }
+        return level;
     }
 
     // ==================== Cloud Favorites Status Cache ====================
@@ -2993,479 +2777,6 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 // Ignore errors silently; cache remains stale
             }
         });
-    }
-
-    private void onFuncSetRingtone(Song song) {
-        dismissOverlay();
-        // Check if song is downloaded first
-        String mp3Path = DownloadManager.getDownloadedMp3Path(song);
-
-        if (mp3Path != null) {
-            // Already downloaded locally — use it directly
-            showRingtoneClipOverlay(new File(mp3Path), song.getName());
-        } else {
-            // Cache audio to a temp file (don't save to downloads)
-            Toast.makeText(this, "正在缓存歌曲...", Toast.LENGTH_SHORT).show();
-            String cookie = getDownloadCookieForSong(song);
-            SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
-            String quality = prefs.getString("preferred_quality", "exhigh");
-
-            File cacheDir = new File(android.os.Environment.getExternalStorageDirectory(),
-                    "163Music/cache");
-            if (!cacheDir.exists()) cacheDir.mkdirs();
-            File tempFile = new File(cacheDir, "ringtone_temp_" + song.getId() + ".mp3");
-
-            DownloadManager.downloadSongToFile(song, cookie, quality, tempFile,
-                    new DownloadManager.DownloadCallback() {
-                @Override
-                public void onSuccess(String filePath) {
-                    runOnUiThread(() -> showRingtoneClipOverlay(new File(filePath), song.getName(),
-                            true /* deleteAfterSet */));
-                }
-
-                @Override
-                public void onError(String message) {
-                    Toast.makeText(MainActivity.this, "缓存失败，无法设为铃声", Toast.LENGTH_SHORT).show();
-                }
-            });
-        }
-    }
-
-    private MediaPlayer ringtonePreviewPlayer;
-
-    private String getDownloadCookieForSong(Song song) {
-        if (song != null && song.isBilibili()) {
-            SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
-            return prefs.getString("bilibili_cookie", "");
-        }
-        return playerManager.getCookie();
-    }
-
-    private void showRingtoneClipOverlay(File file, String songTitle) {
-        showRingtoneClipOverlay(file, songTitle, false);
-    }
-
-    private void showRingtoneClipOverlay(File file, String songTitle, boolean deleteTempAfterSet) {
-        // Get song duration
-        int durationMs;
-        try {
-            MediaPlayer tmp = new MediaPlayer();
-            tmp.setDataSource(file.getAbsolutePath());
-            tmp.prepare();
-            durationMs = tmp.getDuration();
-            tmp.release();
-        } catch (Exception e) {
-            Toast.makeText(this, "无法读取歌曲时长", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        final int totalSec = durationMs / 1000;
-        if (totalSec <= 0) {
-            Toast.makeText(this, "歌曲时长无效", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        FrameLayout rootView = (FrameLayout) getWindow().getDecorView().findViewById(android.R.id.content);
-
-        overlayContainer = new FrameLayout(this);
-        overlayContainer.setLayoutParams(new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        overlayContainer.setBackgroundColor(0xCC000000);
-        addSwipeToDismiss(overlayContainer);
-
-        // Wrap content in ScrollView for small watch screens
-        ScrollView scrollView = new ScrollView(this);
-        FrameLayout.LayoutParams scrollParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
-        scrollView.setLayoutParams(scrollParams);
-        scrollView.setFillViewport(true);
-
-        LinearLayout contentLayout = new LinearLayout(this);
-        contentLayout.setOrientation(LinearLayout.VERTICAL);
-        contentLayout.setGravity(Gravity.CENTER);
-        contentLayout.setPadding(dp(16), dp(12), dp(16), dp(12));
-        contentLayout.setOnClickListener(v -> { /* consume click */ });
-
-        LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        contentLayout.setLayoutParams(contentParams);
-
-        // Title bar with close button
-        contentLayout.addView(createOverlayTitleBar("节选铃声"));
-
-        // Song name
-        TextView tvSong = new TextView(this);
-        tvSong.setText(songTitle);
-        tvSong.setTextColor(0xFFCAC4D0);
-        tvSong.setTextSize(12);
-        tvSong.setGravity(Gravity.CENTER);
-        tvSong.setPadding(0, 0, 0, dp(8));
-        contentLayout.addView(tvSong);
-
-        // Start seekbar
-        final int[] startSec = {0};
-        final int[] endSec = {Math.min(totalSec, 30)};
-
-        TextView tvStart = new TextView(this);
-        tvStart.setText("起始: " + startSec[0] + "s");
-        tvStart.setTextColor(0xFFE6E0E9);
-        tvStart.setTextSize(12);
-        tvStart.setPadding(0, dp(4), 0, 0);
-        contentLayout.addView(tvStart);
-
-        Slider sbStart = new Slider(this);
-        sbStart.setValueFrom(0f);
-        sbStart.setValueTo((float) totalSec);
-        sbStart.setStepSize(1f);
-        sbStart.setValue((float) startSec[0]);
-        sbStart.setLabelBehavior(LabelFormatter.LABEL_GONE);
-        sbStart.setTickVisible(false);
-        LinearLayout.LayoutParams seekParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        sbStart.setLayoutParams(seekParams);
-        contentLayout.addView(sbStart);
-
-        // End seekbar
-        TextView tvEnd = new TextView(this);
-        tvEnd.setText("结束: " + endSec[0] + "s");
-        tvEnd.setTextColor(0xFFE6E0E9);
-        tvEnd.setTextSize(12);
-        tvEnd.setPadding(0, dp(4), 0, 0);
-        contentLayout.addView(tvEnd);
-
-        Slider sbEnd = new Slider(this);
-        sbEnd.setValueFrom(0f);
-        sbEnd.setValueTo((float) totalSec);
-        sbEnd.setStepSize(1f);
-        sbEnd.setValue((float) endSec[0]);
-        sbEnd.setLabelBehavior(LabelFormatter.LABEL_GONE);
-        sbEnd.setTickVisible(false);
-        sbEnd.setLayoutParams(seekParams);
-        contentLayout.addView(sbEnd);
-
-        // Duration display
-        TextView tvDuration = new TextView(this);
-        tvDuration.setText("节选: " + startSec[0] + "s - " + endSec[0] + "s (" + (endSec[0] - startSec[0]) + "秒)");
-        tvDuration.setTextColor(0xFFCAC4D0);
-        tvDuration.setTextSize(12);
-        tvDuration.setGravity(Gravity.CENTER);
-        tvDuration.setPadding(0, dp(8), 0, dp(8));
-        contentLayout.addView(tvDuration);
-
-        TextView tvChorusRange = new TextView(this);
-        tvChorusRange.setText(hasChorusRange()
-                ? "高潮: " + millisToFloorSeconds(currentChorusStartMs) + "s - " + millisToCeilSeconds(currentChorusEndMs) + "s"
-                : "高潮: 暂无数据");
-        tvChorusRange.setTextColor(ContextCompat.getColor(this,
-                hasChorusRange() ? R.color.colorAccent : R.color.text_secondary));
-        tvChorusRange.setTextSize(11);
-        tvChorusRange.setGravity(Gravity.CENTER);
-        tvChorusRange.setPadding(0, 0, 0, dp(8));
-        contentLayout.addView(tvChorusRange);
-
-        Runnable updateDuration = () -> {
-            int dur = endSec[0] - startSec[0];
-            tvDuration.setText("节选: " + startSec[0] + "s - " + endSec[0] + "s (" + dur + "秒)");
-        };
-
-        sbStart.addOnChangeListener((slider, value, fromUser) -> {
-            if (fromUser) {
-                int progress = Math.round(value);
-                if (progress >= endSec[0]) progress = endSec[0] - 1;
-                if (progress < 0) progress = 0;
-                if (Math.round(slider.getValue()) != progress) {
-                    slider.setValue((float) progress);
-                }
-                startSec[0] = progress;
-                tvStart.setText("起始: " + progress + "s");
-                updateDuration.run();
-            }
-        });
-
-        sbEnd.addOnChangeListener((slider, value, fromUser) -> {
-            if (fromUser) {
-                int progress = Math.round(value);
-                if (progress <= startSec[0]) progress = startSec[0] + 1;
-                if (progress > totalSec) progress = totalSec;
-                if (Math.round(slider.getValue()) != progress) {
-                    slider.setValue((float) progress);
-                }
-                endSec[0] = progress;
-                tvEnd.setText("结束: " + progress + "s");
-                updateDuration.run();
-            }
-        });
-
-        int grayButtonColor = ContextCompat.getColor(this, R.color.surface_elevated);
-        int primaryButtonColor = ContextCompat.getColor(this, R.color.colorPrimary);
-
-        LinearLayout topButtonRow = new LinearLayout(this);
-        topButtonRow.setOrientation(LinearLayout.HORIZONTAL);
-        topButtonRow.setGravity(Gravity.CENTER);
-        topButtonRow.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        MaterialButton btnSmartClip = createOverlayActionButton("智能截取", grayButtonColor, false);
-        LinearLayout.LayoutParams smartClipParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-        smartClipParams.rightMargin = dp(4);
-        btnSmartClip.setLayoutParams(smartClipParams);
-        btnSmartClip.setOnClickListener(v -> applySmartClipRange(totalSec, startSec, endSec, sbStart, sbEnd,
-                tvStart, tvEnd, updateDuration, tvChorusRange));
-        topButtonRow.addView(btnSmartClip);
-
-        MaterialButton btnPreview = createOverlayActionButton("试听", grayButtonColor, false);
-        LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-        previewParams.leftMargin = dp(4);
-        btnPreview.setLayoutParams(previewParams);
-        btnPreview.setOnClickListener(v -> {
-            if (endSec[0] <= startSec[0]) {
-                Toast.makeText(this, "请选择有效的时间范围", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            previewRingtoneClip(file, startSec[0] * 1000, endSec[0] * 1000);
-        });
-        topButtonRow.addView(btnPreview);
-        contentLayout.addView(topButtonRow);
-
-        MaterialButton btnConfirm = createOverlayActionButton("确认", primaryButtonColor, true);
-        LinearLayout.LayoutParams confirmParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        confirmParams.topMargin = dp(8);
-        btnConfirm.setLayoutParams(confirmParams);
-        btnConfirm.setOnClickListener(v -> {
-            if (endSec[0] <= startSec[0]) {
-                Toast.makeText(this, "请选择有效的时间范围", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            stopRingtonePreview();
-            String clipTitle = songTitle + " (" + startSec[0] + "s-" + endSec[0] + "s)";
-            setRingtoneFromFile(file, clipTitle, startSec[0], endSec[0]);
-            if (deleteTempAfterSet) {
-                // Delete temp cached audio file after setting ringtone
-                try { file.delete(); } catch (Exception ignored) {}
-            }
-            dismissOverlay();
-        });
-        contentLayout.addView(btnConfirm);
-
-        scrollView.addView(contentLayout);
-        overlayContainer.addView(scrollView);
-        rootView.addView(overlayContainer);
-    }
-
-    private void previewRingtoneClip(File file, int startMs, int endMs) {
-        stopRingtonePreview();
-        // Pause current music playback if playing
-        if (playerManager.isPlaying()) {
-            playerManager.pause();
-        }
-        try {
-            ringtonePreviewPlayer = new MediaPlayer();
-            ringtonePreviewPlayer.setDataSource(file.getAbsolutePath());
-            ringtonePreviewPlayer.prepare();
-            ringtonePreviewPlayer.seekTo(startMs);
-            ringtonePreviewPlayer.start();
-            // Stop at endMs
-            final Handler previewHandler = new Handler();
-            previewHandler.postDelayed(() -> stopRingtonePreview(), endMs - startMs);
-        } catch (Exception e) {
-            Toast.makeText(this, "试听失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void stopRingtonePreview() {
-        if (ringtonePreviewPlayer != null) {
-            try {
-                if (ringtonePreviewPlayer.isPlaying()) {
-                    ringtonePreviewPlayer.stop();
-                }
-                ringtonePreviewPlayer.release();
-            } catch (Exception ignored) {}
-            ringtonePreviewPlayer = null;
-        }
-    }
-
-    private void setRingtoneFromFile(File file, String title, int startSec, int endSec) {
-        try {
-            // Check WRITE_SETTINGS permission on Android M+
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                if (!android.provider.Settings.System.canWrite(this)) {
-                    Intent intent = new Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS);
-                    intent.setData(Uri.parse("package:" + getPackageName()));
-                    startActivity(intent);
-                    Toast.makeText(this, "请授予修改系统设置权限后重试", Toast.LENGTH_LONG).show();
-                    return;
-                }
-            }
-
-            // Create a clipped copy if valid range, otherwise use original
-            File clipFile = file;
-            if (endSec > startSec) {
-                File clipped = createClippedAudio(file, startSec * 1000, endSec * 1000, title);
-                if (clipped != null) {
-                    clipFile = clipped;
-                }
-            }
-
-            ContentValues values = new ContentValues();
-            values.put(MediaStore.MediaColumns.DATA, clipFile.getAbsolutePath());
-            values.put(MediaStore.MediaColumns.TITLE, title);
-            values.put(MediaStore.MediaColumns.MIME_TYPE, "audio/mpeg");
-            values.put(MediaStore.Audio.Media.IS_RINGTONE, true);
-            values.put(MediaStore.Audio.Media.IS_NOTIFICATION, false);
-            values.put(MediaStore.Audio.Media.IS_ALARM, false);
-            values.put(MediaStore.Audio.Media.IS_MUSIC, false);
-
-            Uri uri = MediaStore.Audio.Media.getContentUriForPath(clipFile.getAbsolutePath());
-
-            // Delete existing entry if any
-            getContentResolver().delete(uri,
-                    MediaStore.MediaColumns.DATA + "=?",
-                    new String[]{clipFile.getAbsolutePath()});
-
-            Uri newUri = getContentResolver().insert(uri, values);
-            if (newUri != null) {
-                RingtoneManager.setActualDefaultRingtoneUri(this,
-                        RingtoneManager.TYPE_RINGTONE, newUri);
-                // Save ringtone info for management
-                RingtoneManagerHelper ringtoneHelper = new RingtoneManagerHelper(this);
-                ringtoneHelper.addRingtone(title, clipFile.getAbsolutePath(), startSec, endSec);
-                Toast.makeText(this, "已设为铃声", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "设置铃声失败", Toast.LENGTH_SHORT).show();
-            }
-        } catch (Exception e) {
-            Toast.makeText(this, "设置铃声失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    /**
-     * Create a clipped audio file using MediaExtractor.
-     * For MP3 files, writes raw frames directly (MediaMuxer doesn't support MP3 in MPEG4 container).
-     * For other formats (AAC/M4A), uses MediaMuxer with MPEG4 container.
-     * Returns null if clipping fails.
-     */
-    private File createClippedAudio(File sourceFile, int startMs, int endMs, String title) {
-        try {
-            File ringtoneDir = new File(android.os.Environment.getExternalStorageDirectory(),
-                    "163Music/Ringtones");
-            if (!ringtoneDir.exists()) ringtoneDir.mkdirs();
-
-            // Sanitize title for filename
-            String safeName = title.replaceAll("[^a-zA-Z0-9\\u4e00-\\u9fa5()\\-_ ]", "_");
-
-            android.media.MediaExtractor extractor = new android.media.MediaExtractor();
-            extractor.setDataSource(sourceFile.getAbsolutePath());
-
-            int audioTrack = -1;
-            String mime = null;
-            for (int i = 0; i < extractor.getTrackCount(); i++) {
-                android.media.MediaFormat format = extractor.getTrackFormat(i);
-                mime = format.getString(android.media.MediaFormat.KEY_MIME);
-                if (mime != null && mime.startsWith("audio/")) {
-                    audioTrack = i;
-                    break;
-                }
-            }
-
-            if (audioTrack < 0) {
-                extractor.release();
-                return null;
-            }
-
-            extractor.selectTrack(audioTrack);
-
-            // For MP3 audio, write raw frames directly since MediaMuxer MPEG4 doesn't support MP3
-            if ("audio/mpeg".equals(mime)) {
-                return createClippedMp3Raw(extractor, safeName, ringtoneDir, startMs, endMs);
-            }
-
-            // For other formats (AAC etc.), use MediaMuxer with M4A container
-            android.media.MediaFormat format = extractor.getTrackFormat(audioTrack);
-            File outputFile = new File(ringtoneDir, safeName + ".m4a");
-
-            android.media.MediaMuxer muxer = new android.media.MediaMuxer(
-                    outputFile.getAbsolutePath(),
-                    android.media.MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
-            int muxerTrack = muxer.addTrack(format);
-            muxer.start();
-
-            // Seek to start position
-            extractor.seekTo(startMs * 1000L, android.media.MediaExtractor.SEEK_TO_CLOSEST_SYNC);
-
-            java.nio.ByteBuffer buffer = java.nio.ByteBuffer.allocate(1024 * 256);
-            android.media.MediaCodec.BufferInfo bufferInfo = new android.media.MediaCodec.BufferInfo();
-
-            while (true) {
-                int sampleSize = extractor.readSampleData(buffer, 0);
-                if (sampleSize < 0) break;
-
-                long sampleTimeUs = extractor.getSampleTime();
-                if (sampleTimeUs > endMs * 1000L) break;
-
-                bufferInfo.offset = 0;
-                bufferInfo.size = sampleSize;
-                bufferInfo.presentationTimeUs = sampleTimeUs - startMs * 1000L;
-                bufferInfo.flags = extractor.getSampleFlags();
-
-                muxer.writeSampleData(muxerTrack, buffer, bufferInfo);
-                extractor.advance();
-            }
-
-            muxer.stop();
-            muxer.release();
-            extractor.release();
-
-            return outputFile;
-        } catch (Exception e) {
-            Log.w(TAG, "Audio clipping failed", e);
-            return null;
-        }
-    }
-
-    /**
-     * Create a clipped MP3 file by writing raw audio frames directly.
-     * MP3 frames are self-contained, so concatenating them produces a valid MP3 file.
-     */
-    private File createClippedMp3Raw(android.media.MediaExtractor extractor,
-                                      String safeName, File ringtoneDir,
-                                      int startMs, int endMs) {
-        File outputFile = new File(ringtoneDir, safeName + ".mp3");
-        try {
-            extractor.seekTo(startMs * 1000L, android.media.MediaExtractor.SEEK_TO_CLOSEST_SYNC);
-
-            java.nio.ByteBuffer buffer = java.nio.ByteBuffer.allocate(1024 * 256);
-            java.io.FileOutputStream fos = new java.io.FileOutputStream(outputFile);
-
-            while (true) {
-                int sampleSize = extractor.readSampleData(buffer, 0);
-                if (sampleSize < 0) break;
-
-                long sampleTimeUs = extractor.getSampleTime();
-                if (sampleTimeUs > endMs * 1000L) break;
-
-                byte[] data = new byte[sampleSize];
-                buffer.position(0);
-                buffer.get(data, 0, sampleSize);
-                fos.write(data);
-                extractor.advance();
-            }
-
-            fos.close();
-            extractor.release();
-            return outputFile;
-        } catch (Exception e) {
-            Log.w(TAG, "MP3 raw clipping failed", e);
-            extractor.release();
-            if (outputFile.exists()) outputFile.delete();
-            return null;
-        }
-    }
-
-    // Keep the old method for backward compatibility
-    private void setRingtoneFromFile(File file, String title) {
-        setRingtoneFromFile(file, title, 0, 0);
     }
 
     // ==================== Sleep Timer ====================
@@ -3528,7 +2839,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         // Custom seconds label
         TextView customLabel = new TextView(this);
         customLabel.setText("自定义（秒）");
-        customLabel.setTextColor(0xFFCAC4D0);
+        customLabel.setTextColor(0xFFAEAEB2);
         customLabel.setTextSize(13);
         customLabel.setGravity(Gravity.CENTER);
         customLabel.setPadding(0, dp(12), 0, dp(4));
@@ -3598,7 +2909,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
         // Remaining time display
         TextView tvRemaining = new TextView(this);
-        tvRemaining.setTextColor(0xFFE6E0E9);
+        tvRemaining.setTextColor(0xFFFFFFFF);
         tvRemaining.setTextSize(20);
         tvRemaining.setGravity(Gravity.CENTER);
         tvRemaining.setPadding(0, dp(8), 0, dp(16));
@@ -3666,16 +2977,42 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         btnPlay.setIconResource(playerManager.isPlaying() ? R.drawable.ic_pause : R.drawable.ic_play_arrow);
         btnPlay.setContentDescription(playerManager.isPlaying() ? "暂停" : "播放");
         // btnFuncMore image is static in layout
+        updatePlayModeButton();
         // Update playlist indicator visibility
         updatePlaylistIndicator();
         updateChorusMarker(playerManager.getDuration());
     }
 
+    /** 主界面右上角的播放模式按钮：图标跟着当前模式走。 */
+    private void updatePlayModeButton() {
+        if (btnPlayMode == null) {
+            return;
+        }
+        int iconRes;
+        String label;
+        switch (playerManager.getPlayMode()) {
+            case SINGLE_REPEAT:
+                iconRes = R.drawable.ic_repeat_one;
+                label = "单曲循环";
+                break;
+            case RANDOM:
+                iconRes = R.drawable.ic_shuffle;
+                label = "随机播放";
+                break;
+            case LIST_LOOP:
+            default:
+                iconRes = R.drawable.ic_repeat;
+                label = "列表循环";
+                break;
+        }
+        btnPlayMode.setIconResource(iconRes);
+        btnPlayMode.setContentDescription(label);
+    }
+
     private void updatePlaylistIndicator() {
         if (btnPlaylistIndicator != null) {
             Song currentSong = playerManager.getCurrentSong();
-            if (playerManager.hasSourcePlaylist()
-                    || (currentSong != null && currentSong.isBilibili())) {
+            if (playerManager.hasSourcePlaylist()) {
                 btnPlaylistIndicator.setVisibility(View.VISIBLE);
             } else {
                 btnPlaylistIndicator.setVisibility(View.GONE);
@@ -3722,7 +3059,7 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         if (tvPlayerVipBadge != null) {
             tvPlayerVipBadge.setVisibility(song != null && song.isVip() ? View.VISIBLE : View.GONE);
         }
-        if (song != null && song.getId() > 0 && song.getFee() == 0 && !song.isBilibili()) {
+        if (song != null && song.getId() > 0 && song.getFee() == 0) {
             enrichSongFee(song);
         }
         ensureChorusLoaded(song);
@@ -3874,24 +3211,30 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
         }
     }
 
+    private static final long SEEK_BAR_UPDATE_INTERVAL_MS = 1000L;
+
     private final Runnable seekBarUpdateRunnable = new Runnable() {
         @Override
         public void run() {
-            if (!isUserSeeking && playerManager.isPlaying()) {
+            // 界面不可见或已暂停就到此为止，不再自循环排下一次唤醒
+            if (!uiResumed || !playerManager.isPlaying()) return;
+            if (!isUserSeeking) {
                 int current = playerManager.getCurrentPosition();
                 int duration = playerManager.getDuration();
                 if (duration > 0) {
                     seekBar.setValue((float) (1000L * current / duration));
                     tvCurrentTime.setText(formatTime(current));
                     tvTotalTime.setText(formatTime(duration));
-                    updateChorusMarker(duration);
+                    // 高潮标记的位置只跟歌曲与布局有关，不随播放进度变化，
+                    // 已在 onSongChanged / 高潮数据回来 / 布局变化时更新，不需要每轮重排。
                 }
             }
-            seekHandler.postDelayed(this, 500);
+            seekHandler.postDelayed(this, SEEK_BAR_UPDATE_INTERVAL_MS);
         }
     };
 
     private void startSeekBarUpdate() {
+        if (!uiResumed) return;
         seekHandler.removeCallbacks(seekBarUpdateRunnable);
         seekHandler.post(seekBarUpdateRunnable);
     }
@@ -3993,19 +3336,28 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
     @Override
     protected void onPause() {
+        uiResumed = false;
+        // 进度条轮询只在界面可见时跑：界面上的时间/进度到后台没有任何意义，
+        // 但 500ms 一次的自循环会一直把 CPU 从休眠里拽起来。
+        stopSeekBarUpdate();
         super.onPause();
-        stopRingtonePreview();
+        stopVolumeRepeat();
         lyricsScrollHandler.removeCallbacksAndMessages(null);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        stopRingtonePreview();
+        stopVolumeRepeat();
         stopSeekBarUpdate();
         lyricsScrollHandler.removeCallbacksAndMessages(null);
         volumeHandler.removeCallbacksAndMessages(null);
         dismissVolumeIndicator();
+        AppVolumeManager vm = AppVolumeManager.get();
+        if (vm != null && appVolumeListener != null) {
+            vm.removeLevelChangeListener(appVolumeListener);
+            appVolumeListener = null;
+        }
         NetworkImageLoader.cancelAll();
     }
 }

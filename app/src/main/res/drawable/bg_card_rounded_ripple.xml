@@ -5,7 +5,8 @@
     android:color="?attr/colorControlHighlight">
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="@color/surface_elevated" />
+            <solid android:color="@color/glass_fill" />
+            <stroke android:width="0.5dp" android:color="@color/glass_stroke" />
             <corners android:radius="16dp" />
         </shape>
     </item>

@@ -23,7 +23,7 @@ public final class WatchConfirmDialog {
     private static final int DEFAULT_OVERLAY_COLOR = 0xCC000000;
     private static final int DEFAULT_TITLE_TEXT_COLOR = 0xFFFFFFFF;
     private static final int DEFAULT_MESSAGE_TEXT_COLOR = 0xB3FFFFFF;
-    private static final int DEFAULT_CANCEL_BUTTON_COLOR = 0xFF49454F;
+    private static final int DEFAULT_CANCEL_BUTTON_COLOR = 0xFF2C2C2E;
     private static final String OVERLAY_TAG = "watch_confirm_dialog_overlay";
 
     private WatchConfirmDialog() {
@@ -151,7 +151,7 @@ public final class WatchConfirmDialog {
         MaterialButton button = new MaterialButton(activity);
         button.setText(label);
         button.setTextColor(ColorUtils.calculateLuminance(backgroundColor) > 0.4
-                ? 0xFF1D1B20 : DEFAULT_TITLE_TEXT_COLOR);
+                ? 0xFF1C1C1E : DEFAULT_TITLE_TEXT_COLOR);
         button.setTextSize(12);
         button.setAllCaps(false);
         button.setMinWidth(0);
@@ -212,7 +212,7 @@ public final class WatchConfirmDialog {
         }
 
         public static Options defaultOptions() {
-            return new Options(0xFF2B2930, 0xFFD0BCFF, true);
+            return new Options(0x33FFFFFF, 0xFFF2F2F7, true);
         }
     }
 }

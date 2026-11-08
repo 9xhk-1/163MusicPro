@@ -1,34 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Material 3 dark tonal roles -->
-    <color name="colorPrimary">#D0BCFF</color>
-    <color name="colorPrimaryDark">#141218</color>
-    <color name="colorAccent">#CCC2DC</color>
-    <color name="colorTertiary">#EFB8C8</color>
-    <color name="colorTertiaryContainer">#633B48</color>
-    <color name="colorOnTertiaryContainer">#FFD8E4</color>
-    <color name="colorError">#F2B8B5</color>
-    <color name="colorErrorContainer">#5C1A1A</color>
-    <color name="on_primary">#381E72</color>
-    <color name="primary_container">#4F378B</color>
-    <color name="on_primary_container">#EADDFF</color>
-    <color name="surface_variant">#49454F</color>
+    <!-- 苹果风格深色：中性灰白 + 半透明玻璃层，全表无紫色。
+         Android 10 没有系统级 blur API，这里用「低不透明度填充 + 发丝描边 +
+         顶部高光渐变」模拟毛玻璃，纯 XML、零内存开销，适配 0.78GB 手表。 -->
+
+    <!-- M3 语义主色（组件仍会读这些 attr，改成中性色即可全局去紫） -->
+    <color name="colorPrimary">#F2F2F7</color>
+    <color name="colorPrimaryDark">#000000</color>
+    <color name="colorAccent">#F2F2F7</color>
+    <color name="colorTertiary">#AEAEB2</color>
+    <color name="colorTertiaryContainer">#1C1C1E</color>
+    <color name="colorOnTertiaryContainer">#F2F2F7</color>
+    <color name="colorError">#FF6B6B</color>
+    <color name="colorErrorContainer">#4A1A1C</color>
+    <color name="on_primary">#1C1C1E</color>
+    <color name="primary_container">#2E2E30</color>
+    <color name="on_primary_container">#FFFFFFFF</color>
+    <color name="surface_variant">#33FFFFFF</color>
+
+    <!-- 玻璃材质层 -->
+    <color name="glass_fill">#26FFFFFF</color>
+    <color name="glass_fill_strong">#40FFFFFF</color>
+    <color name="glass_stroke">#3DFFFFFF</color>
+    <color name="glass_ripple">#1AFFFFFF</color>
+    <color name="glass_scrim">#99000000</color>
+    <color name="glass_panel">#D91C1C1E</color>
+    <color name="glass_dialog_fill">#E61C1C1E</color>
+    <color name="accent_ios">#0A84FF</color>
 
     <!-- Surface / Background -->
-    <color name="bg_dark">#141218</color>
-    <color name="surface">#211F26</color>
-    <color name="surface_elevated">#2B2930</color>
-    <color name="surface_overlay">#CC000000</color>
+    <color name="bg_dark">#000000</color>
+    <color name="surface">#141416</color>
+    <color name="surface_elevated">#26FFFFFF</color>
+    <color name="surface_overlay">#99000000</color>
 
     <!-- Text -->
-    <color name="text_primary">#E6E0E9</color>
-    <color name="text_secondary">#CAC4D0</color>
+    <color name="text_primary">#FFFFFFFF</color>
+    <color name="text_secondary">#AEAEB2</color>
     <color name="text_disabled">#61FFFFFF</color>
     <color name="text_hint">#80FFFFFF</color>
 
     <!-- Divider / Outline -->
     <color name="divider">#1FFFFFFF</color>
-    <color name="outline">#38FFFFFF</color>
+    <color name="outline">#33FFFFFF</color>
 
     <!-- Icon tints -->
     <color name="icon_active">#FFFFFFFF</color>
@@ -40,5 +54,47 @@
     <color name="gray_light">#80FFFFFF</color>
     <color name="gray_text">#B3FFFFFF</color>
     <color name="qr_background">#FFFFFFFF</color>
-    <color name="favorite_red">#E53935</color>
+    <color name="favorite_red">#FF453A</color>
+
+    <!-- 覆盖 Material3 库自带的紫/粉调色板：app 资源优先于库资源，
+         这样即使某个 M3 组件内部直接引用 palette，也不会漏出紫色。 -->
+    <color name="m3_ref_palette_primary0">#FF000000</color>
+    <color name="m3_ref_palette_primary10">#FF1C1C1E</color>
+    <color name="m3_ref_palette_primary20">#FF2C2C2E</color>
+    <color name="m3_ref_palette_primary30">#FF3A3A3C</color>
+    <color name="m3_ref_palette_primary40">#FF48484A</color>
+    <color name="m3_ref_palette_primary50">#FF636366</color>
+    <color name="m3_ref_palette_primary60">#FF8E8E93</color>
+    <color name="m3_ref_palette_primary70">#FFAEAEB2</color>
+    <color name="m3_ref_palette_primary80">#FFC7C7CC</color>
+    <color name="m3_ref_palette_primary90">#FFE5E5EA</color>
+    <color name="m3_ref_palette_primary95">#FFF2F2F7</color>
+    <color name="m3_ref_palette_primary99">#FFFAFAFC</color>
+    <color name="m3_ref_palette_primary100">#FFFFFFFF</color>
+    <color name="m3_ref_palette_secondary0">#FF000000</color>
+    <color name="m3_ref_palette_secondary10">#FF1C1C1E</color>
+    <color name="m3_ref_palette_secondary20">#FF2C2C2E</color>
+    <color name="m3_ref_palette_secondary30">#FF3A3A3C</color>
+    <color name="m3_ref_palette_secondary40">#FF48484A</color>
+    <color name="m3_ref_palette_secondary50">#FF636366</color>
+    <color name="m3_ref_palette_secondary60">#FF8E8E93</color>
+    <color name="m3_ref_palette_secondary70">#FFAEAEB2</color>
+    <color name="m3_ref_palette_secondary80">#FFC7C7CC</color>
+    <color name="m3_ref_palette_secondary90">#FFE5E5EA</color>
+    <color name="m3_ref_palette_secondary95">#FFF2F2F7</color>
+    <color name="m3_ref_palette_secondary99">#FFFAFAFC</color>
+    <color name="m3_ref_palette_secondary100">#FFFFFFFF</color>
+    <color name="m3_ref_palette_tertiary0">#FF000000</color>
+    <color name="m3_ref_palette_tertiary10">#FF1C1C1E</color>
+    <color name="m3_ref_palette_tertiary20">#FF2C2C2E</color>
+    <color name="m3_ref_palette_tertiary30">#FF3A3A3C</color>
+    <color name="m3_ref_palette_tertiary40">#FF48484A</color>
+    <color name="m3_ref_palette_tertiary50">#FF636366</color>
+    <color name="m3_ref_palette_tertiary60">#FF8E8E93</color>
+    <color name="m3_ref_palette_tertiary70">#FFAEAEB2</color>
+    <color name="m3_ref_palette_tertiary80">#FFC7C7CC</color>
+    <color name="m3_ref_palette_tertiary90">#FFE5E5EA</color>
+    <color name="m3_ref_palette_tertiary95">#FFF2F2F7</color>
+    <color name="m3_ref_palette_tertiary99">#FFFAFAFC</color>
+    <color name="m3_ref_palette_tertiary100">#FFFFFFFF</color>
 </resources>

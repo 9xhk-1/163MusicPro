@@ -16,7 +16,6 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.qinghe.music163pro.R;
-import com.qinghe.music163pro.api.BilibiliApiHelper;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.model.Song;
 import com.qinghe.music163pro.player.MusicPlayerManager;
@@ -57,6 +56,7 @@ public class LyricsActivity extends AppCompatActivity {
     private final List<TextView> lyricViews = new ArrayList<>();
     private int currentHighlightIndex = -1;
 
+    private static final long LYRIC_SYNC_INTERVAL_MS = 500L;
     private final Handler scrollHandler = new Handler();
     private Runnable scrollRunnable;
     private GestureDetector lyricsGestureDetector;
@@ -247,12 +247,6 @@ public class LyricsActivity extends AppCompatActivity {
             return;
         }
 
-        // Handle Bilibili songs - fetch subtitle from Bilibili API
-        if (song.isBilibili()) {
-            loadBilibiliSubtitle(song);
-            return;
-        }
-
         // Fetch from API
         if (song.getId() <= 0) {
             showNoLyrics();
@@ -277,57 +271,6 @@ public class LyricsActivity extends AppCompatActivity {
                 showNoLyrics();
             }
         });
-    }
-
-    /**
-     * Load subtitle for a Bilibili video.
-     */
-    private void loadBilibiliSubtitle(Song song) {
-        String bilibiliCookie = getSharedPreferences("music163_settings", MODE_PRIVATE)
-                .getString("bilibili_cookie", "");
-
-        BilibiliApiHelper.getSubtitleList(song.getBvid(), song.getCid(), bilibiliCookie,
-                new BilibiliApiHelper.SubtitleListCallback() {
-                    @Override
-                    public void onResult(List<BilibiliApiHelper.SubtitleInfo> subtitles) {
-                        if (subtitles.isEmpty()) {
-                            showNoLyrics();
-                            return;
-                        }
-
-                        BilibiliApiHelper.SubtitleInfo chosen = subtitles.get(0);
-                        for (BilibiliApiHelper.SubtitleInfo info : subtitles) {
-                            if (info.lan.startsWith("zh")) {
-                                chosen = info;
-                                break;
-                            }
-                        }
-
-                        BilibiliApiHelper.getSubtitle(chosen.subtitleUrl,
-                                new BilibiliApiHelper.SubtitleCallback() {
-                                    @Override
-                                    public void onResult(String lrcText) {
-                                        if (lrcText == null || lrcText.isEmpty()) {
-                                            showNoLyrics();
-                                            return;
-                                        }
-                                        parseLrc(lrcText);
-                                        displayLyrics();
-                                        startScrollSync();
-                                    }
-
-                                    @Override
-                                    public void onError(String message) {
-                                        showNoLyrics();
-                                    }
-                                });
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        showNoLyrics();
-                    }
-                });
     }
 
     private String loadLocalLrc(Song song) {
@@ -393,7 +336,7 @@ public class LyricsActivity extends AppCompatActivity {
         for (LyricLine line : lyricLines) {
             TextView tv = new TextView(this);
             tv.setText(line.text);
-            tv.setTextColor(0xFFCAC4D0);
+            tv.setTextColor(0xFFAEAEB2);
             tv.setTextSize(13);
             tv.setGravity(android.view.Gravity.CENTER);
             tv.setPadding(0, dp(6), 0, dp(6));
@@ -408,7 +351,7 @@ public class LyricsActivity extends AppCompatActivity {
         llContainer.removeAllViews();
         TextView tv = new TextView(this);
         tv.setText("暂无歌词");
-        tv.setTextColor(0xFFCAC4D0);
+        tv.setTextColor(0xFFAEAEB2);
         tv.setTextSize(14);
         tv.setGravity(android.view.Gravity.CENTER);
         tv.setPadding(0, dp(40), 0, 0);
@@ -442,7 +385,7 @@ public class LyricsActivity extends AppCompatActivity {
                         currentHighlightIndex = newIndex;
                         if (currentHighlightIndex < lyricViews.size()) {
                             TextView currentView = lyricViews.get(currentHighlightIndex);
-                            currentView.setTextColor(0xFFE6E0E9);
+                            currentView.setTextColor(0xFFFFFFFF);
                             currentView.setTextSize(14);
 
                             // Auto-scroll: always in follow mode; only when not blocked in block mode
@@ -452,9 +395,11 @@ public class LyricsActivity extends AppCompatActivity {
                         }
                     }
                 }
-                scrollHandler.postDelayed(this, 300);
+                // 歌词行通常以秒为单位变化，500ms 刷新足够跟上，不必 300ms 唤醒一次 CPU
+                scrollHandler.postDelayed(this, LYRIC_SYNC_INTERVAL_MS);
             }
         };
+        scrollHandler.removeCallbacks(scrollRunnable);
         scrollHandler.post(scrollRunnable);
     }
 
@@ -485,7 +430,7 @@ public class LyricsActivity extends AppCompatActivity {
     private void clearCurrentLyricHighlight() {
         if (currentHighlightIndex >= 0 && currentHighlightIndex < lyricViews.size()) {
             TextView currentView = lyricViews.get(currentHighlightIndex);
-            currentView.setTextColor(0xFFCAC4D0);
+            currentView.setTextColor(0xFFAEAEB2);
             currentView.setTextSize(13);
         }
         currentHighlightIndex = -1;
@@ -506,6 +451,8 @@ public class LyricsActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         if (scrollRunnable != null) {
+            // 先撤掉可能残留的旧链，避免 onResume 叠加出多条自循环
+            scrollHandler.removeCallbacks(scrollRunnable);
             scrollHandler.post(scrollRunnable);
         }
     }

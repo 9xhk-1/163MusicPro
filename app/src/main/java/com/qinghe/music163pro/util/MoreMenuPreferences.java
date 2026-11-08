@@ -23,7 +23,6 @@ public final class MoreMenuPreferences {
     public static final String KEY_SEARCH = "more_show_search";
     public static final String KEY_SONG_RECOGNITION = "more_show_song_recognition";
     public static final String KEY_DOWNLOADS = "more_show_downloads";
-    public static final String KEY_RINGTONES = "more_show_ringtones";
     public static final String KEY_TOPLIST = "more_show_toplist";
     public static final String KEY_HISTORY = "more_show_history";
     public static final String KEY_PROFILE = "more_show_profile";
@@ -39,7 +38,6 @@ public final class MoreMenuPreferences {
             KEY_SEARCH,
             KEY_SONG_RECOGNITION,
             KEY_DOWNLOADS,
-            KEY_RINGTONES,
             KEY_TOPLIST,
             KEY_HISTORY,
             KEY_PROFILE,

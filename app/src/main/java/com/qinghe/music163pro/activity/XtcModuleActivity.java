@@ -34,6 +34,7 @@ public class XtcModuleActivity extends BaseWatchActivity {
     private LinearProgressIndicator progressBar;
     private TextView tvStatus;
     private boolean downloading;
+    private UpdateChecker.DownloadCallback downloadCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,15 +95,17 @@ public class XtcModuleActivity extends BaseWatchActivity {
         progressBar.setProgress(0);
         tvStatus.setText("正在下载模块…");
 
-        UpdateChecker.downloadUpdate(MODULE_DOWNLOAD_URL, MODULE_SAVE_PATH, new UpdateChecker.DownloadCallback() {
+        downloadCallback = new UpdateChecker.DownloadCallback() {
             @Override
             public void onProgress(int percent) {
+                if (isDownloadCallbackInvalid()) return;
                 progressBar.setProgress(percent);
                 tvStatus.setText("正在下载模块… " + percent + "%");
             }
 
             @Override
             public void onComplete(String filePath) {
+                if (isDownloadCallbackInvalid()) return;
                 downloading = false;
                 btnDownload.setEnabled(true);
                 progressBar.setProgress(100);
@@ -112,13 +115,15 @@ public class XtcModuleActivity extends BaseWatchActivity {
 
             @Override
             public void onError(String error) {
+                if (isDownloadCallbackInvalid()) return;
                 downloading = false;
                 btnDownload.setEnabled(true);
                 progressBar.setVisibility(View.GONE);
                 tvStatus.setText("下载失败: " + error);
                 Toast.makeText(XtcModuleActivity.this, "下载失败: " + error, Toast.LENGTH_SHORT).show();
             }
-        });
+        };
+        UpdateChecker.downloadUpdate(MODULE_DOWNLOAD_URL, MODULE_SAVE_PATH, downloadCallback);
     }
 
     private void installApk(String filePath) {
@@ -139,5 +144,15 @@ public class XtcModuleActivity extends BaseWatchActivity {
             tvStatus.setText("下载完成: " + filePath);
             Toast.makeText(this, "无法自动安装，请手动安装", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private boolean isDownloadCallbackInvalid() {
+        return downloadCallback == null || isFinishing() || isDestroyed();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        downloadCallback = null;
     }
 }

@@ -6,11 +6,14 @@ import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
@@ -50,13 +53,13 @@ public class CommentFloorActivity extends BaseWatchActivity {
     private static final int PAGE_SIZE = 20;
 
     // Material 3 dark palette (mirrors res/values/colors.xml)
-    private static final int COLOR_BG = 0xFF141218;
-    private static final int COLOR_TEXT_PRIMARY = 0xFFE6E0E9;
-    private static final int COLOR_TEXT_SECONDARY = 0xFFCAC4D0;
-    private static final int COLOR_ACCENT = 0xFFD0BCFF;
+    private static final int COLOR_BG = 0xFF000000;
+    private static final int COLOR_TEXT_PRIMARY = 0xFFFFFFFF;
+    private static final int COLOR_TEXT_SECONDARY = 0xFFAEAEB2;
+    private static final int COLOR_ACCENT = 0xFFF2F2F7;
     private static final int COLOR_DIVIDER = 0x1FFFFFFF;
-    private static final int COLOR_INPUT_BG = 0xFF2B2930;
-    private static final int COLOR_PARENT_BG = 0xFF2B2930;
+    private static final int COLOR_INPUT_BG = 0x33FFFFFF;
+    private static final int COLOR_PARENT_BG = 0x33FFFFFF;
 
     private static final int[] AVATAR_COLORS = {
             0xFFE91E63, 0xFF9C27B0, 0xFF3F51B5, 0xFF2196F3,
@@ -82,6 +85,16 @@ public class CommentFloorActivity extends BaseWatchActivity {
     private ScrollView commentScrollView;
     private EditText inputField;
     private MaterialButton sendButton;
+
+    private final Handler uiHandler = new Handler(Looper.getMainLooper());
+    private final Runnable reloadAfterReplyRunnable = new Runnable() {
+        @Override
+        public void run() {
+            loadFloorComments(true);
+        }
+    };
+    private ViewTreeObserver.OnScrollChangedListener scrollChangedListener;
+    private ViewTreeObserver scrollViewTreeObserver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -178,20 +191,25 @@ public class CommentFloorActivity extends BaseWatchActivity {
         commentScrollView.addView(scrollContent);
 
         // Infinite scroll detection
-        commentScrollView.getViewTreeObserver().addOnScrollChangedListener(() -> {
-            if (isLoading || !hasMore) return;
+        scrollChangedListener = new ViewTreeObserver.OnScrollChangedListener() {
+            @Override
+            public void onScrollChanged() {
+                if (isLoading || !hasMore) return;
 
-            View child = commentScrollView.getChildAt(0);
-            if (child == null) return;
+                View child = commentScrollView.getChildAt(0);
+                if (child == null) return;
 
-            int scrollY = commentScrollView.getScrollY();
-            int scrollViewHeight = commentScrollView.getHeight();
-            int childHeight = child.getHeight();
+                int scrollY = commentScrollView.getScrollY();
+                int scrollViewHeight = commentScrollView.getHeight();
+                int childHeight = child.getHeight();
 
-            if (scrollY + scrollViewHeight >= childHeight - px(60)) {
-                loadFloorComments(false);
+                if (scrollY + scrollViewHeight >= childHeight - px(60)) {
+                    loadFloorComments(false);
+                }
             }
-        });
+        };
+        scrollViewTreeObserver = commentScrollView.getViewTreeObserver();
+        scrollViewTreeObserver.addOnScrollChangedListener(scrollChangedListener);
 
         return commentScrollView;
     }
@@ -217,8 +235,8 @@ public class CommentFloorActivity extends BaseWatchActivity {
         sendButton.setAllCaps(false);
         sendButton.setMinWidth(0);
         sendButton.setMinimumWidth(0);
-        sendButton.setTextColor(0xFFEADDFF); // on_primary_container
-        sendButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF4F378B)); // primary_container
+        sendButton.setTextColor(0xFFFFFFFF); // on_primary_container
+        sendButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF2E2E30)); // primary_container
         sendButton.setCornerRadius(px(16));
         sendButton.setInsetTop(0);
         sendButton.setInsetBottom(0);
@@ -808,9 +826,7 @@ public class CommentFloorActivity extends BaseWatchActivity {
                                 Toast.makeText(CommentFloorActivity.this,
                                         "回复成功", Toast.LENGTH_SHORT).show();
                                 // Delay reload slightly so server has time to process
-                                new android.os.Handler().postDelayed(() -> {
-                                    loadFloorComments(true);
-                                }, 800);
+                                uiHandler.postDelayed(reloadAfterReplyRunnable, 800);
                             } else {
                                 Toast.makeText(CommentFloorActivity.this,
                                         "回复失败，请重试", Toast.LENGTH_SHORT).show();
@@ -942,12 +958,21 @@ public class CommentFloorActivity extends BaseWatchActivity {
 
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
-                new WatchConfirmDialog.Options(0xFF2B2930, 0xFFD0BCFF, false));
+                new WatchConfirmDialog.Options(0x33FFFFFF, 0xFFF2F2F7, false));
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        uiHandler.removeCallbacks(reloadAfterReplyRunnable);
+        uiHandler.removeCallbacksAndMessages(null);
+        if (scrollViewTreeObserver != null && scrollChangedListener != null) {
+            if (scrollViewTreeObserver.isAlive()) {
+                scrollViewTreeObserver.removeOnScrollChangedListener(scrollChangedListener);
+            }
+            scrollViewTreeObserver = null;
+            scrollChangedListener = null;
+        }
         NetworkImageLoader.cancelAll();
     }
 }

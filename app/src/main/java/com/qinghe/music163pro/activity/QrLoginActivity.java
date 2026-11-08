@@ -32,6 +32,13 @@ public class QrLoginActivity extends AppCompatActivity {
     private String qrKey = "";
     private final Handler pollHandler = new Handler();
     private boolean polling = false;
+    private boolean pageResumed = false;
+    private final Runnable finishRunnable = new Runnable() {
+        @Override
+        public void run() {
+            finish();
+        }
+    };
 
     private static final int POLL_INTERVAL_MS = 3000;
 
@@ -120,12 +127,20 @@ public class QrLoginActivity extends AppCompatActivity {
 
     private void startPolling() {
         polling = true;
-        pollHandler.postDelayed(pollRunnable, POLL_INTERVAL_MS);
+        scheduleNextPoll();
     }
 
     private void stopPolling() {
         polling = false;
         pollHandler.removeCallbacks(pollRunnable);
+    }
+
+    /** Re-arm the poll only while the page is visible and the session is alive. */
+    private void scheduleNextPoll() {
+        pollHandler.removeCallbacks(pollRunnable);
+        if (polling && pageResumed) {
+            pollHandler.postDelayed(pollRunnable, POLL_INTERVAL_MS);
+        }
     }
 
     private final Runnable pollRunnable = new Runnable() {
@@ -139,15 +154,11 @@ public class QrLoginActivity extends AppCompatActivity {
                     switch (code) {
                         case 801:
                             tvStatus.setText("等待扫码...");
-                            if (polling) {
-                                pollHandler.postDelayed(pollRunnable, POLL_INTERVAL_MS);
-                            }
+                            scheduleNextPoll();
                             break;
                         case 802:
                             tvStatus.setText("已扫码，请在手机上确认登录");
-                            if (polling) {
-                                pollHandler.postDelayed(pollRunnable, POLL_INTERVAL_MS);
-                            }
+                            scheduleNextPoll();
                             break;
                         case 803:
                             // Login successful!
@@ -161,7 +172,7 @@ public class QrLoginActivity extends AppCompatActivity {
                             Toast.makeText(QrLoginActivity.this,
                                     "登录成功，Cookie已保存", Toast.LENGTH_LONG).show();
                             // Auto-close after brief delay
-                            pollHandler.postDelayed(() -> finish(), 1500);
+                            pollHandler.postDelayed(finishRunnable, 1500);
                             break;
                         case 800:
                             tvStatus.setText("二维码已过期，请刷新");
@@ -169,9 +180,7 @@ public class QrLoginActivity extends AppCompatActivity {
                             break;
                         default:
                             tvStatus.setText("状态: " + code + " " + message);
-                            if (polling) {
-                                pollHandler.postDelayed(pollRunnable, POLL_INTERVAL_MS);
-                            }
+                            scheduleNextPoll();
                             break;
                     }
                 }
@@ -179,9 +188,7 @@ public class QrLoginActivity extends AppCompatActivity {
                 @Override
                 public void onError(String errMsg) {
                     tvStatus.setText("检查状态失败: " + errMsg);
-                    if (polling) {
-                        pollHandler.postDelayed(pollRunnable, POLL_INTERVAL_MS);
-                    }
+                    scheduleNextPoll();
                 }
             });
         }
@@ -195,8 +202,31 @@ public class QrLoginActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        pageResumed = true;
+        if (polling) {
+            scheduleNextPoll();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        pageResumed = false;
+        pollHandler.removeCallbacks(pollRunnable);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        pollHandler.removeCallbacks(pollRunnable);
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         stopPolling();
+        pollHandler.removeCallbacksAndMessages(null);
     }
 }

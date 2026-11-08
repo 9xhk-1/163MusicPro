@@ -26,6 +26,9 @@ public class CloudUploadProgressActivity extends BaseWatchActivity {
     private TextView tvProgress;
     private TextView tvStatus;
     private File cacheFile;
+    private final Object cacheLock = new Object();
+    private volatile boolean destroyed = false;
+    private volatile boolean uploadSettled = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,36 +64,51 @@ public class CloudUploadProgressActivity extends BaseWatchActivity {
 
         new Thread(() -> {
             try {
-                cacheFile = copyUriToCache(uri, resolvedName);
-                MusicApiHelper.uploadCloudFile(cacheFile, resolvedName, musicFile, cookie,
+                File localCache = copyUriToCache(uri, resolvedName);
+                setCacheFile(localCache);
+                MusicApiHelper.uploadCloudFile(localCache, resolvedName, musicFile, cookie,
                         new MusicApiHelper.UploadProgressCallback() {
                             @Override
                             public void onProgress(int progress, String message) {
-                                progressBar.setProgress(progress);
-                                tvProgress.setText(progress + "%");
-                                tvStatus.setText(message);
+                                runOnUiThread(() -> {
+                                    if (isFinishing() || isDestroyed()) return;
+                                    progressBar.setProgress(progress);
+                                    tvProgress.setText(progress + "%");
+                                    tvStatus.setText(message);
+                                });
                             }
 
                             @Override
                             public void onSuccess(String message) {
-                                progressBar.setProgress(100);
-                                tvProgress.setText("100%");
-                                tvStatus.setText(message);
-                                btnDone.setVisibility(android.view.View.VISIBLE);
-                                setResult(RESULT_OK);
+                                runOnUiThread(() -> {
+                                    if (!isFinishing() && !isDestroyed()) {
+                                        progressBar.setProgress(100);
+                                        tvProgress.setText("100%");
+                                        tvStatus.setText(message);
+                                        btnDone.setVisibility(android.view.View.VISIBLE);
+                                        setResult(RESULT_OK);
+                                    }
+                                });
+                                markUploadSettled();
                             }
 
                             @Override
                             public void onError(String message) {
-                                tvStatus.setText(message);
-                                btnDone.setVisibility(android.view.View.VISIBLE);
+                                runOnUiThread(() -> {
+                                    if (isFinishing() || isDestroyed()) return;
+                                    tvStatus.setText(message);
+                                    btnDone.setVisibility(android.view.View.VISIBLE);
+                                });
+                                markUploadSettled();
                             }
                         });
             } catch (Exception e) {
                 runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
                     tvStatus.setText("准备失败: " + e.getMessage());
                     btnDone.setVisibility(android.view.View.VISIBLE);
                 });
+                markUploadSettled();
             }
         }).start();
     }
@@ -136,12 +154,35 @@ public class CloudUploadProgressActivity extends BaseWatchActivity {
         return last != null ? last : "upload.bin";
     }
 
+    private void setCacheFile(File file) {
+        synchronized (cacheLock) {
+            cacheFile = file;
+        }
+    }
+
+    /** Called once the upload callback has finished; delete the cache only after the page is gone. */
+    private void markUploadSettled() {
+        uploadSettled = true;
+        cleanupCacheIfIdle();
+    }
+
+    private void cleanupCacheIfIdle() {
+        if (!destroyed || !uploadSettled) return;
+        File toDelete;
+        synchronized (cacheLock) {
+            toDelete = cacheFile;
+            cacheFile = null;
+        }
+        if (toDelete != null && toDelete.exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            toDelete.delete();
+        }
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (cacheFile != null && cacheFile.exists()) {
-            //noinspection ResultOfMethodCallIgnored
-            cacheFile.delete();
-        }
+        destroyed = true;
+        cleanupCacheIfIdle();
     }
 }

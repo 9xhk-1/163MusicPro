@@ -52,6 +52,7 @@ public class UpdateActivity extends AppCompatActivity {
     private boolean downloading = false;
     private String selectedUrl = null;
     private String targetVersionName = "";
+    private UpdateChecker.DownloadCallback downloadCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -305,7 +306,7 @@ public class UpdateActivity extends AppCompatActivity {
 
             TextView tvIndex = new TextView(this);
             tvIndex.setText(String.valueOf(index + 1));
-            tvIndex.setTextColor(0xFFD0BCFF);
+            tvIndex.setTextColor(0xFFF2F2F7);
             tvIndex.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
             tvIndex.setTypeface(tvIndex.getTypeface(), Typeface.BOLD);
             tvIndex.setGravity(Gravity.CENTER);
@@ -314,7 +315,7 @@ public class UpdateActivity extends AppCompatActivity {
 
             TextView tvDomain = new TextView(this);
             tvDomain.setText(domain);
-            tvDomain.setTextColor(0xFFE6E0E9);
+            tvDomain.setTextColor(0xFFFFFFFF);
             tvDomain.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(13));
             tvDomain.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
             LinearLayout.LayoutParams domainParams = new LinearLayout.LayoutParams(0,
@@ -324,7 +325,7 @@ public class UpdateActivity extends AppCompatActivity {
 
             TextView tvDownload = new TextView(this);
             tvDownload.setText("下载");
-            tvDownload.setTextColor(0xFFD0BCFF);
+            tvDownload.setTextColor(0xFFF2F2F7);
             tvDownload.setTextSize(TypedValue.COMPLEX_UNIT_PX, px(12));
             tvDownload.setGravity(Gravity.CENTER);
 
@@ -399,26 +400,30 @@ public class UpdateActivity extends AppCompatActivity {
             return;
         }
 
-        UpdateChecker.downloadUpdate(selectedUrl, APK_SAVE_PATH, new UpdateChecker.DownloadCallback() {
+        downloadCallback = new UpdateChecker.DownloadCallback() {
             @Override
             public void onProgress(int percent) {
+                if (isDownloadCallbackInvalid()) return;
                 progressBar.setProgress(percent);
                 tvProgress.setText(percent + "%");
             }
 
             @Override
             public void onComplete(String filePath) {
+                if (isDownloadCallbackInvalid()) return;
                 tvProgress.setText("下载完成，正在安装...");
                 installApk(filePath);
             }
 
             @Override
             public void onError(String error) {
+                if (isDownloadCallbackInvalid()) return;
                 resetDownloadState();
                 tvProgress.setText("下载失败: " + error);
                 Toast.makeText(UpdateActivity.this, "下载失败: " + error, Toast.LENGTH_SHORT).show();
             }
-        });
+        };
+        UpdateChecker.downloadUpdate(selectedUrl, APK_SAVE_PATH, downloadCallback);
     }
 
     private void resetDownloadState() {
@@ -471,5 +476,15 @@ public class UpdateActivity extends AppCompatActivity {
 
     private int px(int baseValue) {
         return (int) (baseValue * getResources().getDisplayMetrics().density + 0.5f);
+    }
+
+    private boolean isDownloadCallbackInvalid() {
+        return downloadCallback == null || isFinishing() || isDestroyed();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        downloadCallback = null;
     }
 }

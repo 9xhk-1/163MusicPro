@@ -24,6 +24,7 @@ import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.model.PlaylistInfo;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.util.NetworkImageLoader;
+import com.qinghe.music163pro.util.PlaylistCache;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -63,7 +64,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
 
         TextView tvTitle = new TextView(this);
         tvTitle.setText("我的歌单");
-        tvTitle.setTextColor(0xFFE6E0E9);
+        tvTitle.setTextColor(0xFFFFFFFF);
         tvTitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
         tvTitle.setGravity(Gravity.CENTER);
         tvTitle.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -78,7 +79,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
         // "+" button (top-right)
         ImageView btnCreate = new ImageView(this);
         btnCreate.setImageResource(R.drawable.ic_add_box);
-        btnCreate.setColorFilter(0xFFD0BCFF);
+        btnCreate.setColorFilter(0xFFF2F2F7);
         btnCreate.setClickable(true);
         btnCreate.setFocusable(true);
         android.widget.RelativeLayout.LayoutParams btnParams = new android.widget.RelativeLayout.LayoutParams(
@@ -94,7 +95,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
         // Status text
         tvStatus = new TextView(this);
         tvStatus.setText("正在加载...");
-        tvStatus.setTextColor(0xFFCAC4D0);
+        tvStatus.setTextColor(0xFFAEAEB2);
         tvStatus.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(12));
         tvStatus.setGravity(Gravity.CENTER);
         tvStatus.setPadding(0, px(4), 0, px(4));
@@ -134,7 +135,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
                         icon.setColorFilter(0xFFFF4081);
                     } else if (pl.getUserId() == currentUserId) {
                         icon.setImageResource(R.drawable.ic_music_note);
-                        icon.setColorFilter(0xFFD0BCFF);
+                        icon.setColorFilter(0xFFF2F2F7);
                     } else {
                         icon.setImageResource(R.drawable.ic_queue_music);
                         icon.setColorFilter(0x80FFFFFF);
@@ -144,7 +145,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
                         tvName.setText(pl.getName());
                     }
                     tvName.setSelected(true);
-                    tvName.setTextColor(0xFFE6E0E9);
+                    tvName.setTextColor(0xFFFFFFFF);
                     tvName.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(13));
 
                     String detail = pl.getTrackCount() + "首";
@@ -155,7 +156,7 @@ public class MyPlaylistsActivity extends AppCompatActivity {
                         tvDetail.setText(detail);
                     }
                     tvDetail.setSelected(true);
-                    tvDetail.setTextColor(0xFFCAC4D0);
+                    tvDetail.setTextColor(0xFFAEAEB2);
                     tvDetail.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, px(10));
                 }
                 return view;
@@ -178,27 +179,6 @@ public class MyPlaylistsActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        lvPlaylists.setOnItemLongClickListener((parent, view, position, id) -> {
-            PlaylistInfo pl = displayList.get(position);
-            if (pl.isLikedPlaylist()) {
-                // "我喜欢的音乐" – no actions
-                return true;
-            }
-            String cookie = MusicPlayerManager.getInstance().getCookie();
-            if (cookie == null || cookie.isEmpty() || !cookie.contains("MUSIC_U")) {
-                android.widget.Toast.makeText(this, "请先登录", android.widget.Toast.LENGTH_SHORT).show();
-                return true;
-            }
-            if (pl.getUserId() == currentUserId) {
-                // Own playlist: rename or delete
-                showOwnPlaylistOptions(pl, cookie);
-            } else {
-                // Subscribed playlist: unsubscribe
-                showUnsubscribeDialog(pl, cookie);
-            }
-            return true;
-        });
-
         loadPlaylists();
     }
 
@@ -210,151 +190,69 @@ public class MyPlaylistsActivity extends AppCompatActivity {
     }
 
     private void loadPlaylists() {
+        // 秒开：内存快照直接渲染（零 IO），磁盘快照走后台线程，
+        // 反序列化 500 首 Song 不再卡住打开页面那一下；接口回来后再对比校准。
+        List<PlaylistInfo> cached = PlaylistCache.peekMyPlaylists();
+        if (cached != null && !cached.isEmpty()) {
+            showPlaylists(cached, true);
+        }
+        PlaylistCache.loadMyPlaylistsAsync(this, disk -> {
+            if (isFinishing() || isDestroyed()) return;
+            if (disk == null || disk.isEmpty() || !displayList.isEmpty()) return;
+            showPlaylists(disk, true);
+        });
+
         String cookie = MusicPlayerManager.getInstance().getCookie();
         if (cookie == null || cookie.isEmpty() || !cookie.contains("MUSIC_U")) {
-            tvStatus.setText("请先登录");
+            if (displayList.isEmpty()) {
+                tvStatus.setText("请先登录");
+            }
             return;
         }
 
         MusicApiHelper.getUserPlaylists(cookie, new MusicApiHelper.UserPlaylistsCallback() {
             @Override
             public void onResult(List<PlaylistInfo> playlists) {
-                displayList.clear();
-                displayList.addAll(playlists);
-                // Detect current user ID from the first playlist's creator (if it's their "liked" playlist)
-                if (!playlists.isEmpty() && playlists.get(0).isLikedPlaylist()) {
-                    currentUserId = playlists.get(0).getUserId();
+                if (PlaylistCache.samePlaylists(displayList, playlists)) {
+                    // 数据没变：只把"本地快照"字样去掉，不重建列表、不闪封面
+                    if (!playlists.isEmpty()) {
+                        tvStatus.setText(playlists.size() + " 个歌单");
+                        lvPlaylists.setVisibility(View.VISIBLE);
+                    }
+                    return;
                 }
-                adapter.notifyDataSetChanged();
-                if (playlists.isEmpty()) {
-                    tvStatus.setText("暂无歌单");
-                } else {
-                    tvStatus.setText(playlists.size() + " 个歌单");
-                    lvPlaylists.setVisibility(View.VISIBLE);
-                }
+                showPlaylists(playlists, false);
+                PlaylistCache.saveMyPlaylists(MyPlaylistsActivity.this, playlists);
             }
 
             @Override
             public void onError(String message) {
-                tvStatus.setText("加载失败: " + message);
+                if (displayList.isEmpty()) {
+                    tvStatus.setText("加载失败: " + message);
+                } else {
+                    // 有快照就别把列表盖成错误提示，标明是离线数据即可
+                    tvStatus.setText(displayList.size() + " 个歌单（离线快照）");
+                }
             }
         });
     }
 
-    private void showOwnPlaylistOptions(PlaylistInfo pl, String cookie) {
-        WatchUiUtils.showActionDialog(this, pl.getName(), new String[]{"改名", "删除"},
-                new int[]{0, getResources().getColor(R.color.colorError)},
-                (dialog, which) -> {
-                    if (which == 0) {
-                        showRenamePlaylistDialog(pl, cookie);
-                    } else {
-                        showDeletePlaylistDialog(pl, cookie);
-                    }
-                });
-    }
-
-    private void showRenamePlaylistDialog(PlaylistInfo pl, String cookie) {
-        com.google.android.material.textfield.TextInputLayout inputWrap =
-                com.qinghe.music163pro.util.WatchUiUtils.createWatchTextInput(this, "歌单名称");
-        EditText input = (com.google.android.material.textfield.TextInputEditText) inputWrap.getEditText();
-        input.setText(pl.getName());
-        input.setSelectAllOnFocus(true);
-
-        android.widget.LinearLayout container = new android.widget.LinearLayout(this);
-        container.setPadding(px(12), px(8), px(12), px(4));
-        container.addView(inputWrap, new android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("改名")
-                .setView(container)
-                .setPositiveButton("确认", (d, w) -> {
-                    String newName = input.getText().toString().trim();
-                    if (newName.isEmpty()) {
-                        android.widget.Toast.makeText(this, "名称不能为空", android.widget.Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    MusicApiHelper.updatePlaylistName(pl.getId(), newName, cookie,
-                            new MusicApiHelper.PlaylistActionCallback() {
-                                @Override
-                                public void onResult(boolean success) {
-                                    if (success) {
-                                        android.widget.Toast.makeText(MyPlaylistsActivity.this,
-                                                "已重命名", android.widget.Toast.LENGTH_SHORT).show();
-                                        loadPlaylists();
-                                    } else {
-                                        android.widget.Toast.makeText(MyPlaylistsActivity.this,
-                                                "改名失败", android.widget.Toast.LENGTH_SHORT).show();
-                                    }
-                                }
-                                @Override
-                                public void onError(String message) {
-                                    android.widget.Toast.makeText(MyPlaylistsActivity.this,
-                                            "改名失败: " + message, android.widget.Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                })
-                .setNegativeButton("取消", null)
-                .show();
-    }
-
-    private void showDeletePlaylistDialog(PlaylistInfo pl, String cookie) {
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("删除歌单")
-                .setMessage("确定删除「" + pl.getName() + "」？此操作不可撤销。")
-                .setPositiveButton("删除", (d, w) -> {
-                    MusicApiHelper.deletePlaylist(pl.getId(), cookie,
-                            new MusicApiHelper.PlaylistActionCallback() {
-                                @Override
-                                public void onResult(boolean success) {
-                                    if (success) {
-                                        android.widget.Toast.makeText(MyPlaylistsActivity.this,
-                                                "已删除", android.widget.Toast.LENGTH_SHORT).show();
-                                        loadPlaylists();
-                                    } else {
-                                        android.widget.Toast.makeText(MyPlaylistsActivity.this,
-                                                "删除失败", android.widget.Toast.LENGTH_SHORT).show();
-                                    }
-                                }
-                                @Override
-                                public void onError(String message) {
-                                    android.widget.Toast.makeText(MyPlaylistsActivity.this,
-                                            "删除失败: " + message, android.widget.Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                })
-                .setNegativeButton("取消", null)
-                .show();
-    }
-
-    private void showUnsubscribeDialog(PlaylistInfo pl, String cookie) {
-        new MaterialAlertDialogBuilder(this)
-                .setTitle("取消收藏")
-                .setMessage("确定取消收藏歌单「" + pl.getName() + "」？")
-                .setPositiveButton("确认", (d, w) -> {
-                    MusicApiHelper.subscribePlaylist(pl.getId(), false, cookie,
-                            new MusicApiHelper.PlaylistActionCallback() {
-                                @Override
-                                public void onResult(boolean success) {
-                                    if (success) {
-                                        android.widget.Toast.makeText(MyPlaylistsActivity.this,
-                                                "已取消收藏", android.widget.Toast.LENGTH_SHORT).show();
-                                        loadPlaylists();
-                                    } else {
-                                        android.widget.Toast.makeText(MyPlaylistsActivity.this,
-                                                "操作失败", android.widget.Toast.LENGTH_SHORT).show();
-                                    }
-                                }
-                                @Override
-                                public void onError(String message) {
-                                    android.widget.Toast.makeText(MyPlaylistsActivity.this,
-                                            "操作失败: " + message, android.widget.Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                })
-                .setNegativeButton("取消", null)
-                .show();
+    /** 统一渲染入口：缓存命中与网络返回都走这里，便于做差异对比。 */
+    private void showPlaylists(List<PlaylistInfo> playlists, boolean fromCache) {
+        displayList.clear();
+        displayList.addAll(playlists);
+        // Detect current user ID from the first playlist's creator (if it's their "liked" playlist)
+        if (!playlists.isEmpty() && playlists.get(0).isLikedPlaylist()) {
+            currentUserId = playlists.get(0).getUserId();
+        }
+        adapter.notifyDataSetChanged();
+        if (playlists.isEmpty()) {
+            tvStatus.setText("暂无歌单");
+            lvPlaylists.setVisibility(View.GONE);
+        } else {
+            tvStatus.setText(playlists.size() + " 个歌单" + (fromCache ? "（本地快照）" : ""));
+            lvPlaylists.setVisibility(View.VISIBLE);
+        }
     }
 
     private void showCreatePlaylistDialog() {
@@ -395,6 +293,8 @@ public class MyPlaylistsActivity extends AppCompatActivity {
             public void onResult(long playlistId, String resultName) {
                 Toast.makeText(MyPlaylistsActivity.this,
                         "已创建「" + resultName + "」", Toast.LENGTH_SHORT).show();
+                // 新歌单已产生，旧快照失效，避免秒开时看不到它
+                PlaylistCache.invalidateMyPlaylists(MyPlaylistsActivity.this);
                 loadPlaylists();
             }
 

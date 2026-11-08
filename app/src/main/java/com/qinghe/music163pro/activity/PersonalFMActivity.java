@@ -49,7 +49,7 @@ public class PersonalFMActivity extends AppCompatActivity {
         // Title
         TextView tvTitle = new TextView(this);
         tvTitle.setText("私人漫游");
-        tvTitle.setTextColor(0xFFE6E0E9);
+        tvTitle.setTextColor(0xFFFFFFFF);
         tvTitle.setTextSize(15);
         tvTitle.setGravity(Gravity.CENTER);
         tvTitle.setPadding(0, 0, 0, dp(16));
@@ -59,7 +59,7 @@ public class PersonalFMActivity extends AppCompatActivity {
         // Description
         TextView tvDesc = new TextView(this);
         tvDesc.setText("选择漫游模式开始播放");
-        tvDesc.setTextColor(0xFFCAC4D0);
+        tvDesc.setTextColor(0xFFAEAEB2);
         tvDesc.setTextSize(12);
         tvDesc.setGravity(Gravity.CENTER);
         tvDesc.setPadding(0, 0, 0, dp(20));

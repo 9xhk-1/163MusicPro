@@ -239,7 +239,7 @@ public class DownloadListActivity extends BaseWatchActivity {
      */
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
-                new WatchConfirmDialog.Options(0xFF2B2930, 0xFFD0BCFF, true));
+                new WatchConfirmDialog.Options(0x33FFFFFF, 0xFFF2F2F7, true));
     }
 
     @Override

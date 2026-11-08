@@ -12,11 +12,14 @@ import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.ShapeDrawable;
 import android.graphics.drawable.shapes.OvalShape;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
@@ -57,12 +60,12 @@ public class CommentActivity extends BaseWatchActivity {
     private static final int PAGE_SIZE = 20;
 
     // Material 3 dark palette (mirrors res/values/colors.xml)
-    private static final int COLOR_BG = 0xFF141218;
-    private static final int COLOR_TEXT_PRIMARY = 0xFFE6E0E9;
-    private static final int COLOR_TEXT_SECONDARY = 0xFFCAC4D0;
-    private static final int COLOR_ACCENT = 0xFFD0BCFF;
+    private static final int COLOR_BG = 0xFF000000;
+    private static final int COLOR_TEXT_PRIMARY = 0xFFFFFFFF;
+    private static final int COLOR_TEXT_SECONDARY = 0xFFAEAEB2;
+    private static final int COLOR_ACCENT = 0xFFF2F2F7;
     private static final int COLOR_DIVIDER = 0x1FFFFFFF;
-    private static final int COLOR_INPUT_BG = 0xFF2B2930;
+    private static final int COLOR_INPUT_BG = 0x33FFFFFF;
 
     private static final int[] AVATAR_COLORS = {
             0xFFE91E63, 0xFF9C27B0, 0xFF3F51B5, 0xFF2196F3,
@@ -94,6 +97,18 @@ public class CommentActivity extends BaseWatchActivity {
     private TextView tabHot;
     private TextView tabNew;
     private TextView totalCountText;
+
+    private final Handler uiHandler = new Handler(Looper.getMainLooper());
+    private final Runnable reloadAfterPostRunnable = new Runnable() {
+        @Override
+        public void run() {
+            currentSortType = 3;
+            updateSortTabs();
+            loadComments(true);
+        }
+    };
+    private ViewTreeObserver.OnScrollChangedListener scrollChangedListener;
+    private ViewTreeObserver scrollViewTreeObserver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -223,10 +238,10 @@ public class CommentActivity extends BaseWatchActivity {
 
     private void styleSortTab(TextView tab, boolean active) {
         if (active) {
-            tab.setTextColor(0xFFEADDFF); // on_primary_container
+            tab.setTextColor(0xFFFFFFFF); // on_primary_container
             tab.setTypeface(tab.getTypeface(), Typeface.BOLD);
             GradientDrawable pill = new GradientDrawable();
-            pill.setColor(0xFF4F378B); // primary_container
+            pill.setColor(0xFF2E2E30); // primary_container
             pill.setCornerRadius(px(16));
             tab.setBackground(pill);
         } else {
@@ -247,20 +262,25 @@ public class CommentActivity extends BaseWatchActivity {
         commentScrollView.addView(commentListLayout);
 
         // Infinite scroll detection
-        commentScrollView.getViewTreeObserver().addOnScrollChangedListener(() -> {
-            if (isLoading || !hasMore) return;
+        scrollChangedListener = new ViewTreeObserver.OnScrollChangedListener() {
+            @Override
+            public void onScrollChanged() {
+                if (isLoading || !hasMore) return;
 
-            View child = commentScrollView.getChildAt(0);
-            if (child == null) return;
+                View child = commentScrollView.getChildAt(0);
+                if (child == null) return;
 
-            int scrollY = commentScrollView.getScrollY();
-            int scrollViewHeight = commentScrollView.getHeight();
-            int childHeight = child.getHeight();
+                int scrollY = commentScrollView.getScrollY();
+                int scrollViewHeight = commentScrollView.getHeight();
+                int childHeight = child.getHeight();
 
-            if (scrollY + scrollViewHeight >= childHeight - px(60)) {
-                loadComments(false);
+                if (scrollY + scrollViewHeight >= childHeight - px(60)) {
+                    loadComments(false);
+                }
             }
-        });
+        };
+        scrollViewTreeObserver = commentScrollView.getViewTreeObserver();
+        scrollViewTreeObserver.addOnScrollChangedListener(scrollChangedListener);
 
         return commentScrollView;
     }
@@ -286,8 +306,8 @@ public class CommentActivity extends BaseWatchActivity {
         sendButton.setAllCaps(false);
         sendButton.setMinWidth(0);
         sendButton.setMinimumWidth(0);
-        sendButton.setTextColor(0xFFEADDFF); // on_primary_container
-        sendButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF4F378B)); // primary_container
+        sendButton.setTextColor(0xFFFFFFFF); // on_primary_container
+        sendButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF2E2E30)); // primary_container
         sendButton.setCornerRadius(px(16));
         sendButton.setInsetTop(0);
         sendButton.setInsetBottom(0);
@@ -501,7 +521,7 @@ public class CommentActivity extends BaseWatchActivity {
                     repliedTv.setEllipsize(TextUtils.TruncateAt.END);
 
                     GradientDrawable repliedBg = new GradientDrawable();
-                    repliedBg.setColor(0xFF2B2930);
+                    repliedBg.setColor(0x33FFFFFF);
                     repliedBg.setCornerRadius(px(4));
                     repliedTv.setBackground(repliedBg);
 
@@ -792,11 +812,7 @@ public class CommentActivity extends BaseWatchActivity {
                         Toast.makeText(CommentActivity.this,
                                 "评论成功", Toast.LENGTH_SHORT).show();
                         // Delay reload slightly so server has time to process
-                        new android.os.Handler().postDelayed(() -> {
-                            currentSortType = 3;
-                            updateSortTabs();
-                            loadComments(true);
-                        }, 800);
+                        uiHandler.postDelayed(reloadAfterPostRunnable, 800);
                     } else {
                         Toast.makeText(CommentActivity.this,
                                 "评论失败，请重试", Toast.LENGTH_SHORT).show();
@@ -947,12 +963,21 @@ public class CommentActivity extends BaseWatchActivity {
      */
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
-                new WatchConfirmDialog.Options(0xFF2B2930, 0xFFD0BCFF, true));
+                new WatchConfirmDialog.Options(0x33FFFFFF, 0xFFF2F2F7, true));
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        uiHandler.removeCallbacks(reloadAfterPostRunnable);
+        uiHandler.removeCallbacksAndMessages(null);
+        if (scrollViewTreeObserver != null && scrollChangedListener != null) {
+            if (scrollViewTreeObserver.isAlive()) {
+                scrollViewTreeObserver.removeOnScrollChangedListener(scrollChangedListener);
+            }
+            scrollViewTreeObserver = null;
+            scrollChangedListener = null;
+        }
         NetworkImageLoader.cancelAll();
     }
 }

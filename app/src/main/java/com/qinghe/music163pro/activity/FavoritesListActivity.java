@@ -173,23 +173,6 @@ public class FavoritesListActivity extends BaseWatchActivity {
             startActivity(intent);
         });
 
-        // Long press to delete playlist from local (with confirmation)
-        lvFavPlaylists.setOnItemLongClickListener((parent, view, position, id) -> {
-            SharedPreferences settingsPrefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
-            boolean isCloud = settingsPrefs.getBoolean("fav_mode_cloud", false);
-            if (!isCloud) {
-                PlaylistInfo pl = playlistsList.get(position);
-                showConfirmDialog("确认删除", "确定删除歌单「" + pl.getName() + "」？", () -> {
-                    playlistManager.removePlaylist(pl.getId());
-                    playlistsList.remove(position);
-                    playlistAdapter.notifyDataSetChanged();
-                    updateEmptyState();
-                    Toast.makeText(this, "\u5df2\u5220\u9664\u6b4c\u5355", Toast.LENGTH_SHORT).show();
-                });
-            }
-            return true;
-        });
-
         loadData();
     }
 
@@ -465,7 +448,7 @@ public class FavoritesListActivity extends BaseWatchActivity {
      */
     private void showConfirmDialog(String title, String message, Runnable onConfirm) {
         WatchConfirmDialog.show(this, title, message, onConfirm,
-                new WatchConfirmDialog.Options(0xFF2B2930, 0xFFD0BCFF, true));
+                new WatchConfirmDialog.Options(0x33FFFFFF, 0xFFF2F2F7, true));
     }
 
     @Override
