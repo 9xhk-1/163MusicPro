@@ -69,11 +69,6 @@
             android:text="下载列表"
             app:icon="@drawable/ic_get_app" />
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_menu_ringtones"
-            style="@style/Widget.App.MenuItem"
-            android:text="铃声管理"
-            app:icon="@drawable/ic_notifications" />
-        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_menu_toplist"
             style="@style/Widget.App.MenuItem"
             android:text="排行榜"

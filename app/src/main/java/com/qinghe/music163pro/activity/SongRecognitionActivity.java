@@ -1,6 +1,7 @@
 package com.qinghe.music163pro.activity;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -291,6 +292,9 @@ public class SongRecognitionActivity extends AppCompatActivity {
         });
     }
 
+    // 录音权限在 startRecognition() 里已检查、申请并在 onRequestPermissionsResult
+    // 里处理；lint 无法跟踪这条调用链，故在真正创建 AudioRecord 的方法上抑制误报。
+    @SuppressLint("MissingPermission")
     private byte[] recordPcmUntilStopped(int maxSeconds, int sessionId, ChunkCallback chunkCallback) {
         int bufferSize = AudioRecord.getMinBufferSize(
                 SAMPLE_RATE,
@@ -462,7 +466,7 @@ public class SongRecognitionActivity extends AppCompatActivity {
         handler.removeCallbacks(countdownRunnable);
         stopAudioRecordAsync();
         setCircleButtonState(getResources().getColor(R.color.surface_variant),
-                0xFFCAC4D0, false, "处理中");
+                0xFFAEAEB2, false, "处理中");
         if (isAutoMode()) {
             tvHint.setText("正在停止自动识别");
             tvStatus.setText("请稍候...");
@@ -522,7 +526,7 @@ public class SongRecognitionActivity extends AppCompatActivity {
 
     private void updateIdleUi() {
         setCircleButtonState(getResources().getColor(R.color.colorPrimary),
-                0xFF381E72, true, "开始录音");
+                0xFF0A84FF, true, "开始录音");
         tvMode.setText(isAutoMode() ? "当前模式：自动识别" : "当前模式：手动暂停");
         if (isAutoMode()) {
             tvHint.setText("点一下开始持续监听\n每三秒自动识别一次");
@@ -535,20 +539,20 @@ public class SongRecognitionActivity extends AppCompatActivity {
     }
 
     private void updateManualRecordingUi(int remainingSeconds) {
-        setCircleButtonState(0xFFFFD8E4, 0xFF633B48, true, "结束录音");
+        setCircleButtonState(0xFFFFFFFF, 0xFFFF453A, true, "结束录音");
         tvHint.setText("请让手表靠近声源\n录音时已暂停手表播放");
         tvStatus.setText("录音中 " + remainingSeconds + "s");
     }
 
     private void updateAutoRecordingUi() {
-        setCircleButtonState(0xFFFFD8E4, 0xFF633B48, true, "停止识别");
+        setCircleButtonState(0xFFFFFFFF, 0xFFFF453A, true, "停止识别");
         tvHint.setText("正在持续监听\n每三秒自动识别一次");
         tvStatus.setText("自动识别中，等待结果...");
     }
 
     private void updateProcessingUi() {
         setCircleButtonState(getResources().getColor(R.color.surface_variant),
-                0xFFCAC4D0, false, "识别中");
+                0xFFAEAEB2, false, "识别中");
         tvHint.setText("正在生成指纹并请求接口");
         tvStatus.setText("请稍候...");
     }

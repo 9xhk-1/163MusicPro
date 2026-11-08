@@ -3,6 +3,7 @@ package com.qinghe.music163pro.activity;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -34,6 +35,7 @@ public class EditMoreActivity extends BaseWatchActivity {
     private LinearLayout enabledContainer;
     private LinearLayout disabledContainer;
     private final List<String> enabledKeys = new ArrayList<>();
+    private final Handler dragHandler = new Handler(Looper.getMainLooper());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,7 +49,6 @@ public class EditMoreActivity extends BaseWatchActivity {
         itemLabels.put(MoreMenuPreferences.KEY_SEARCH, "搜索");
         itemLabels.put(MoreMenuPreferences.KEY_SONG_RECOGNITION, "听歌识曲");
         itemLabels.put(MoreMenuPreferences.KEY_DOWNLOADS, "下载列表");
-        itemLabels.put(MoreMenuPreferences.KEY_RINGTONES, "铃声管理");
         itemLabels.put(MoreMenuPreferences.KEY_TOPLIST, "排行榜");
         itemLabels.put(MoreMenuPreferences.KEY_HISTORY, "历史记录");
         itemLabels.put(MoreMenuPreferences.KEY_PROFILE, "个人中心");
@@ -232,7 +233,6 @@ public class EditMoreActivity extends BaseWatchActivity {
             boolean dragging = false;
             int fromIndex = -1;
             int currentTarget = -1;
-            final Handler handler = new Handler();
             Runnable longPressRunnable;
 
             @Override
@@ -253,12 +253,12 @@ public class EditMoreActivity extends BaseWatchActivity {
                             row.animate().scaleX(1.03f).scaleY(1.03f)
                                     .setDuration(80).start();
                         };
-                        handler.postDelayed(longPressRunnable, 350);
+                        dragHandler.postDelayed(longPressRunnable, 350);
                         return true;
                     case MotionEvent.ACTION_MOVE:
                         if (!dragging) {
                             if (Math.abs(e.getRawY() - downRawY) > touchSlop) {
-                                handler.removeCallbacks(longPressRunnable);
+                                dragHandler.removeCallbacks(longPressRunnable);
                             }
                             return true;
                         }
@@ -275,7 +275,7 @@ public class EditMoreActivity extends BaseWatchActivity {
                         return true;
                     case MotionEvent.ACTION_UP:
                     case MotionEvent.ACTION_CANCEL:
-                        handler.removeCallbacks(longPressRunnable);
+                        dragHandler.removeCallbacks(longPressRunnable);
                         if (dragging) {
                             dragging = false;
                             row.getParent().requestDisallowInterceptTouchEvent(false);
@@ -325,5 +325,17 @@ public class EditMoreActivity extends BaseWatchActivity {
         List<String> newOrder = new ArrayList<>(enabledKeys);
         newOrder.addAll(disabled);
         MoreMenuPreferences.setOrder(prefs, newOrder);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        dragHandler.removeCallbacksAndMessages(null);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        dragHandler.removeCallbacksAndMessages(null);
     }
 }

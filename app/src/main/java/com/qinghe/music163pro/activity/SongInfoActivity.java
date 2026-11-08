@@ -56,14 +56,15 @@ public class SongInfoActivity extends AppCompatActivity {
 
     private static final String TAG = "SongInfoActivity";
     private static final String PREFS_NAME = "music163_settings";
+    private static final int MAX_FEE_ENRICHMENT_ROUNDS = 5;
 
-    private static final int COLOR_BG = 0xFF141218;
-    private static final int COLOR_TEXT_PRIMARY = 0xFFE6E0E9;
-    private static final int COLOR_TEXT_SECONDARY = 0xFFCAC4D0;
-    private static final int COLOR_TEXT_DESC = 0xFFCAC4D0;
-    private static final int COLOR_ACCENT = 0xFFD0BCFF;
+    private static final int COLOR_BG = 0xFF000000;
+    private static final int COLOR_TEXT_PRIMARY = 0xFFFFFFFF;
+    private static final int COLOR_TEXT_SECONDARY = 0xFFAEAEB2;
+    private static final int COLOR_TEXT_DESC = 0xFFAEAEB2;
+    private static final int COLOR_ACCENT = 0xFFF2F2F7;
     private static final int COLOR_DIVIDER = 0x1FFFFFFF;
-    private static final int COLOR_CARD_BG = 0xFF2B2930;
+    private static final int COLOR_CARD_BG = 0x33FFFFFF;
 
     /** Card container for the section currently being filled. */
     private LinearLayout currentSectionCard;
@@ -792,7 +793,7 @@ public class SongInfoActivity extends AppCompatActivity {
             ivCover.setLayoutParams(coverLp);
             ivCover.setScaleType(ImageView.ScaleType.CENTER_CROP);
             GradientDrawable coverBg = new GradientDrawable();
-            coverBg.setColor(0xFF2B2930);
+            coverBg.setColor(0x33FFFFFF);
             coverBg.setCornerRadius(px(3));
             ivCover.setBackground(coverBg);
             if (!coverUrlRes.isEmpty()) {
@@ -1362,6 +1363,21 @@ public class SongInfoActivity extends AppCompatActivity {
     }
 
     private void requestFeeEnrichment() {
+        requestFeeEnrichment(0);
+    }
+
+    /**
+     * Bounded, de-duplicated enrichment. feeRequested ensures each song id is
+     * fetched at most once; the round cap and the lifecycle check make the
+     * self-re-scheduling terminate for sure.
+     */
+    private void requestFeeEnrichment(final int round) {
+        if (round >= MAX_FEE_ENRICHMENT_ROUNDS) {
+            return;
+        }
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
         refreshFeeBadges();
         List<Long> ids = new ArrayList<>();
         for (Song s : currentBlockSongs) {
@@ -1375,6 +1391,9 @@ public class SongInfoActivity extends AppCompatActivity {
         MusicApiHelper.fetchSongsDetails(ids, cookie, new MusicApiHelper.BatchSongDetailsCallback() {
             @Override
             public void onResult(java.util.Map<Long, Song> songMap) {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
                 if (songMap != null) {
                     for (Song done : songMap.values()) {
                         if (done.getFee() == 0) continue;
@@ -1384,11 +1403,14 @@ public class SongInfoActivity extends AppCompatActivity {
                     }
                 }
                 refreshFeeBadges();
-                requestFeeEnrichment();
+                requestFeeEnrichment(round + 1);
             }
 
             @Override
             public void onError(String message) {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
                 refreshFeeBadges();
             }
         });
@@ -1545,5 +1567,11 @@ public class SongInfoActivity extends AppCompatActivity {
 
     private int px(int baseValue) {
         return (int) (baseValue * getResources().getDisplayMetrics().density + 0.5f);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        feeBadges.clear();
     }
 }

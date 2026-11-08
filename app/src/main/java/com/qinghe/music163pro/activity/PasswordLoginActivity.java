@@ -26,6 +26,12 @@ public class PasswordLoginActivity extends AppCompatActivity {
     private TextView tvStatus;
 
     private final Handler handler = new Handler();
+    private final Runnable finishRunnable = new Runnable() {
+        @Override
+        public void run() {
+            finish();
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,7 +76,7 @@ public class PasswordLoginActivity extends AppCompatActivity {
                             saveCookie(cookie);
                             Toast.makeText(PasswordLoginActivity.this,
                                     "登录成功，Cookie已保存", Toast.LENGTH_LONG).show();
-                            handler.postDelayed(() -> finish(), 1500);
+                            handler.postDelayed(finishRunnable, 1500);
                         } else {
                             tvStatus.setText("登录失败: " + message);
                             btnLogin.setEnabled(true);
@@ -90,5 +96,12 @@ public class PasswordLoginActivity extends AppCompatActivity {
         SharedPreferences prefs = getSharedPreferences("music163_settings", MODE_PRIVATE);
         prefs.edit().putString("cookie", cookie).apply();
         MusicPlayerManager.getInstance().setCookie(cookie);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        handler.removeCallbacks(finishRunnable);
+        handler.removeCallbacksAndMessages(null);
     }
 }

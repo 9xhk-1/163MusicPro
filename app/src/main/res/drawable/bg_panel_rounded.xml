@@ -1,7 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Rounded panel surface for in-app overlay sheets (player info etc.). -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="@color/surface_elevated" />
-    <corners android:radius="16dp" />
-</shape>
+<!-- 毛玻璃浮层：半透明底 + 发丝描边 + 顶部一道高光渐变。
+     Android 10 无系统 blur API，靠这三层在纯 XML 里模拟磨砂玻璃，零内存开销。 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/glass_fill" />
+            <stroke android:width="0.5dp" android:color="@color/glass_stroke" />
+            <corners android:radius="16dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#1AFFFFFF"
+                android:endColor="#00000000"
+                android:angle="270"
+                android:type="linear" />
+            <corners android:radius="16dp" />
+        </shape>
+    </item>
+</layer-list>

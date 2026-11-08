@@ -41,7 +41,6 @@ public class MoreActivity extends AppCompatActivity {
     private View btnSearch;
     private View btnSongRecognition;
     private View btnDownloads;
-    private View btnRingtones;
     private View btnTopList;
     private View btnHistory;
     private View btnLogin;
@@ -68,7 +67,6 @@ public class MoreActivity extends AppCompatActivity {
         btnSearch = findViewById(R.id.btn_menu_search);
         btnSongRecognition = findViewById(R.id.btn_menu_song_recognition);
         btnDownloads = findViewById(R.id.btn_menu_downloads);
-        btnRingtones = findViewById(R.id.btn_menu_ringtones);
         btnTopList = findViewById(R.id.btn_menu_toplist);
         btnHistory = findViewById(R.id.btn_menu_history);
         btnProfile = findViewById(R.id.btn_menu_profile);
@@ -98,9 +96,6 @@ public class MoreActivity extends AppCompatActivity {
 
         btnDownloads.setOnClickListener(v ->
                 startActivity(new Intent(this, DownloadListActivity.class)));
-
-        btnRingtones.setOnClickListener(v ->
-                startActivity(new Intent(this, RingtoneListActivity.class)));
 
         btnTopList.setOnClickListener(v ->
                 startActivity(new Intent(this, TopListActivity.class)));
@@ -171,7 +166,6 @@ public class MoreActivity extends AppCompatActivity {
         applyVisibility(btnSearch, MoreMenuPreferences.KEY_SEARCH, false);
         applyVisibility(btnSongRecognition, MoreMenuPreferences.KEY_SONG_RECOGNITION, false);
         applyVisibility(btnDownloads, MoreMenuPreferences.KEY_DOWNLOADS, false);
-        applyVisibility(btnRingtones, MoreMenuPreferences.KEY_RINGTONES, false);
         applyVisibility(btnTopList, MoreMenuPreferences.KEY_TOPLIST, false);
         applyVisibility(btnHistory, MoreMenuPreferences.KEY_HISTORY, false);
         applyVisibility(btnProfile, MoreMenuPreferences.KEY_PROFILE, true);
@@ -194,7 +188,6 @@ public class MoreActivity extends AppCompatActivity {
         viewByKey.put(MoreMenuPreferences.KEY_SEARCH, btnSearch);
         viewByKey.put(MoreMenuPreferences.KEY_SONG_RECOGNITION, btnSongRecognition);
         viewByKey.put(MoreMenuPreferences.KEY_DOWNLOADS, btnDownloads);
-        viewByKey.put(MoreMenuPreferences.KEY_RINGTONES, btnRingtones);
         viewByKey.put(MoreMenuPreferences.KEY_TOPLIST, btnTopList);
         viewByKey.put(MoreMenuPreferences.KEY_HISTORY, btnHistory);
         viewByKey.put(MoreMenuPreferences.KEY_PROFILE, btnProfile);

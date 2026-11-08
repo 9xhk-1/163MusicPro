@@ -38,6 +38,13 @@ public class SmsLoginActivity extends AppCompatActivity {
 
     private final Handler handler = new Handler();
     private int countdown = 0;
+    private boolean pageResumed = false;
+    private final Runnable finishRunnable = new Runnable() {
+        @Override
+        public void run() {
+            finish();
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,7 +93,15 @@ public class SmsLoginActivity extends AppCompatActivity {
     private void startCountdown() {
         countdown = 60;
         updateCountdownText();
-        handler.postDelayed(countdownRunnable, 1000);
+        scheduleNextTick();
+    }
+
+    /** Re-arm the countdown only while the page is visible; keep remaining seconds. */
+    private void scheduleNextTick() {
+        handler.removeCallbacks(countdownRunnable);
+        if (pageResumed && countdown > 0) {
+            handler.postDelayed(countdownRunnable, 1000);
+        }
     }
 
     private final Runnable countdownRunnable = new Runnable() {
@@ -95,7 +110,7 @@ public class SmsLoginActivity extends AppCompatActivity {
             countdown--;
             if (countdown > 0) {
                 updateCountdownText();
-                handler.postDelayed(this, 1000);
+                scheduleNextTick();
             } else {
                 btnSendCode.setText(R.string.send_code);
                 btnSendCode.setEnabled(true);
@@ -133,7 +148,7 @@ public class SmsLoginActivity extends AppCompatActivity {
                             String tip = "成功登录：" + (nickname.isEmpty() ? "未知用户" : nickname);
                             tvStatus.setText(tip);
                             Toast.makeText(SmsLoginActivity.this, tip, Toast.LENGTH_LONG).show();
-                            handler.postDelayed(() -> finish(), 1500);
+                            handler.postDelayed(finishRunnable, 1500);
                         } else {
                             tvStatus.setText("登录失败: " + message);
                             btnLogin.setEnabled(true);
@@ -161,8 +176,31 @@ public class SmsLoginActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        pageResumed = true;
+        if (countdown > 0) {
+            scheduleNextTick();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        pageResumed = false;
+        handler.removeCallbacks(countdownRunnable);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        handler.removeCallbacks(countdownRunnable);
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         handler.removeCallbacks(countdownRunnable);
+        handler.removeCallbacksAndMessages(null);
     }
 }

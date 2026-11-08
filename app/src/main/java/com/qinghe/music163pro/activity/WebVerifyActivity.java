@@ -58,7 +58,7 @@ public class WebVerifyActivity extends BaseWatchActivity {
         // Header hint
         TextView hint = new TextView(this);
         hint.setText("请完成安全验证后自动继续登录");
-        hint.setTextColor(0xFFCAC4D0);
+        hint.setTextColor(0xFFAEAEB2);
         hint.setTextSize(12);
         hint.setPadding(12, 8, 12, 8);
         hint.setGravity(android.view.Gravity.CENTER);

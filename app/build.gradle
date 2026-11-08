@@ -11,8 +11,9 @@ android {
         applicationId "com.qinghe.music163pro"
         minSdk 23
         targetSdk 27 
-        versionCode 44
-        versionName "20261030"
+        // 基于官方 build44，版本递增以保证自签包可直接覆盖安装
+        versionCode 56
+        versionName "20261108"
     }
 
     signingConfigs {

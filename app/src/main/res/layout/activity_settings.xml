@@ -64,5 +64,11 @@
             style="@style/Widget.App.MenuItem"
             android:text="自定义背景"
             app:icon="@drawable/ic_image" />
+        <!-- 后台保活：跳到电池优化白名单 / 应用详情，缓解儿童手表退后台被杀 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_settings_battery"
+            style="@style/Widget.App.MenuItem"
+            android:text="后台保活"
+            app:icon="@drawable/ic_phone_android" />
     </LinearLayout>
 </ScrollView>

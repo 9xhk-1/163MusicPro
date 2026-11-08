@@ -8,4 +8,11 @@
     <dimen name="m3_alert_dialog_title_bottom_margin">4dp</dimen>
     <dimen name="m3_alert_dialog_action_top_padding">8dp</dimen>
     <dimen name="m3_alert_dialog_action_bottom_padding">8dp</dimen>
+
+    <!-- Material Slider 的默认 48dp 里有 ~40dp 是上下空白触控 padding。
+         在 160x180dp 手表上这层空白会把播放控件顶上来，拖动进度条时手指
+         落在按钮上造成误触。覆盖成 32dp（仍 > 2*thumbRadius=12dp 与 4dp 轨道），
+         把省下的垂直空间让给「进度条 → 播放控件」之间的隔离带。
+         控件行不再需要负 margin 去叠进 Slider 的下半部分。 -->
+    <dimen name="mtrl_slider_widget_height">32dp</dimen>
 </resources>

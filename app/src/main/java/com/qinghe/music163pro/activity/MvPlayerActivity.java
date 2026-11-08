@@ -1,5 +1,6 @@
 package com.qinghe.music163pro.activity;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
@@ -11,6 +12,7 @@ import androidx.media3.ui.PlayerView;
 
 import com.qinghe.music163pro.R;
 import com.qinghe.music163pro.api.MusicApiHelper;
+import com.qinghe.music163pro.player.AppVolumeManager;
 import com.qinghe.music163pro.player.MusicPlayerManager;
 import com.qinghe.music163pro.util.MusicLog;
 
@@ -38,6 +40,9 @@ public class MvPlayerActivity extends BaseWatchActivity {
     private boolean wasMusicPlaying;
 
     @Override
+    // 返回键 / 标题位于 PlayerView 的 controller 布局（app:controller_layout_id），
+    // lint 不解析该属性而误报 id 缺失；实际 findViewById 能取到，且上面已做空值保护。
+    @SuppressLint("MissingInflatedId")
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_mv_player);
@@ -63,9 +68,15 @@ public class MvPlayerActivity extends BaseWatchActivity {
         tvLoading = findViewById(R.id.tv_mv_player_loading);
 
         playerView.setKeepScreenOn(true);
-        btnBack.setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
-        tvTitle.setText(mvName != null && !mvName.isEmpty() ? mvName : "MV播放");
-        tvTitle.setSelected(true);
+        // 返回键 / 标题在 PlayerView 的 controller 布局里 inflate（app:controller_layout_id），
+        // 某些 ROM 上 PlayerView 会延后加载控制器，这里做空值保护避免 NPE。
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
+        }
+        if (tvTitle != null) {
+            tvTitle.setText(mvName != null && !mvName.isEmpty() ? mvName : "MV播放");
+            tvTitle.setSelected(true);
+        }
 
         if (mvId <= 0) {
             Toast.makeText(this, "MV地址无效", Toast.LENGTH_SHORT).show();
@@ -106,6 +117,7 @@ public class MvPlayerActivity extends BaseWatchActivity {
         playbackUrl = url;
         releasePlayer();
         player = new ExoPlayer.Builder(this).build();
+        player.setVolume(AppVolumeManager.gainOf());
         playerView.setPlayer(player);
         player.setMediaItem(MediaItem.fromUri(url));
         player.prepare();
@@ -126,6 +138,9 @@ public class MvPlayerActivity extends BaseWatchActivity {
     protected void onStart() {
         super.onStart();
         activityStarted = true;
+        if (playerView != null) {
+            playerView.setKeepScreenOn(true);
+        }
         if (player == null && playbackUrl != null && !playbackUrl.isEmpty()) {
             startPlayback(playbackUrl);
         }
@@ -136,6 +151,9 @@ public class MvPlayerActivity extends BaseWatchActivity {
         activityStarted = false;
         super.onStop();
         releasePlayer();
+        if (playerView != null) {
+            playerView.setKeepScreenOn(false);
+        }
     }
 
     private void releasePlayer() {
@@ -153,6 +171,9 @@ public class MvPlayerActivity extends BaseWatchActivity {
         if (wasMusicPlaying) {
             MusicPlayerManager.getInstance().resume();
             wasMusicPlaying = false;
+        }
+        if (playerView != null) {
+            playerView.setKeepScreenOn(false);
         }
         super.onDestroy();
     }

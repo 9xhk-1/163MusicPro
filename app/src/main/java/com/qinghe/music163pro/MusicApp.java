@@ -31,6 +31,14 @@ public class MusicApp extends Application {
             MusicLog.i(TAG, "已生成并永久保存 watch deviceId");
         }
         NeteaseWatchApi.setDeviceId(id);
+
+        // 应用内精细音量（40 级 / -48dB ~ 0dB），需在播放前初始化
+        com.qinghe.music163pro.player.AppVolumeManager.init(this);
+
+        // 播放历史后台预热：冷启动时先把快照读进内存，
+        // 之后切歌写历史、打开历史页都不再碰主线程磁盘 IO
+        com.qinghe.music163pro.manager.HistoryManager.getInstance().warmUp();
+
         // 应用内返回手势 (in_app_back_gesture, 默认关) — 生命周期回调
         // 自动挂到除 MainActivity 外的每个 Activity
         com.qinghe.music163pro.util.BackGesture.install(this);

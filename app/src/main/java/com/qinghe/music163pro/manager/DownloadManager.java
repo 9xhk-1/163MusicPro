@@ -6,7 +6,6 @@ import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.qinghe.music163pro.api.BilibiliApiHelper;
 import com.qinghe.music163pro.api.MusicApiHelper;
 import com.qinghe.music163pro.model.Song;
 
@@ -21,6 +20,7 @@ import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,32 +73,13 @@ public class DownloadManager {
 
     /**
      * Download a song with the specified audio quality level.
-     * Quality: standard / higher / exhigh / lossless / hires / jyeffect / sky / jymaster
+     * Quality: standard / higher / exhigh / lossless / hires / jyeffect / sky / dolby / jymaster
      * Falls back to best free quality if requested level is unavailable.
      */
     public static void downloadSong(Song song, String cookie, String quality,
                                     DownloadCallback callback) {
         executor.execute(() -> {
             try {
-                if (song.isBilibili()) {
-                    if (isDownloaded(song)) {
-                        mainHandler.post(() -> callback.onError("歌曲已下载"));
-                        return;
-                    }
-                    BilibiliApiHelper.getAudioStreamUrl(song.getBvid(), song.getCid(), cookie,
-                            new BilibiliApiHelper.AudioStreamCallback() {
-                                @Override
-                                public void onResult(String url) {
-                                    executor.execute(() -> doDownload(song, url, null, true, callback));
-                                }
-
-                                @Override
-                                public void onError(String message) {
-                                    mainHandler.post(() -> callback.onError("获取下载链接失败: " + message));
-                                }
-                            });
-                    return;
-                }
                 if (hasDownloadedQuality(song, quality)) {
                     mainHandler.post(() -> callback.onError("该音质已下载"));
                     return;
@@ -107,7 +88,7 @@ public class DownloadManager {
                         new MusicApiHelper.UrlCallback() {
                             @Override
                             public void onResult(String url) {
-                                executor.execute(() -> doDownload(song, url, quality, false, callback));
+                                executor.execute(() -> doDownload(song, url, quality, callback));
                             }
 
                             @Override
@@ -129,26 +110,11 @@ public class DownloadManager {
                                           File outputFile, DownloadCallback callback) {
         executor.execute(() -> {
             try {
-                if (song.isBilibili()) {
-                    BilibiliApiHelper.getAudioStreamUrl(song.getBvid(), song.getCid(), cookie,
-                            new BilibiliApiHelper.AudioStreamCallback() {
-                                @Override
-                                public void onResult(String url) {
-                                    executor.execute(() -> doDownloadToFile(url, true, outputFile, callback));
-                                }
-
-                                @Override
-                                public void onError(String message) {
-                                    mainHandler.post(() -> callback.onError("获取链接失败: " + message));
-                                }
-                            });
-                    return;
-                }
                 MusicApiHelper.getSongUrlWithQuality(song.getId(), cookie, quality,
                         new MusicApiHelper.UrlCallback() {
                             @Override
                             public void onResult(String url) {
-                                executor.execute(() -> doDownloadToFile(url, false, outputFile, callback));
+                                executor.execute(() -> doDownload(song, url, quality, callback));
                             }
 
                             @Override
@@ -162,48 +128,7 @@ public class DownloadManager {
         });
     }
 
-    private static void doDownloadToFile(String urlStr, boolean bilibili,
-                                         File outputFile, DownloadCallback callback) {
-        try {
-            File parent = outputFile.getParentFile();
-            if (parent != null && !parent.exists()) {
-                parent.mkdirs();
-            }
-
-            URL url = new URL(urlStr);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(15000);
-            conn.setReadTimeout(30000);
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0");
-            if (bilibili) {
-                conn.setRequestProperty("Referer", "https://www.bilibili.com");
-            }
-
-            try {
-                InputStream is = conn.getInputStream();
-                FileOutputStream fos = new FileOutputStream(outputFile);
-                byte[] buffer = new byte[8192];
-                int len;
-                while ((len = is.read(buffer)) != -1) {
-                    fos.write(buffer, 0, len);
-                }
-                fos.flush();
-                fos.close();
-                is.close();
-
-                String filePath = outputFile.getAbsolutePath();
-                mainHandler.post(() -> callback.onSuccess(filePath));
-            } finally {
-                conn.disconnect();
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "Download to file error", e);
-            mainHandler.post(() -> callback.onError("下载失败: " + e.getMessage()));
-        }
-    }
-
-    private static void doDownload(Song song, String urlStr, String quality, boolean bilibili,
-                                   DownloadCallback callback) {
+    private static void doDownload(Song song, String urlStr, String quality, DownloadCallback callback) {
         try {
             File songDir = getSongDir(song);
             if (!songDir.exists()) {
@@ -213,12 +138,12 @@ public class DownloadManager {
                 }
             }
 
-            File outputParent = bilibili ? songDir : getQualityDir(songDir, quality);
+            File outputParent = getQualityDir(songDir, quality);
             if (!outputParent.exists() && !outputParent.mkdirs()) {
                 mainHandler.post(() -> callback.onError("无法创建音质目录"));
                 return;
             }
-            if (!bilibili && findAudioFileInDir(outputParent) != null) {
+            if (findAudioFileInDir(outputParent) != null) {
                 mainHandler.post(() -> callback.onError("该音质已下载"));
                 return;
             }
@@ -231,9 +156,6 @@ public class DownloadManager {
             conn.setConnectTimeout(15000);
             conn.setReadTimeout(30000);
             conn.setRequestProperty("User-Agent", "Mozilla/5.0");
-            if (bilibili) {
-                conn.setRequestProperty("Referer", "https://www.bilibili.com");
-            }
 
             try {
                 InputStream is = conn.getInputStream();
@@ -248,10 +170,8 @@ public class DownloadManager {
                 is.close();
 
                 saveSongInfo(songDir, song);
-                if (!bilibili) {
-                    downloadLyrics(songDir, song);
-                    downloadCover(songDir, song);
-                }
+                downloadLyrics(songDir, song);
+                downloadCover(songDir, song);
 
                 long now = System.currentTimeMillis();
                 outputFile.setLastModified(now);
@@ -279,9 +199,6 @@ public class DownloadManager {
             obj.put("name", song.getName());
             obj.put("artist", song.getArtist());
             obj.put("album", song.getAlbum());
-            obj.put("source", song.getSource());
-            obj.put("bvid", song.getBvid());
-            obj.put("cid", song.getCid());
             if (song.getAlias() != null && !song.getAlias().isEmpty()) {
                 obj.put("alias", song.getAlias());
             }
@@ -409,7 +326,7 @@ public class DownloadManager {
         }
         // Prefer the highest quality first; if multiple files share a level,
         // keep the newest one first so recent re-downloads win ties.
-        tracks.sort((left, right) -> {
+        Collections.sort(tracks, (left, right) -> {
             int rankCompare = Integer.compare(
                     MusicApiHelper.qualityLevelRank(right.quality),
                     MusicApiHelper.qualityLevelRank(left.quality));
@@ -508,9 +425,6 @@ public class DownloadManager {
                     obj.optString("artist", ""),
                     obj.optString("album", "")
             );
-            song.setSource(obj.optString("source", null));
-            song.setBvid(obj.optString("bvid", ""));
-            song.setCid(obj.optLong("cid", 0));
             song.setAlias(obj.optString("alias", ""));
             // Load cover URL: prefer local cover.jpg, then info.json stored URL
             File localCover = new File(songDir, COVER_FILE);
@@ -545,20 +459,6 @@ public class DownloadManager {
      */
     private static File getSongDir(Song song) {
         File dir = new File(Environment.getExternalStorageDirectory(), DOWNLOAD_DIR);
-        if (song.isBilibili()) {
-            String safeVideoTitle = sanitizeFileName(
-                    !TextUtils.isEmpty(song.getAlbum()) ? song.getAlbum() : song.getName());
-            String safePartTitle = sanitizeFileName(
-                    !TextUtils.isEmpty(song.getName()) ? song.getName() : song.getAlbum());
-            String folderName = safeVideoTitle;
-            if (!safePartTitle.isEmpty() && !safePartTitle.equals(safeVideoTitle)) {
-                folderName = safeVideoTitle + "_" + safePartTitle;
-            }
-            if (folderName.isEmpty()) {
-                folderName = "bilibili_audio_" + song.getCid();
-            }
-            return new File(dir, folderName);
-        }
         String safeName = song.getName().replaceAll("[\\\\/:*?\"<>|]", "_");
         String safeArtist = song.getArtist().replaceAll("[\\\\/:*?\"<>|]", "_");
         String folderName = safeName + " - " + safeArtist;
@@ -609,7 +509,7 @@ public class DownloadManager {
         for (File songDir : dirs) {
             modifiedTimes.put(songDir, getDownloadEntryModifiedTime(songDir));
         }
-        dirs.sort((left, right) -> Long.compare(
+        Collections.sort(dirs, (left, right) -> Long.compare(
                 modifiedTimes.get(right),
                 modifiedTimes.get(left)));
         return dirs;
@@ -632,7 +532,7 @@ public class DownloadManager {
                 }
             }
         }
-        files.sort((left, right) -> Long.compare(right.lastModified(), left.lastModified()));
+        Collections.sort(files, (left, right) -> Long.compare(right.lastModified(), left.lastModified()));
         return files;
     }
 

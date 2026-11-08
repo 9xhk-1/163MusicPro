@@ -37,6 +37,9 @@
         android:contentDescription="打开菜单"
         app:icon="@drawable/ic_more_vert" />
 
+    <!-- 播放模式按钮已移到下方功能排：顶部只留一个 48dp 的「更多」，
+         否则 160dp 宽的屏幕上两个按钮会把歌名挤出可视区域。 -->
+
     <!-- Center content -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -45,15 +48,14 @@
         android:gravity="center_horizontal"
         android:orientation="vertical">
 
-        <!-- Song name with marquee + VIP badge. Symmetric 48dp margins keep the
-             text centered on the screen midline and confine the marquee between
-             the top-left playlist button and the top-right more button. -->
+        <!-- 歌名 + VIP 徽章：46dp 边距只为顶部两个 48dp 按钮让位。
+             在 160dp 宽屏幕上仍留出 ~68dp 文字区，跑马灯不会被挤没。 -->
         <LinearLayout
             android:id="@+id/player_title_row"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="48dp"
-            android:layout_marginEnd="48dp"
+            android:layout_marginStart="46dp"
+            android:layout_marginEnd="46dp"
             android:gravity="center"
             android:orientation="horizontal">
 
@@ -75,8 +77,9 @@
 
             <TextView
                 android:id="@+id/tv_song_name"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:ellipsize="marquee"
                 android:focusable="true"
                 android:focusableInTouchMode="true"
@@ -94,8 +97,8 @@
             android:id="@+id/tv_artist"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="48dp"
-            android:layout_marginEnd="48dp"
+            android:layout_marginStart="46dp"
+            android:layout_marginEnd="46dp"
             android:layout_marginTop="2dp"
             android:ellipsize="marquee"
             android:gravity="center"
@@ -132,6 +135,7 @@
                 android:valueTo="1000"
                 app:labelBehavior="gone"
                 app:tickVisible="false"
+                app:haloRadius="14dp"
                 app:thumbColor="@color/colorPrimary"
                 app:thumbRadius="6dp"
                 app:trackColorActive="@color/colorPrimary"
@@ -147,13 +151,14 @@
                 android:textSize="9sp" />
         </LinearLayout>
 
-        <!-- Playback controls row. The Slider forces a 48dp intrinsic height
-             regardless of layout constraints; its lower half is empty touch
-             padding, so pull this row up over it with a negative margin. -->
+        <!-- 播放控件行：Slider 已压到 32dp（见 values/dimens.xml），
+             不再用 -20dp 负 margin 把按钮叠进进度条的空白触控区。
+             留 4dp 正间距，让「拖进度条」和「点上一首/播放/下一首」彻底分开，
+             同时把这一排和下面四个功能键整体下移；留 3dp 余量防止字号被系统放大后溢出。 -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="-20dp"
+            android:layout_marginTop="4dp"
             android:gravity="center"
             android:orientation="horizontal">
 
@@ -194,33 +199,51 @@
                 app:icon="@drawable/ic_skip_next" />
         </LinearLayout>
 
-        <!-- Volume / function controls row -->
+        <!-- 功能排：音量- / 播放顺序 / 歌曲功能 / 音量+，四等分整行宽度。
+             播放顺序按钮从这里进主界面，不再挤占顶部标题区域。 -->
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp"
             android:gravity="center"
             android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_vol_down"
                 style="@style/Widget.App.PlayerIcon"
-                android:layout_width="48dp"
+                android:layout_width="0dp"
                 android:layout_height="48dp"
-                android:insetLeft="6dp"
-                android:insetRight="6dp"
+                android:layout_weight="1"
+                android:insetLeft="2dp"
+                android:insetRight="2dp"
                 android:insetTop="6dp"
                 android:insetBottom="6dp"
                 android:contentDescription="降低音量"
                 app:icon="@drawable/ic_volume_down" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_play_mode"
+                style="@style/Widget.App.PlayerIcon"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:insetLeft="2dp"
+                android:insetRight="2dp"
+                android:insetTop="6dp"
+                android:insetBottom="6dp"
+                android:contentDescription="列表循环"
+                app:icon="@drawable/ic_repeat" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_favorite"
                 style="@style/Widget.App.PlayerIcon"
-                android:layout_width="48dp"
+                android:layout_width="0dp"
                 android:layout_height="48dp"
-                android:insetLeft="6dp"
-                android:insetRight="6dp"
+                android:layout_weight="1"
+                android:insetLeft="2dp"
+                android:insetRight="2dp"
                 android:insetTop="6dp"
                 android:insetBottom="6dp"
                 android:contentDescription="歌曲功能"
@@ -229,10 +252,11 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_vol_up"
                 style="@style/Widget.App.PlayerIcon"
-                android:layout_width="48dp"
+                android:layout_width="0dp"
                 android:layout_height="48dp"
-                android:insetLeft="6dp"
-                android:insetRight="6dp"
+                android:layout_weight="1"
+                android:insetLeft="2dp"
+                android:insetRight="2dp"
                 android:insetTop="6dp"
                 android:insetBottom="6dp"
                 android:contentDescription="提高音量"

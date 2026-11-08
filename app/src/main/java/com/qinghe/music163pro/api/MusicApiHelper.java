@@ -24,6 +24,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -79,8 +80,21 @@ public class MusicApiHelper {
     private static final int CONNECT_TIMEOUT_MS = 15000;
     private static final int READ_TIMEOUT_MS = 15000;
 
-    private static final ExecutorService executor = Executors.newCachedThreadPool();
+    /**
+     * v54：原来是 newCachedThreadPool()，连点切歌会瞬间开出十几条线程，
+     * 4 核 / 0.78GB 的手表上直接抢 CPU 还容易 OOM。改成固定 3 条工作线程 +
+     * 有界队列，任务排队而不是无限建线程；取链接另有单飞去重，避免重复请求。
+     */
+    private static final ExecutorService executor = Executors.newFixedThreadPool(3, r -> {
+        Thread t = new Thread(r, "music163-api");
+        t.setPriority(Thread.MIN_PRIORITY + 1);  // 网络任务不跟主线程 / 解码抢 CPU
+        return t;
+    });
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    /** 同一首歌同一音质同一登录态的取链请求合并成一次，所有等待者共享结果。 */
+    private static final Object URL_FLIGHT_LOCK = new Object();
+    private static final Map<String, List<SongUrlInfoCallback>> URL_IN_FLIGHT = new HashMap<>();
 
     public interface SearchCallback {
         void onResult(List<Song> songs);
@@ -200,7 +214,8 @@ public class MusicApiHelper {
      * The index of a level in this array is its "rank" for comparison.
      */
     public static final String[] QUALITY_LEVELS_ORDERED =
-            {"none", "standard", "higher", "exhigh", "lossless", "hires", "jyeffect", "sky", "jymaster"};
+            {"none", "standard", "higher", "exhigh", "lossless", "hires",
+                    "jyeffect", "sky", "dolby", "jymaster"};
 
     /** Returns the rank index of a quality level string, or 0 for null/"none", -1 for unknown. */
     public static int qualityLevelRank(String level) {
@@ -220,17 +235,53 @@ public class MusicApiHelper {
      *   <li>{@code maxBrLevel} – highest quality the song itself has been encoded at</li>
      * </ul>
      */
+    /**
+     * 档位所需的会员等级 —— 严格按官方「当前歌曲音质」面板的划分：
+     * <pre>
+     *  0 免费    标准 / 较高
+     *  1 黑胶VIP 极高 HQ(exhigh) / 无损 SQ(lossless) / Hi-Res(hires) / 高清臻音(jyeffect)
+     *  2 黑胶SVIP 沉浸环绕声(sky) / 臻音全景声(dolby) / 超清母带(jymaster)
+     * </pre>
+     * 注意「极高 HQ」在官方面板上是 VIP 档，不是免费档；「高清臻音」是 VIP 档，
+     * 不是 SVIP。用 rank 边界划分而不是逐个 switch，新增档位不会漏判。
+     * 这里只描述「需要什么会员」，当前账号到底解没解锁由 plLevel / dlLevel 判定。
+     */
+    public static int requiredMembership(String level) {
+        int rank = qualityLevelRank(level);
+        if (rank < 0) return 0;
+        if (rank >= qualityLevelRank("sky")) return 2;      // SVIP 专属三档
+        if (rank >= qualityLevelRank("exhigh")) return 1;   // VIP 四档
+        return 0;                                           // 标准 / 较高
+    }
+
     public static class SongQualityInfo {
         public final String flLevel;    // free listening max level
-        public final String plLevel;    // paid/vip listening max level
-        public final String dlLevel;    // download max level
+        public final String plLevel;    // 当前账号可播最高档（VIP 与 SVIP 返回值不同）
+        public final String dlLevel;    // 当前账号可下最高档
         public final String maxBrLevel; // song's own max quality
+        /** privileges 是否真的返回了 plLevel；老接口不返回时不能用它禁用档位，避免误伤。 */
+        public final boolean plLevelReliable;
+        /** privileges 是否真的返回了 dlLevel；缺字段时退回「不禁用」，避免误伤。 */
+        public final boolean dlLevelReliable;
 
         public SongQualityInfo(String flLevel, String plLevel, String dlLevel, String maxBrLevel) {
+            this(flLevel, plLevel, dlLevel, maxBrLevel, false, false);
+        }
+
+        public SongQualityInfo(String flLevel, String plLevel, String dlLevel,
+                               String maxBrLevel, boolean plLevelReliable) {
+            this(flLevel, plLevel, dlLevel, maxBrLevel, plLevelReliable, false);
+        }
+
+        public SongQualityInfo(String flLevel, String plLevel, String dlLevel,
+                               String maxBrLevel, boolean plLevelReliable,
+                               boolean dlLevelReliable) {
             this.flLevel = flLevel    != null ? flLevel    : "standard";
             this.plLevel = plLevel    != null ? plLevel    : "exhigh";
             this.dlLevel = dlLevel    != null ? dlLevel    : "none";
             this.maxBrLevel = maxBrLevel != null ? maxBrLevel : "exhigh";
+            this.plLevelReliable = plLevelReliable;
+            this.dlLevelReliable = dlLevelReliable;
         }
 
         /** Whether a given quality level is available at all for this song. */
@@ -239,20 +290,81 @@ public class MusicApiHelper {
         }
 
         /**
-         * Returns the "tier" required for a level:
-         *  "free" = playable without VIP, "vip" = needs VIP/login, "unavailable" = song doesn't have it.
+         * 播放档位判定：静态会员档位（官方 VIP / SVIP 划分）+ 当前账号动态解锁。
+         *  "free"          = 免费档（标准 / 较高）
+         *  "vip"           = VIP 档，当前账号已解锁
+         *  "svip"          = SVIP 档，当前账号已解锁
+         *  "locked"        = VIP 档，当前账号等级不够
+         *  "locked_svip"   = SVIP 档，当前账号等级不够（VIP 账号最常见）
+         *  "unavailable"   = 歌曲本身没有压到这一档
+         *
+         * plLevel 是 /api/v3/song/detail 按当前登录态算出的最高可播档，
+         * 所以「VIP 账号能不能点超清母带」不再靠写死规则猜，而是接口说了算。
+         * flLevel 高于该档时（免费也能听）同样视为已解锁，但徽标仍按官方 VIP/SVIP 显示。
          */
         public String getTier(String level) {
             int rank = qualityLevelRank(level);
-            if (rank < 0) return "unavailable";
-            if (rank > qualityLevelRank(maxBrLevel)) return "unavailable";
-            if (rank <= qualityLevelRank(flLevel)) return "free";
-            return "vip";
+            if (rank < 0 || rank > qualityLevelRank(maxBrLevel)) return "unavailable";
+            int need = requiredMembership(level);
+            if (need == 0) return "free";
+            boolean freeForEveryone = rank <= qualityLevelRank(flLevel);
+            if (!freeForEveryone && plLevelReliable && rank > qualityLevelRank(plLevel)) {
+                return need == 2 ? "locked_svip" : "locked";
+            }
+            return need == 2 ? "svip" : "vip";
+        }
+
+        /**
+         * 下载场景比播放更严：播放看 plLevel，下载看 dlLevel。
+         * 返回值与 {@link #getTier(String)} 同一套词汇；dlLevel="none"（无下载权限）
+         * 时所有档位都要置灰，不能像旧实现那样因为 dlRank==0 就全放开。
+         */
+        public String getDownloadTier(String level) {
+            int rank = qualityLevelRank(level);
+            if (rank < 0 || rank > qualityLevelRank(maxBrLevel)) return "unavailable";
+            int need = requiredMembership(level);
+            int dlRank = qualityLevelRank(dlLevel);
+            if (dlLevelReliable) {
+                // dlLevel 是明确的最高可下档：超出就锁。
+                // dlLevel="none"（无下载权益）时不能像旧实现那样全放开，
+                // 但免费歌曲（flLevel 已覆盖）仍保留标准/较高两档，避免误伤。
+                boolean blocked = dlRank > 0
+                        ? rank > dlRank
+                        : (need > 0 && rank > qualityLevelRank(flLevel));
+                if (blocked) return need == 2 ? "locked_svip" : "locked";
+            }
+            if (need == 0 || rank <= qualityLevelRank(flLevel)) return "free";
+            return need == 2 ? "svip" : "vip";
+        }
+
+        public boolean isDownloadable(String level) {
+            String tier = getDownloadTier(level);
+            return "free".equals(tier) || "vip".equals(tier) || "svip".equals(tier);
+        }
+
+        /**
+         * 当前账号等级（供 UI 显示「当前账号：未开通 / VIP / SVIP」）。
+         * 注意别用 requiredMembership(plLevel)：官方面板把「极高 HQ」也标成 VIP 档，
+         * 但免费账号的 plLevel 常常就是 exhigh，用它判会把普通账号显示成 VIP。
+         * 真正区分会员的是 plLevel 是否到 lossless（无损，VIP 起）/ sky（SVIP 起）。
+         */
+        public int accountTier() {
+            if (!plLevelReliable) return 0;
+            int rank = qualityLevelRank(plLevel);
+            if (rank >= qualityLevelRank("sky")) return 2;       // SVIP
+            if (rank >= qualityLevelRank("lossless")) return 1;  // VIP
+            return 0;                                            // 未开通
         }
     }
 
     public interface SongQualityCallback {
         void onResult(SongQualityInfo info);
+        void onError(String message);
+    }
+
+    /** 批量音质权限回调：key = songId。 */
+    public interface SongsQualityCallback {
+        void onResult(Map<Long, SongQualityInfo> infoBySongId);
         void onError(String message);
     }
 
@@ -693,8 +805,8 @@ public class MusicApiHelper {
     // ==================== Song URL ====================
 
     /**
-     * Quality levels supported by NetEase API, in descending order of preference for free fallback.
-     * Levels above "exhigh" require VIP/SVIP membership.
+     * 免费兜底档位（降序）。官方面板里「极高 HQ」起就是 VIP 档，但接口对该档
+     * 通常仍会给免费试听链，所以取链失败时依旧按 exhigh → higher → standard 回退。
      */
     public static final String[] FREE_FALLBACK_LEVELS = {"exhigh", "higher", "standard"};
 
@@ -711,7 +823,7 @@ public class MusicApiHelper {
      * falls back through exhigh → higher → standard → direct link.
      *
      * @param preferredLevel desired quality: standard / higher / exhigh / lossless / hires /
-     *                       jyeffect / sky / jymaster
+     *                       jyeffect / sky / dolby / jymaster
      */
     public static void getSongUrlWithQuality(long songId, String cookie,
                                              String preferredLevel, UrlCallback callback) {
@@ -740,64 +852,111 @@ public class MusicApiHelper {
      */
     public static void getSongUrlInfo(long songId, String cookie,
                                       String preferredLevel, SongUrlInfoCallback callback) {
-        executor.execute(() -> {
-            try {
-                String url = null;
-                boolean trialOnly = false;
-                MusicLog.op(TAG, "获取歌曲URL", "songId=" + songId + " level=" + preferredLevel);
+        final String flightKey = songId + "|" + preferredLevel + "|"
+                + (cookie == null ? 0 : cookie.hashCode());
+        synchronized (URL_FLIGHT_LOCK) {
+            List<SongUrlInfoCallback> waiters = URL_IN_FLIGHT.get(flightKey);
+            if (waiters != null) {
+                // 预取与手动切歌撞在同一首歌上时，只发一次网络请求
+                waiters.add(callback);
+                return;
+            }
+            waiters = new ArrayList<>();
+            waiters.add(callback);
+            URL_IN_FLIGHT.put(flightKey, waiters);
+        }
+        fetchSongUrlInfoInternal(songId, cookie, preferredLevel, flightKey);
+    }
 
-                // Try preferred level first (may need VIP/SVIP for higher tiers).
-                // Runs even with an EMPTY cookie on purpose: anonymous eapi
-                // returns the trial clip, and that trial flag is what routes
-                // the song through the watch gateway (guest session) below.
-                // Skipping here would fall through to the direct-link fallback
-                // with trialOnly=false and the gateway would never run.
+    /** 取链请求的所有等待者共用一个结果；失败也只回调一次集合。 */
+    private static void finishUrlFlight(String key, String url, boolean trial, String error) {
+        List<SongUrlInfoCallback> waiters;
+        synchronized (URL_FLIGHT_LOCK) {
+            waiters = URL_IN_FLIGHT.remove(key);
+        }
+        if (waiters == null || waiters.isEmpty()) return;
+        mainHandler.post(() -> {
+            for (SongUrlInfoCallback cb : waiters) {
+                // 单个回调抛异常不能拖累同一批次的其他等待者
                 try {
-                    JSONObject item = fetchSongUrlData(songId, cookie, preferredLevel);
-                    url = extractUrlFromItem(item);
-                    trialOnly = url != null && isTrialUrlItem(item);
-                    if (url != null) {
-                        MusicLog.d(TAG, "获取" + preferredLevel + " URL成功: " + songId
-                                + (trialOnly ? " (试听)" : ""));
+                    if (error == null) {
+                        cb.onResult(url, trial);
+                    } else {
+                        cb.onError(error);
                     }
                 } catch (Exception e) {
-                    MusicLog.w(TAG, "eapi " + preferredLevel + " 失败: " + songId, e);
+                    Log.w(TAG, "song url callback failed", e);
                 }
-
-                // Fallback through free quality levels
-                if (url == null) {
-                    for (String level : FREE_FALLBACK_LEVELS) {
-                        if (level.equals(preferredLevel)) continue; // already tried
-                        try {
-                            JSONObject item = fetchSongUrlData(songId, cookie, level);
-                            url = extractUrlFromItem(item);
-                            if (url != null) {
-                                trialOnly = isTrialUrlItem(item);
-                                MusicLog.d(TAG, "回落到" + level + " URL成功: " + songId
-                                        + (trialOnly ? " (试听)" : ""));
-                                break;
-                            }
-                        } catch (Exception e) {
-                            MusicLog.w(TAG, "eapi " + level + " 失败: " + songId, e);
-                        }
-                    }
-                }
-
-                // Last resort: direct link
-                if (url == null) {
-                    url = "https://music.163.com/song/media/outer/url?id=" + songId + ".mp3";
-                    trialOnly = false;
-                    MusicLog.w(TAG, "使用直连兜底URL: " + songId);
-                }
-
-                String finalUrl = url;
-                boolean finalTrial = trialOnly;
-                mainHandler.post(() -> callback.onResult(finalUrl, finalTrial));
-            } catch (Exception e) {
-                MusicLog.e(TAG, "getSongUrl 异常: " + songId, e);
-                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "未知错误"));
             }
         });
+    }
+
+    private static void fetchSongUrlInfoInternal(long songId, String cookie,
+                                                 String preferredLevel, String flightKey) {
+        try {
+            executor.execute(() -> {
+                try {
+                    String url = null;
+                    boolean trialOnly = false;
+                    MusicLog.op(TAG, "获取歌曲URL", "songId=" + songId + " level=" + preferredLevel);
+
+                    // Try preferred level first (may need VIP/SVIP for higher tiers).
+                    // Runs even with an EMPTY cookie on purpose: anonymous eapi
+                    // returns the trial clip, and that trial flag is what routes
+                    // the song through the watch gateway (guest session) below.
+                    // Skipping here would fall through to the direct-link fallback
+                    // with trialOnly=false and the gateway would never run.
+                    try {
+                        JSONObject item = fetchSongUrlData(songId, cookie, preferredLevel);
+                        url = extractUrlFromItem(item);
+                        trialOnly = url != null && isTrialUrlItem(item);
+                        if (url != null) {
+                            MusicLog.d(TAG, "获取" + preferredLevel + " URL成功: " + songId
+                                    + (trialOnly ? " (试听)" : ""));
+                        }
+                    } catch (Exception e) {
+                        MusicLog.w(TAG, "eapi " + preferredLevel + " 失败: " + songId, e);
+                    }
+
+                    // Fallback through free quality levels
+                    if (url == null) {
+                        for (String level : FREE_FALLBACK_LEVELS) {
+                            if (level.equals(preferredLevel)) continue; // already tried
+                            try {
+                                JSONObject item = fetchSongUrlData(songId, cookie, level);
+                                url = extractUrlFromItem(item);
+                                if (url != null) {
+                                    trialOnly = isTrialUrlItem(item);
+                                    MusicLog.d(TAG, "回落到" + level + " URL成功: " + songId
+                                            + (trialOnly ? " (试听)" : ""));
+                                    break;
+                                }
+                            } catch (Exception e) {
+                                MusicLog.w(TAG, "eapi " + level + " 失败: " + songId, e);
+                            }
+                        }
+                    }
+
+                    // Last resort: direct link
+                    if (url == null) {
+                        url = "https://music.163.com/song/media/outer/url?id=" + songId + ".mp3";
+                        trialOnly = false;
+                        MusicLog.w(TAG, "使用直连兜底URL: " + songId);
+                    }
+
+                    String finalUrl = url;
+                    boolean finalTrial = trialOnly;
+                    finishUrlFlight(flightKey, finalUrl, finalTrial, null);
+                } catch (Exception e) {
+                    MusicLog.e(TAG, "getSongUrl 异常: " + songId, e);
+                    finishUrlFlight(flightKey, null, false,
+                            e.getMessage() != null ? e.getMessage() : "未知错误");
+                }
+            });
+        } catch (Exception e) {
+            // 线程池拒绝（极端情况）也要把在途表清掉，否则后续同 key 请求永远等不到回调
+            finishUrlFlight(flightKey, null, false, "请求排队失败");
+        }
     }
 
     /**
@@ -836,9 +995,12 @@ public class MusicApiHelper {
                 String dlLevel    = priv.optString("dlLevel", "none");
                 String maxBrLevel = priv.optString("maxBrLevel", "exhigh");
 
-                SongQualityInfo info = new SongQualityInfo(flLevel, plLevel, dlLevel, maxBrLevel);
+                SongQualityInfo info = new SongQualityInfo(flLevel, plLevel, dlLevel,
+                        maxBrLevel, priv.has("plLevel"), priv.has("dlLevel"));
                 MusicLog.d(TAG, "音质信息: songId=" + songId
-                        + " fl=" + flLevel + " pl=" + plLevel + " max=" + maxBrLevel);
+                        + " fl=" + flLevel + " pl=" + plLevel + " dl=" + dlLevel
+                        + " max=" + maxBrLevel + " 账号档=" + info.accountTier()
+                        + " 播放权限=" + priv.has("plLevel") + " 下载权限=" + priv.has("dlLevel"));
                 mainHandler.post(() -> callback.onResult(info));
             } catch (Exception e) {
                 MusicLog.w(TAG, "getSongQualityInfo 失败: " + songId, e);
@@ -846,17 +1008,95 @@ public class MusicApiHelper {
             }
         });
     }
+
+    /**
+     * 批量查询音质权限，供歌单批量下载选档位前"先检测"用。
+     *
+     * /api/v3/song/detail 的 c 参数本来就支持多个 {"id":...}（项目里 fetchSongsByIds
+     * 已经按 200 首一批发过），所以这里按 100 首一批复用同一条链路，
+     * 不逐首发 N 次请求，避免 0.78GB 内存的儿童手表等太久。
+     */
+    public static void getSongsQualityInfo(List<Long> songIds, String cookie,
+                                           SongsQualityCallback callback) {
+        final List<Long> ids = new ArrayList<>();
+        if (songIds != null) {
+            for (Long id : songIds) {
+                if (id != null && id > 0 && !ids.contains(id)) {
+                    ids.add(id);
+                }
+            }
+        }
+        if (ids.isEmpty()) {
+            mainHandler.post(() -> callback.onResult(new java.util.HashMap<Long, SongQualityInfo>()));
+            return;
+        }
+
+        executor.execute(() -> {
+            final Map<Long, SongQualityInfo> result = new java.util.HashMap<>();
+            try {
+                String csrfToken = extractCsrfToken(cookie);
+                final int BATCH = 100;
+                for (int start = 0; start < ids.size(); start += BATCH) {
+                    int end = Math.min(start + BATCH, ids.size());
+                    JSONArray c = new JSONArray();
+                    for (int i = start; i < end; i++) {
+                        c.put(new JSONObject().put("id", ids.get(i)));
+                    }
+                    JSONObject data = new JSONObject();
+                    data.put("c", c.toString());
+                    data.put("csrf_token", csrfToken);
+
+                    String response = weapiPost("/api/v3/song/detail", data.toString(), cookie);
+                    JSONObject json = new JSONObject(response);
+                    JSONArray privileges = json.optJSONArray("privileges");
+                    if (privileges == null) continue;
+                    JSONArray songs = json.optJSONArray("songs");
+                    for (int i = 0; i < privileges.length(); i++) {
+                        JSONObject priv = privileges.optJSONObject(i);
+                        if (priv == null) continue;
+                        long id = priv.optLong("id", -1);
+                        if (id <= 0 && songs != null && i < songs.length()) {
+                            JSONObject s = songs.optJSONObject(i);
+                            if (s != null) id = s.optLong("id", -1);
+                        }
+                        // 极老的返回结构既没有 priv.id 也没有 songs[i].id，按请求顺序兜底
+                        if (id <= 0 && start + i < ids.size()) id = ids.get(start + i);
+                        if (id <= 0) continue;
+                        result.put(id, new SongQualityInfo(
+                                priv.optString("flLevel", "standard"),
+                                priv.optString("plLevel", "exhigh"),
+                                priv.optString("dlLevel", "none"),
+                                priv.optString("maxBrLevel", "exhigh"),
+                                priv.has("plLevel"), priv.has("dlLevel")));
+                    }
+                }
+                if (result.isEmpty()) {
+                    mainHandler.post(() -> callback.onError("无权限数据"));
+                    return;
+                }
+                mainHandler.post(() -> callback.onResult(result));
+            } catch (Exception e) {
+                MusicLog.w(TAG, "批量音质检测失败", e);
+                mainHandler.post(() -> callback.onError(
+                        e.getMessage() != null ? e.getMessage() : "未知错误"));
+            }
+        });
+    }
+
     /**
      * Fetch song URL using eapi crypto, which is required by /api/song/enhance/player/url/v1
      * for lossless and higher quality tiers (matches NeteaseCloudMusicApiBackup song_url_v1.js).
      */
     private static JSONObject fetchSongUrlData(long songId, String cookie, String level)
             throws Exception {
+        // 只放行已知档位：老配置存档或接口返回的 plLevel/dlLevel 出现新值时，
+        // 不能把未知字符串原样塞进 eapi 请求体（rank=-1 还会被误判成「可用」）
+        String safeLevel = qualityLevelRank(level) >= 0 ? level : "exhigh";
         JSONObject data = new JSONObject();
         data.put("ids", "[" + songId + "]");
-        data.put("level", level);
+        data.put("level", safeLevel);
         data.put("encodeType", "flac");
-        if ("sky".equals(level)) {
+        if ("sky".equals(safeLevel)) {
             data.put("immerseType", "c51");
         }
 

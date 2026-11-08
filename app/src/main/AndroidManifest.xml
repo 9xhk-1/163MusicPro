@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:name=".MusicApp"
@@ -49,7 +50,6 @@
         <activity android:name=".activity.CookieLoginActivity" android:exported="false" />
         <activity android:name=".activity.PasswordLoginActivity" android:exported="false" />
         <activity android:name=".activity.LyricsActivity" android:exported="false" />
-        <activity android:name=".activity.RingtoneListActivity" android:exported="false" />
         <activity android:name=".activity.ProfileActivity" android:exported="false" />
         <activity android:name=".activity.TopListActivity" android:exported="false" />
         <activity android:name=".activity.TopListDetailActivity" android:exported="false" />
@@ -69,14 +69,6 @@
         <activity android:name=".activity.UpdateActivity" android:exported="false" />
         <activity android:name=".activity.MvDetailActivity" android:exported="false" />
         <activity android:name=".activity.MvPlayerActivity" android:exported="false" />
-        <activity android:name=".activity.BilibiliActivity" android:exported="false" />
-        <activity android:name=".activity.BilibiliBvidActivity" android:exported="false" />
-        <activity android:name=".activity.BilibiliLoginActivity" android:exported="false" />
-        <activity android:name=".activity.BilibiliFavoritesActivity" android:exported="false" />
-        <activity android:name=".activity.BilibiliPlaylistActivity" android:exported="false" />
-        <activity android:name=".activity.BilibiliSearchActivity" android:exported="false" />
-        <activity android:name=".activity.BilibiliCloudFavoritesActivity" android:exported="false" />
-        <activity android:name=".activity.BilibiliCloudFavoriteVideosActivity" android:exported="false" />
         <activity android:name=".activity.PersonalFMActivity" android:exported="false" />
         <activity android:name=".activity.BackgroundSettingsActivity" android:exported="false" />
         <activity android:name=".activity.AlbumDetailActivity" android:exported="false" />
@@ -93,7 +85,8 @@
 
         <service
             android:name=".service.MusicPlaybackService"
-            android:exported="false" />
+            android:exported="false"
+            android:stopWithTask="false" />
 
         <receiver
             android:name=".service.HeadsetMediaButtonReceiver"

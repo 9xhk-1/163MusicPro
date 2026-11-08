@@ -2,7 +2,11 @@ package com.qinghe.music163pro.activity;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
@@ -39,6 +43,7 @@ public class SettingsActivity extends AppCompatActivity {
         View btnOpenSource = findViewById(R.id.btn_settings_open_source);
         View btnXtcModule = findViewById(R.id.btn_settings_xtc_module);
         View btnBackground = findViewById(R.id.btn_settings_background);
+        View btnBattery = findViewById(R.id.btn_settings_battery);
 
         btnToggle.setOnClickListener(v ->
                 startActivity(new Intent(this, ToggleSettingsActivity.class)));
@@ -62,6 +67,48 @@ public class SettingsActivity extends AppCompatActivity {
 
         btnBackground.setOnClickListener(v ->
                 startActivity(new Intent(this, BackgroundSettingsActivity.class)));
+
+        btnBattery.setOnClickListener(v -> openBatterySettings());
+    }
+
+    /**
+     * 后台保活：申请把本应用加入电池优化白名单。
+     * 华为/荣耀儿童手表还会有一层自家"应用启动管理"，系统弹窗之外需要手动允许后台活动。
+     */
+    private void openBatterySettings() {
+        boolean ignoring = false;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+            ignoring = pm != null && pm.isIgnoringBatteryOptimizations(getPackageName());
+        }
+        if (ignoring) {
+            Toast.makeText(this, "已在电池优化白名单中。若仍被杀，请在系统「应用启动管理」里允许本应用后台活动",
+                    Toast.LENGTH_LONG).show();
+            openAppDetails();
+            return;
+        }
+        try {
+            Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+            intent.setData(Uri.parse("package:" + getPackageName()));
+            startActivity(intent);
+            Toast.makeText(this, "请选择「允许」，再到系统设置里允许本应用后台活动", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            try {
+                startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+            } catch (Exception e2) {
+                openAppDetails();
+            }
+        }
+    }
+
+    private void openAppDetails() {
+        try {
+            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            intent.setData(Uri.parse("package:" + getPackageName()));
+            startActivity(intent);
+        } catch (Exception e) {
+            Toast.makeText(this, "请到系统设置里手动允许本应用后台运行", Toast.LENGTH_LONG).show();
+        }
     }
 
     private void checkUpdateManually() {
