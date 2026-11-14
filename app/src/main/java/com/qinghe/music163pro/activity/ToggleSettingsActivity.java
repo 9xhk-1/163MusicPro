@@ -39,6 +39,8 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private static final String PREF_DISPLAY_SONG_ALIAS = "display_song_alias";
     private static final String PREF_SLEEP_TIMER_MODE = "sleep_timer_mode";
     private static final String PREF_FAV_MODE_CLOUD = "fav_mode_cloud";
+    /** Player page MD3 chrome (filled tinted buttons); off = bare white icons. */
+    private static final String PREF_PLAYER_MD3 = "player_md3";
     /** Sheet/image save directory; default = first preset, /sdcard/Pictures. */
     private static final String PREF_IMAGE_SAVE_DIR = "image_save_dir";
     private static final String[] IMAGE_SAVE_PRESETS = {
@@ -61,6 +63,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
     private MaterialSwitch switchUseWatchApi;
     private MaterialSwitch switchDisplaySongAlias;
     private MaterialSwitch switchBackGesture;
+    private MaterialSwitch switchPlayerMd3;
     private TextView tvFavModeValue;
     private TextView tvSleepTimerModeValue;
     private TextView tvSpeedModeValue;
@@ -94,6 +97,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         switchUseWatchApi = findViewById(R.id.switch_use_watch_api);
         switchDisplaySongAlias = findViewById(R.id.switch_display_song_alias);
         switchBackGesture = findViewById(R.id.switch_back_gesture);
+        switchPlayerMd3 = findViewById(R.id.switch_player_md3);
         // Make the entire row a target; tapping the switch itself still toggles once.
         for (MaterialSwitch control : new MaterialSwitch[]{switchKeepScreenOn,
                 switchSleepTimerExitApp, switchSkipTrialSongs, switchUseWatchApi,
@@ -172,6 +176,14 @@ public class ToggleSettingsActivity extends AppCompatActivity {
                     Toast.LENGTH_SHORT).show();
         });
 
+        switchPlayerMd3.setOnCheckedChangeListener((btn, isChecked) -> {
+            if (updatingSwitch) return;
+            prefs.edit().putBoolean(PREF_PLAYER_MD3, isChecked).apply();
+            Toast.makeText(this,
+                    isChecked ? "播放器页面已恢复 MD3 着色" : "播放器按钮已恢复纯白图标",
+                    Toast.LENGTH_SHORT).show();
+        });
+
         // Selection rows all open a single-choice dialog (same as 图片保存地址)
         if (rowFavMode != null) rowFavMode.setOnClickListener(v -> editFavMode());
         if (rowSleepTimerMode != null) rowSleepTimerMode.setOnClickListener(v -> editSleepTimerMode());
@@ -197,6 +209,7 @@ public class ToggleSettingsActivity extends AppCompatActivity {
         switchDisplaySongAlias.setChecked(prefs.getBoolean(PREF_DISPLAY_SONG_ALIAS, true));
         switchUseWatchApi.setChecked(prefs.getBoolean(PREF_USE_WATCH_API, true));
         switchBackGesture.setChecked(prefs.getBoolean(PREF_BACK_GESTURE, false));
+        switchPlayerMd3.setChecked(prefs.getBoolean(PREF_PLAYER_MD3, true));
         updatingSwitch = false;
         updateFavModeValue();
         updateSleepTimerModeValue();

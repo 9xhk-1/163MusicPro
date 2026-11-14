@@ -367,6 +367,18 @@ public class MusicPlayerManager {
                 if (song != null) {
                     song.setUrl(null);
                 }
+                // Resume from where the error hit instead of restarting the
+                // whole song: a mid-play URL death used to replay the track
+                // from 0:00 (resumePositionMs is still the value captured at
+                // the original play() call, i.e. 0).
+                int posAtError = 0;
+                try {
+                    int pos = mp.getCurrentPosition();
+                    int dur = mp.getDuration();
+                    if (pos > 0 && (dur <= 0 || pos < dur)) posAtError = pos;
+                } catch (Exception ignored) {
+                }
+                final int resumeAt = posAtError > 0 ? posAtError : resumePositionMs;
                 // Retry without cached URL — but only ONCE per song: without a
                 // guard a dead URL loops forever (error -> getSongUrl -> same
                 // dead URL -> error ...), hammering the API every ~300ms.
@@ -379,7 +391,7 @@ public class MusicPlayerManager {
                                 public void onResult(String retryUrl) {
                                     if (retryUrl != null) {
                                         song.setUrl(retryUrl);
-                                        play(retryUrl, resumePositionMs, shouldPlayWhenReady);
+                                        play(retryUrl, resumeAt, shouldPlayWhenReady);
                                     } else if (callback != null) {
                                         mainHandler.post(() -> callback.onError(
                                                 "播放错误: " + what));
@@ -521,21 +533,29 @@ public class MusicPlayerManager {
     }
 
     public int getCurrentPosition() {
+        int pos;
         if (usingExoPlayer && exoPlayer != null) {
             try {
-                return (int) exoPlayer.getCurrentPosition();
+                pos = (int) exoPlayer.getCurrentPosition();
             } catch (Exception e) {
-                return 0;
+                pos = 0;
             }
-        }
-        if (mediaPlayer != null) {
+        } else if (mediaPlayer != null) {
             try {
-                return mediaPlayer.getCurrentPosition();
+                pos = mediaPlayer.getCurrentPosition();
             } catch (Exception e) {
-                return 0;
+                pos = 0;
             }
+        } else {
+            pos = 0;
         }
-        return 0;
+        // Players can transiently report a position past the reported
+        // duration near the end of a track (crashed the seek slider before);
+        // clamp so no consumer can see an out-of-range value.
+        if (pos < 0) pos = 0;
+        int dur = getDuration();
+        if (dur > 0 && pos > dur) pos = dur;
+        return pos;
     }
 
     public int getDuration() {

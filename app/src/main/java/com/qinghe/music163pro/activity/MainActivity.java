@@ -583,6 +583,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 getWindow().getDecorView().findViewById(android.R.id.content));
         // Keep the cover background in sync with the current song
         updateCoverBackground();
+        // Player button chrome follows the 播放器页面MD3化 switch live
+        applyPlayerChrome();
+        if (lyricsOverlayShowing && btnTranslationToggle != null) {
+            updateTranslationButton();
+        }
         // Preload cloud liked IDs cache so overlay shows correct favorite state
         if (prefs.getBoolean("fav_mode_cloud", false)) {
             refreshCloudLikedIds();
@@ -2249,6 +2254,47 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
      * Refresh the toggle button label/color for the current mode.
      * Without romanization: original "译" / "译✓". With romanization: cycle 关闭 -> 意✓ -> 音✓.
      */
+    /** 播放器页面MD3化: filled tinted buttons (default) vs bare white icons. */
+    private boolean isPlayerMd3() {
+        return getSharedPreferences("music163_settings", MODE_PRIVATE)
+                .getBoolean("player_md3", true);
+    }
+
+    /**
+     * Apply the player-page button chrome per the 播放器页面MD3化 setting:
+     * MD3 on = filled tinted icon buttons; off = transparent background with
+     * plain white icons (the pre-MD3 look). Called from onResume so toggling
+     * the switch in settings takes effect without reopening the app.
+     */
+    private void applyPlayerChrome() {
+        boolean md3 = isPlayerMd3();
+        int[] ids = {R.id.btn_more, R.id.btn_playlist_indicator, R.id.btn_prev,
+                R.id.btn_play, R.id.btn_next, R.id.btn_vol_down, R.id.btn_favorite,
+                R.id.btn_vol_up};
+        for (int id : ids) {
+            android.view.View v = findViewById(id);
+            if (!(v instanceof MaterialButton)) continue;
+            MaterialButton b = (MaterialButton) v;
+            if (md3) {
+                if (id == R.id.btn_play) {
+                    b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                            getResources().getColor(R.color.colorPrimary)));
+                    b.setIconTint(android.content.res.ColorStateList.valueOf(
+                            getResources().getColor(R.color.on_primary)));
+                } else {
+                    b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                            getResources().getColor(R.color.primary_container)));
+                    b.setIconTint(android.content.res.ColorStateList.valueOf(
+                            getResources().getColor(R.color.on_primary_container)));
+                }
+            } else {
+                b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                        android.graphics.Color.TRANSPARENT));
+                b.setIconTint(android.content.res.ColorStateList.valueOf(0xFFFFFFFF));
+            }
+        }
+    }
+
     private void updateTranslationButton() {
         if (btnTranslationToggle == null) return;
         boolean hasRoma = !romanizationMap.isEmpty();
@@ -2268,10 +2314,17 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             active = translateMode == 1;
             btnTranslationToggle.setText("译");
         }
-        btnTranslationToggle.setTextColor(getResources().getColor(active
-                ? R.color.on_primary_container : R.color.text_secondary));
-        btnTranslationToggle.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
-                getResources().getColor(active ? R.color.primary_container : R.color.surface_elevated)));
+        if (isPlayerMd3()) {
+            btnTranslationToggle.setTextColor(getResources().getColor(active
+                    ? R.color.on_primary_container : R.color.text_secondary));
+            btnTranslationToggle.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                    getResources().getColor(active ? R.color.primary_container : R.color.surface_elevated)));
+        } else {
+            // MD3 off: bare white text, no filled background
+            btnTranslationToggle.setTextColor(0xFFFFFFFF);
+            btnTranslationToggle.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                    android.graphics.Color.TRANSPARENT));
+        }
     }
 
     private void displayLyricsInOverlay() {
@@ -3881,7 +3934,11 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 int current = playerManager.getCurrentPosition();
                 int duration = playerManager.getDuration();
                 if (duration > 0) {
-                    seekBar.setValue((float) (1000L * current / duration));
+                    // Players can transiently report a position past the
+                    // reported duration near the end of a track; an unclamped
+                    // value (>1000) crashes the slider during draw.
+                    int safeCurrent = Math.max(0, Math.min(current, duration));
+                    seekBar.setValue((float) (1000L * safeCurrent / duration));
                     tvCurrentTime.setText(formatTime(current));
                     tvTotalTime.setText(formatTime(duration));
                     updateChorusMarker(duration);
