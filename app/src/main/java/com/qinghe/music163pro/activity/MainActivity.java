@@ -2252,7 +2252,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
 
     /**
      * Refresh the toggle button label/color for the current mode.
-     * Without romanization: original "译" / "译✓". With romanization: cycle 关闭 -> 意✓ -> 音✓.
+     * With romanization the button cycles 关(off) -> 意 -> 音; without it,
+     * 译 on/off. States must stay visually distinct even with the MD3
+     * chrome disabled, or the off state becomes unreachable in practice.
      */
     /** 播放器页面MD3化: filled tinted buttons (default) vs bare white icons. */
     private boolean isPlayerMd3() {
@@ -2307,7 +2309,8 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
                 btnTranslationToggle.setText("音");
                 active = true;
             } else {
-                btnTranslationToggle.setText("译");
+                // Explicit off label — "译" read as "translation on" next to 意/音
+                btnTranslationToggle.setText("关");
                 active = false;
             }
         } else {
@@ -2320,8 +2323,9 @@ public class MainActivity extends AppCompatActivity implements MusicPlayerManage
             btnTranslationToggle.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
                     getResources().getColor(active ? R.color.primary_container : R.color.surface_elevated)));
         } else {
-            // MD3 off: bare white text, no filled background
-            btnTranslationToggle.setTextColor(0xFFFFFFFF);
+            // MD3 off: the original pre-MD3 look — purple text when active,
+            // dim white when off (both states must stay distinguishable).
+            btnTranslationToggle.setTextColor(active ? 0xFFBB86FC : 0x80FFFFFF);
             btnTranslationToggle.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
                     android.graphics.Color.TRANSPARENT));
         }
