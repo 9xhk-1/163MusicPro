@@ -355,7 +355,16 @@ public class MusicPlayerManager {
                     notifyPlayStateChanged(false);
                 }
             });
-            mediaPlayer.setOnCompletionListener(mp -> onSongCompleted());
+            mediaPlayer.setOnCompletionListener(mp -> {
+                // Capture the stop position while the player is still alive;
+                // a premature value triggers the truncated-stream resume.
+                int atMs = 0;
+                try {
+                    atMs = mp.getCurrentPosition();
+                } catch (Exception ignored) {
+                }
+                onSongCompleted(atMs);
+            });
             mediaPlayer.setOnErrorListener((mp, what, extra) -> {
                 // what==-38 is ENOSYS ("function not implemented") fired asynchronously
                 // by setPlaybackParams() on watch devices (Android 7-8.1) that lack
@@ -598,9 +607,46 @@ public class MusicPlayerManager {
      * Behavior depends on play mode.
      */
     private void onSongCompleted() {
+        onSongCompleted(0);
+    }
+
+    private void onSongCompleted(int completedAtMs) {
         isPlaying = false;
         notifyPlayStateChanged(false);
         if (playlist.isEmpty()) return;
+        // A cleanly-dropped stream connection (CDN cut, dead Wi-Fi) surfaces
+        // as a normal EOF — onCompletion/STATE_ENDED, not onError — so the
+        // song "ends" minutes early and the loop modes restart it from 0:00.
+        // If playback stopped well before the reported duration, refetch the
+        // URL once and resume at the cut-off instead. A second occurrence
+        // falls through to the normal end-of-song behavior (no loop).
+        Song song = getCurrentSong();
+        int reportedDuration = getDuration();
+        if (song != null && !song.isBilibili() && !song.isForceLocalPlayback()
+                && reportedDuration > 0 && completedAtMs > 0
+                && completedAtMs < reportedDuration - 3000
+                && song.getId() != errorRetrySongId) {
+            errorRetrySongId = song.getId();
+            String cookie = getCookie();
+            MusicApiHelper.getSongUrl(song.getId(), cookie, false,
+                    new MusicApiHelper.UrlCallback() {
+                        @Override
+                        public void onResult(String retryUrl) {
+                            if (retryUrl != null) {
+                                song.setUrl(retryUrl);
+                                play(retryUrl, completedAtMs, true);
+                            } else {
+                                onSongCompleted(0);
+                            }
+                        }
+
+                        @Override
+                        public void onError(String message) {
+                            onSongCompleted(0);
+                        }
+                    });
+            return;
+        }
         reportScrobble(true);
         switch (playMode) {
             case SINGLE_REPEAT:
