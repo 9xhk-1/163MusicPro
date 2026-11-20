@@ -326,97 +326,16 @@ public class MusicPlayerManager {
     private void play(String url, int resumePositionMs, boolean shouldPlayWhenReady) {
         stop();
         cancelBilibiliRefreshTimer();
-        mediaPlayer = new MediaPlayer();
-        try {
-            if (appContext != null) {
-                mediaPlayer.setWakeMode(appContext, PowerManager.PARTIAL_WAKE_LOCK);
-            }
-            mediaPlayer.setAudioAttributes(
-                    new AudioAttributes.Builder()
-                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .build());
-            mediaPlayer.setDataSource(url);
-            mediaPlayer.setOnPreparedListener(mp -> {
-                if (resumePositionMs > 0) {
-                    try {
-                        mp.seekTo(resumePositionMs);
-                    } catch (Exception e) {
-                        Log.w(TAG, "Error restoring playback position", e);
-                    }
-                }
-                applyPlaybackSpeed();
-                if (shouldPlayWhenReady) {
-                    mp.start();
-                    isPlaying = true;
-                    notifyPlayStateChanged(true);
-                } else {
-                    isPlaying = false;
-                    notifyPlayStateChanged(false);
-                }
-            });
-            mediaPlayer.setOnCompletionListener(mp -> onSongCompleted());
-            mediaPlayer.setOnErrorListener((mp, what, extra) -> {
-                // what==-38 is ENOSYS ("function not implemented") fired asynchronously
-                // by setPlaybackParams() on watch devices (Android 7-8.1) that lack
-                // time-stretch support.  Playback is unaffected; silently ignore it.
-                if (what == -38) return true;
-                isPlaying = false;
-                notifyPlayStateChanged(false);
-                Song song = getCurrentSong();
-                if (song != null) {
-                    song.setUrl(null);
-                }
-                // Resume from where the error hit instead of restarting the
-                // whole song: a mid-play URL death used to replay the track
-                // from 0:00 (resumePositionMs is still the value captured at
-                // the original play() call, i.e. 0).
-                int posAtError = 0;
-                try {
-                    int pos = mp.getCurrentPosition();
-                    int dur = mp.getDuration();
-                    if (pos > 0 && (dur <= 0 || pos < dur)) posAtError = pos;
-                } catch (Exception ignored) {
-                }
-                final int resumeAt = posAtError > 0 ? posAtError : resumePositionMs;
-                // Retry without cached URL — but only ONCE per song: without a
-                // guard a dead URL loops forever (error -> getSongUrl -> same
-                // dead URL -> error ...), hammering the API every ~300ms.
-                if (song != null && song.getId() != errorRetrySongId) {
-                    errorRetrySongId = song.getId();
-                    String cookie = getCookie();
-                    MusicApiHelper.getSongUrl(song.getId(), cookie, false,
-                            new MusicApiHelper.UrlCallback() {
-                                @Override
-                                public void onResult(String retryUrl) {
-                                    if (retryUrl != null) {
-                                        song.setUrl(retryUrl);
-                                        play(retryUrl, resumeAt, shouldPlayWhenReady);
-                                    } else if (callback != null) {
-                                        mainHandler.post(() -> callback.onError(
-                                                "播放错误: " + what));
-                                    }
-                                }
-
-                                @Override
-                                public void onError(String message) {
-                                    if (callback != null) {
-                                        mainHandler.post(() -> callback.onError(
-                                                "播放错误: " + what));
-                                    }
-                                }
-                            });
-                } else if (callback != null) {
-                    mainHandler.post(() -> callback.onError("播放错误: " + what));
-                }
-                return true;
-            });
-            mediaPlayer.prepareAsync();
-        } catch (Exception e) {
-            if (callback != null) {
-                mainHandler.post(() -> callback.onError(e.getMessage()));
-            }
-        }
+        // Stream netease via ExoPlayer instead of MediaPlayer. MediaPlayer's
+        // NuCachedSource2 prefetches its whole cache at line speed and then
+        // only sends keep-alives; the netease CDN reaps such an idle
+        // connection after ~2 minutes, so when playback drains the cache
+        // (~3 min at 320kbps) prefetch resumes on a dead socket and the
+        // song "ends" minutes early (NuCachedSource2 error -1010).
+        // ExoPlayer reads on demand with Range requests — the connection
+        // never idles — and retries a dropped connection transparently.
+        Song song = getCurrentSong();
+        playWithHeaders(song, url, resumePositionMs, shouldPlayWhenReady);
     }
 
     /**
@@ -482,6 +401,39 @@ public class MusicPlayerManager {
         }
     }
 
+    /**
+     * Watch Wi-Fi drops into power-save when the screen is off and stalls
+     * active stream connections (songs cut mid-play, e.g. "replays at 3:23"
+     * reports). Hold a high-perf Wi-Fi lock for the whole streaming session
+     * so the radio stays at full throughput while playing.
+     */
+    private android.net.wifi.WifiManager.WifiLock wifiLock;
+
+    private void acquireWifiLock() {
+        if (wifiLock != null) return;
+        try {
+            android.net.wifi.WifiManager wm = (android.net.wifi.WifiManager)
+                    appContext.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (wm == null) return;
+            android.net.wifi.WifiManager.WifiLock lock = wm.createWifiLock(
+                    android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF, "music163pro:stream");
+            lock.setReferenceCounted(false);
+            lock.acquire();
+            wifiLock = lock;
+        } catch (Exception e) {
+            Log.w(TAG, "WifiLock acquire failed", e);
+            wifiLock = null;
+        }
+    }
+
+    private void releaseWifiLock() {
+        try {
+            if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
+        } catch (Exception ignored) {
+        }
+        wifiLock = null;
+    }
+
     public void pause() {
         if (usingExoPlayer && exoPlayer != null) {
             exoPlayer.pause();
@@ -492,6 +444,7 @@ public class MusicPlayerManager {
             isPlaying = false;
             notifyPlayStateChanged(false);
         }
+        releaseWifiLock();
     }
 
     public void resume() {
@@ -504,6 +457,7 @@ public class MusicPlayerManager {
             isPlaying = true;
             notifyPlayStateChanged(true);
         }
+        acquireWifiLock();
     }
 
     public void stop() {
@@ -530,6 +484,7 @@ public class MusicPlayerManager {
         isPlaying = false;
         currentlyPlayingSongId = -1;
         usingExoPlayer = false;
+        releaseWifiLock();
     }
 
     public int getCurrentPosition() {
@@ -598,9 +553,46 @@ public class MusicPlayerManager {
      * Behavior depends on play mode.
      */
     private void onSongCompleted() {
+        onSongCompleted(0);
+    }
+
+    private void onSongCompleted(int completedAtMs) {
         isPlaying = false;
         notifyPlayStateChanged(false);
         if (playlist.isEmpty()) return;
+        // A cleanly-dropped stream connection (CDN cut, dead Wi-Fi) surfaces
+        // as a normal EOF — onCompletion/STATE_ENDED, not onError — so the
+        // song "ends" minutes early and the loop modes restart it from 0:00.
+        // If playback stopped well before the reported duration, refetch the
+        // URL once and resume at the cut-off instead. A second occurrence
+        // falls through to the normal end-of-song behavior (no loop).
+        Song song = getCurrentSong();
+        int reportedDuration = getDuration();
+        if (song != null && !song.isBilibili() && !song.isForceLocalPlayback()
+                && reportedDuration > 0 && completedAtMs > 0
+                && completedAtMs < reportedDuration - 3000
+                && song.getId() != errorRetrySongId) {
+            errorRetrySongId = song.getId();
+            String cookie = getCookie();
+            MusicApiHelper.getSongUrl(song.getId(), cookie, false,
+                    new MusicApiHelper.UrlCallback() {
+                        @Override
+                        public void onResult(String retryUrl) {
+                            if (retryUrl != null) {
+                                song.setUrl(retryUrl);
+                                play(retryUrl, completedAtMs, true);
+                            } else {
+                                onSongCompleted(0);
+                            }
+                        }
+
+                        @Override
+                        public void onError(String message) {
+                            onSongCompleted(0);
+                        }
+                    });
+            return;
+        }
         reportScrobble(true);
         switch (playMode) {
             case SINGLE_REPEAT:
@@ -1015,7 +1007,7 @@ public class MusicPlayerManager {
      * Play audio with Bilibili-specific headers (Referer required).
      */
     private void playWithHeaders(String url) {
-        playWithHeaders(getCurrentSong(), url, 0);
+        playWithHeaders(getCurrentSong(), url, 0, true);
     }
 
     /**
@@ -1026,10 +1018,17 @@ public class MusicPlayerManager {
      */
     @OptIn(markerClass = UnstableApi.class)
     private void playWithHeaders(Song song, String url, int resumePositionMs) {
+        playWithHeaders(song, url, resumePositionMs, true);
+    }
+
+    @OptIn(markerClass = UnstableApi.class)
+    private void playWithHeaders(Song song, String url, int resumePositionMs,
+                                 boolean playWhenReady) {
         stop();
         cancelBilibiliRefreshTimer();
         prefetchedBilibiliUrl = null;
         usingExoPlayer = true;
+        acquireWifiLock();
 
         if (appContext == null) {
             if (callback != null) {
@@ -1052,10 +1051,15 @@ public class MusicPlayerManager {
                     .setPrioritizeTimeOverSizeThresholds(true)
                     .build();
 
-            // HTTP DataSource with Bilibili headers
+            // HTTP headers: Bilibili needs Referer; netease CDN just wants a
+            // non-empty User-Agent.
             Map<String, String> headers = new HashMap<>();
-            headers.put("Referer", "https://www.bilibili.com");
-            headers.put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+            if (song != null && song.isBilibili()) {
+                headers.put("Referer", "https://www.bilibili.com");
+                headers.put("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+            } else {
+                headers.put("User-Agent", "Mozilla/5.0 (Linux; Android 8.1; Watch) 163MusicPro");
+            }
 
             DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory()
                     .setDefaultRequestProperties(headers)
@@ -1089,16 +1093,24 @@ public class MusicPlayerManager {
                     if (state == Player.STATE_READY && !prepared) {
                         prepared = true;
                         applyPlaybackSpeed();
-                        isPlaying = true;
+                        isPlaying = playWhenReady;
                         if (targetSong != null && targetSong.isBilibili()) {
                             bilibiliRetrySongId = targetSong.getId();
                             startBilibiliRefreshTimer(targetSong);
                         }
-                        notifyPlayStateChanged(true);
+                        notifyPlayStateChanged(playWhenReady);
                     } else if (state == Player.STATE_ENDED) {
                         isPlaying = false;
                         cancelBilibiliRefreshTimer();
-                        onSongCompleted();
+                        // Capture the stop position while the player is still
+                        // alive; a premature value triggers the truncated-
+                        // stream resume instead of a 0:00 replay.
+                        int atMs = 0;
+                        try {
+                            atMs = (int) exoPlayer.getCurrentPosition();
+                        } catch (Exception ignored) {
+                        }
+                        onSongCompleted(atMs);
                     }
                 }
 
@@ -1129,9 +1141,45 @@ public class MusicPlayerManager {
                         }
                         return;
                     }
+                    if (currentSong != null
+                            && !currentSong.isBilibili()
+                            && currentSong.getId() != errorRetrySongId) {
+                        // Netease stream error: same single-retry contract as
+                        // the old MediaPlayer path — refetch the URL once and
+                        // resume at the error position.
+                        errorRetrySongId = currentSong.getId();
+                        currentSong.setUrl(null);
+                        final int pos = getCurrentPosition();
+                        String cookie = getCookie();
+                        MusicApiHelper.getSongUrl(currentSong.getId(), cookie, false,
+                                new MusicApiHelper.UrlCallback() {
+                                    @Override
+                                    public void onResult(String retryUrl) {
+                                        if (retryUrl != null) {
+                                            currentSong.setUrl(retryUrl);
+                                            currentlyPlayingSongId = currentSong.getId();
+                                            playWithHeaders(currentSong, retryUrl, Math.max(pos, 0));
+                                        } else if (callback != null) {
+                                            mainHandler.post(() -> callback.onError(
+                                                    "播放失败，重试后仍无法获取歌曲链接"));
+                                        }
+                                    }
+
+                                    @Override
+                                    public void onError(String message) {
+                                        if (callback != null) {
+                                            mainHandler.post(() -> callback.onError(
+                                                    "播放错误: " + message));
+                                        }
+                                    }
+                                });
+                        return;
+                    }
                     if (callback != null) {
                         String errMsg = error.getMessage() != null ? error.getMessage() : "unknown";
-                        mainHandler.post(() -> callback.onError("B站播放错误: " + errMsg));
+                        mainHandler.post(() -> callback.onError(
+                                (currentSong != null && currentSong.isBilibili()
+                                        ? "B站播放错误: " : "播放错误: ") + errMsg));
                     }
                 }
             });
